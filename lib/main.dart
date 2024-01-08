@@ -1,7 +1,9 @@
+import 'package:djsports/example/auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -111,6 +113,14 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            // add a button to run a function with text Spotify Auth
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to the second screen using a named route.
+                testAuth();
+              },
+              child: const Text('Spotify Auth'),
             ),
           ],
         ),

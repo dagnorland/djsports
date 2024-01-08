@@ -1,3 +1,4 @@
 {
-    "dart.flutterSdkPath": "~/.fvm-pub-cache/3.16.5"
+    "dart.flutterSdkPath": "~/.fvm-pub-cache/3.16.5",
+    "java.configuration.updateBuildConfiguration": "automatic"
 }
