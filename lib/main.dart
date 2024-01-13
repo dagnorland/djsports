@@ -1,17 +1,44 @@
+import 'package:djsports/data/models/djplaylist_model.dart';
+import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/example/auth.dart';
+import 'package:djsports/features/playlist/djplaylist_home.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Riverpod
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-void main() {
-  runApp(const ProviderScope(child: MyApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  /// Initilize Hive Database
+  await Hive.initFlutter();
+
+  /// Register Adapater Which we have generated Class Name Like Model Class name+Adapter
+  Hive.registerAdapter(DJPlaylistAdapter());
+  Hive.registerAdapter(DJTrackAdapter());
+
+  // parameter to delete all data from database
+  const deleteAllData =
+      bool.fromEnvironment('DELETE_ALL_DATA', defaultValue: false);
+  if (deleteAllData) {
+    await Hive.deleteBoxFromDisk('djplaylist');
+    await Hive.deleteBoxFromDisk('djtrack');
+  }
+
+  /// Give  Database Name anything you want, here todos is My database Name
+  await Hive.openBox<DJPlaylist>('djplaylist');
+  await Hive.openBox<DJTrack>('djtrack');
+
+  /// Here I'm Using RiverPod for StateManagement so Wrapping MyApp with ProviderScope
+  runApp(const ProviderScope(child: DJSportsApp()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DJSportsApp extends ConsumerWidget {
+  const DJSportsApp({super.key});
 
   // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -30,10 +57,12 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.redAccent),
+        primaryColor: Colors.red.withOpacity(0.7),
+
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(),
     );
   }
 }

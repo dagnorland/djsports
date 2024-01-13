@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:djsports/example/spotify_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart' as spotify;
 import 'package:spotify_sdk/enums/image_dimension_enum.dart';
 import 'package:spotify_sdk/enums/repeat_mode_enum.dart';
@@ -15,7 +16,7 @@ import 'package:spotify_sdk/models/player_state.dart';
 import 'package:logger/logger.dart';
 
 Future<void> main() async {
-  runApp(const Home());
+  runApp(const ProviderScope(child: Home()));
 }
 
 /// A [StatefulWidget] which uses:

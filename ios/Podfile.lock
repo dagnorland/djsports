@@ -1,20 +1,27 @@
 PODS:
   - Flutter (1.0.0)
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - spotify_sdk (0.0.1):
     - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - spotify_sdk (from `.symlinks/plugins/spotify_sdk/ios`)
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   spotify_sdk:
     :path: ".symlinks/plugins/spotify_sdk/ios"
 
 SPEC CHECKSUMS:
   Flutter: f04841e97a9d0b0a8025694d0796dd46242b2854
+  path_provider_foundation: 29f094ae23ebbca9d3d0cec13889cd9060c0e943
   spotify_sdk: 63cc13896c9ff93c4d023e03bb4b9b516602f355
 
 PODFILE CHECKSUM: 70d9d25280d0dd177a5f637cdb0f0b0b12c6a189
