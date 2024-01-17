@@ -10,8 +10,7 @@ const String djtrackBoxName = "djtrack";
 @JsonSerializable()
 class DJTrack extends HiveObject {
   DJTrack(
-      {required this.id,
-      required this.name,
+      {required this.name,
       required this.album,
       required this.artist,
       required this.startTime,
@@ -19,7 +18,8 @@ class DJTrack extends HiveObject {
       required this.duration,
       required this.playCount,
       required this.spotifyUri,
-      required this.mp3Path});
+      required this.mp3Uri})
+      : id = const Uuid().v4();
 
   @HiveField(0)
   String id;
@@ -40,13 +40,12 @@ class DJTrack extends HiveObject {
   @HiveField(8)
   String spotifyUri;
   @HiveField(9)
-  String mp3Path;
+  String mp3Uri;
 
   factory DJTrack.fromJson(Map<String, dynamic> json) =>
       _$DJTrackFromJson(json);
 
   factory DJTrack.empty() => DJTrack(
-      id: const Uuid().v4().toString(),
       name: "empty",
       album: "empty",
       artist: "",
@@ -55,7 +54,7 @@ class DJTrack extends HiveObject {
       duration: 0,
       playCount: 0,
       spotifyUri: '',
-      mp3Path: '');
+      mp3Uri: '');
 
   factory DJTrack.simple(
           {required String name,
@@ -63,7 +62,6 @@ class DJTrack extends HiveObject {
           required String artist,
           String spotifyUri = 'spotify:track:2USlegnFJLrVLpoVfPimKB'}) =>
       DJTrack(
-          id: const Uuid().v4().toString(),
           name: name,
           album: album,
           artist: artist,
@@ -72,7 +70,7 @@ class DJTrack extends HiveObject {
           duration: 0,
           playCount: 0,
           spotifyUri: spotifyUri,
-          mp3Path: '');
+          mp3Uri: '');
 
   Map<String, dynamic> toJson() => _$DJTrackToJson(this);
 

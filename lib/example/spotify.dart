@@ -646,6 +646,7 @@ class HomeState extends State<Home> {
               ? 'Spotify app connection is active (currently playing)'
               : 'Spotify app connection is not active (currently not playing)'));
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(snackBar);
     } on PlatformException catch (e) {
       setStatus(e.code, message: e.message);

@@ -23,7 +23,10 @@ class DJTrackRepo {
     return _hive.values.toList();
   }
 
-  List<DJTrack> updateDJTrack(int index, DJTrack playlist) {
+  List<DJTrack> updateDJTrack(DJTrack playlist) {
+    final index = _hive.values
+        .toList()
+        .indexWhere((element) => element.id == playlist.id);
     _hive.putAt(index, playlist);
     return _hive.values.toList();
   }

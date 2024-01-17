@@ -6,10 +6,22 @@
     "configurations": [
 
         {
-            "name": "djsports",
+            "name": "djsports macOs",
             "request": "launch",
             "type": "dart",
             "deviceId": "macos"
+        },
+        {
+            "name": "djsports iPadden",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
+        },
+        {
+            "name": "djsports Chrome/WEB",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome"
         },
         {
             "name": "djsports (profile mode)",

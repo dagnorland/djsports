@@ -8,7 +8,7 @@ class TypeFilter extends HookConsumerWidget {
   const TypeFilter({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(typeFilterProvider);
+    final status = ref.watch(typeFilterPlaylistProvider);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: Type.values
@@ -25,7 +25,7 @@ class TypeFilter extends HookConsumerWidget {
                           ? Theme.of(context).primaryColor
                           : Colors.white),
                   onPressed: () {
-                    ref.read(typeFilterProvider.notifier).state = type;
+                    ref.read(typeFilterPlaylistProvider.notifier).state = type;
                   },
                   child: Text(
                     type.name,

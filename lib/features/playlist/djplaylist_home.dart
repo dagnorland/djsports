@@ -1,4 +1,5 @@
 import 'package:djsports/data/provider/djplaylist_provider.dart';
+import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/features/playlist/djplaylist_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
@@ -16,10 +17,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     ///List of Todo  without Filter Provider
-    final provider = ref.watch(hiveData);
-    debugPrint(provider?.length.toString());
+    final providerPlaylist = ref.watch(hivePlaylistData);
+    debugPrint(providerPlaylist?.length.toString());
 
-    ///List of Todo with Filter Provider data
+    final providerTrack = ref.watch(hiveTrackData);
+    debugPrint(providerTrack?.length.toString());
 
     final data = ref.watch(typeFilteredDataProvider);
     debugPrint('data length ${data.length}');
@@ -43,7 +45,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => EditScreen(
+                      builder: (context) => DJPlaylistEditScreen(
                         id: '',
                         isNew: true,
                         name: '',
@@ -59,7 +61,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   color: Colors.green,
                   size: 30,
                 )),
-          )
+          ),
         ],
       ),
       body: Column(
@@ -85,7 +87,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => EditScreen(
+                              builder: (context) => DJPlaylistEditScreen(
                                 isNew: false,
                                 id: data[index].id,
                                 index: index,
@@ -98,7 +100,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         },
                         onDelete: () {
                           ref
-                              .read(hiveData.notifier)
+                              .read(hivePlaylistData.notifier)
                               .removeDJPlaylist(data[index].id);
                         },
                       );

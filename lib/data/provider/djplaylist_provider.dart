@@ -6,15 +6,15 @@ import '../repo/djplaylist_repository.dart';
 
 ///filtered data based on user todo status
 
-final typeFilterProvider = StateProvider<Type>((ref) => Type.all);
+final typeFilterPlaylistProvider = StateProvider<Type>((ref) => Type.all);
 
 /// Filtered Todo List
 
 final typeFilteredDataProvider = Provider<List<DJPlaylist>>(
   (ref) {
-    final hiveDatas = ref.watch(hiveData);
+    final hiveDatas = ref.watch(hivePlaylistData);
     final typeData = hiveDatas!;
-    final type = ref.watch(typeFilterProvider);
+    final type = ref.watch(typeFilterPlaylistProvider);
     if (type == Type.all) {
       return hiveDatas.toList();
     }
@@ -33,5 +33,6 @@ final providerHive = Provider<DJPlaylistRepo>((ref) => DJPlaylistRepo());
 
 ///Hive data
 
-final hiveData = StateNotifierProvider<DJPlaylistHive, List<DJPlaylist>?>(
-    (ref) => DJPlaylistHive(ref));
+final hivePlaylistData =
+    StateNotifierProvider<DJPlaylistHive, List<DJPlaylist>?>(
+        (ref) => DJPlaylistHive(ref));

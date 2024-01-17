@@ -1,5 +1,10 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
+import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/services/spotify_search_service.dart';
+import 'package:djsports/features/playlist/djtrack_create.dart';
+import 'package:djsports/features/spotify_search/spotify_search.dart';
+import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:djsports/utils.dart';
 import 'package:flutter/material.dart';
 // Localization
@@ -7,19 +12,20 @@ import 'package:flutter/material.dart';
 
 // Riverpod
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:spotify/spotify.dart';
 
 //Providers
 
-class EditScreen extends StatefulHookConsumerWidget {
-  const EditScreen({
+class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
+  const DJPlaylistEditScreen({
     super.key,
     required this.name,
     required this.type,
     required this.spotifyUri,
     required this.isNew,
-    required this.id,
     this.status,
     required this.index,
+    required this.id,
   });
   final String name;
   final String type;
@@ -32,7 +38,7 @@ class EditScreen extends StatefulHookConsumerWidget {
   ConsumerState<ConsumerStatefulWidget> createState() => _EditScreenState();
 }
 
-class _EditScreenState extends ConsumerState<EditScreen> {
+class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
   Type selectedType = Type.score;
@@ -46,6 +52,31 @@ class _EditScreenState extends ConsumerState<EditScreen> {
     selectedType = Type.values.firstWhere((e) => e.name == widget.type);
 
     super.initState();
+  }
+
+  void _showSearch(BuildContext context, WidgetRef ref) async {
+    final service = ref.read(searchServiceProvider);
+    final searchDelegate = SpotifySearchDelegate(service);
+    final track = await showSearch<Track?>(
+      context: context,
+      delegate: searchDelegate,
+    );
+    //service.dispose();
+    if (track != null) {
+      // ignore: use_build_context_synchronously
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Selected track: ${track.name}'),
+          actions: [
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -130,7 +161,8 @@ class _EditScreenState extends ConsumerState<EditScreen> {
                   }).toList(),
                   onChanged: (Type? newValue) {
                     setState(() {
-                      ref.read(typeFilterProvider.notifier).state = newValue!;
+                      ref.read(typeFilterPlaylistProvider.notifier).state =
+                          newValue!;
                     });
                   },
                 ))),
@@ -160,7 +192,7 @@ class _EditScreenState extends ConsumerState<EditScreen> {
                   ),
                   onPressed: () {
                     if (widget.id.isEmpty) {
-                      ref.read(hiveData.notifier).addDJplaylist(
+                      ref.read(hivePlaylistData.notifier).addDJplaylist(
                             DJPlaylist(
                               name: nameController.text,
                               type: selectedType.name,
@@ -173,7 +205,7 @@ class _EditScreenState extends ConsumerState<EditScreen> {
                             ),
                           );
                     } else {
-                      ref.read(hiveData.notifier).updateDJPlaylist(
+                      ref.read(hivePlaylistData.notifier).updateDJPlaylist(
                             DJPlaylist(
                               name: nameController.text,
                               type: selectedType.name,
@@ -193,7 +225,65 @@ class _EditScreenState extends ConsumerState<EditScreen> {
                   ),
                 ),
               ],
-            )
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Padding(
+                    padding: const EdgeInsets.only(right: 5.0),
+                    child: Text('Add tracks',
+                        style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.bold))),
+                Padding(
+                  padding: const EdgeInsets.only(right: 5.0),
+                  child: IconButton(
+                      onPressed: () {
+                        ref.invalidate(dataTrackProvider);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DJTrackEditScreen(
+                              playlistId: widget.id,
+                              playlistName: widget.name,
+                              isNew: true,
+                              id: '',
+                              name: '',
+                              album: '',
+                              artist: '',
+                              startTime: 0,
+                              startTimeMS: 0,
+                              duration: 0,
+                              playCount: 0,
+                              spotifyUri: '',
+                              mp3Uri: '',
+                              index: 0,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.add_box_sharp,
+                        color: Colors.green,
+                        size: 30,
+                      )),
+                ),
+              ],
+            ),
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor),
+                child: Text(
+                  'Search',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge!
+                      .copyWith(color: Colors.white),
+                ),
+                onPressed: () => _showSearch(context, ref),
+              ),
+            ),
           ],
         ),
       ),
