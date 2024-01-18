@@ -1,5 +1,6 @@
 import 'package:djsports/data/models/spotify_search_result.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart' as spotify;
 
@@ -13,7 +14,7 @@ class SpotifySearchRepository {
     List<spotify.Track> result = [];
     if (pages.isNotEmpty) {
       for (var page in pages) {
-        if (page is spotify.Page) {
+        if (page is Page) {
           for (var pageItem in page.items!) {
             spotify.Track spotifyTrack = pageItem;
             debugPrint('Track: ${spotifyTrack.name}');
@@ -28,8 +29,8 @@ class SpotifySearchRepository {
 
 final searchRepositoryProvider = Provider<SpotifySearchRepository>((ref) {
   spotify.SpotifyApiCredentials credentials = spotify.SpotifyApiCredentials(
-    'df6ecd8a2142469bb2a4e3339585f356',
-    '39604512c9bc4c3eaae21edfb424692b',
+    dotenv.env['SPOTIFY_CLIENTID'],
+    dotenv.env['SPOTIFY_SECRET'],
   );
 
   return SpotifySearchRepository(spotify.SpotifyApi(credentials));

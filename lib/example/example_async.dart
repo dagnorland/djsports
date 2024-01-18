@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:spotify/spotify.dart';
 
 void main() async {
   var credentials = SpotifyApiCredentials(
-    '7205348d8ded4b66ae65aca652168b0c',
-    'f691c1f8731b4932b6003e5be60cce6b',
+    dotenv.env['SPOTIFY_CLIENTID'],
+    dotenv.env['SPOTIFY_SECRET'],
   );
 
   try {

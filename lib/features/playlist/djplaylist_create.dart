@@ -3,7 +3,6 @@ import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
 import 'package:djsports/features/playlist/djtrack_create.dart';
-import 'package:djsports/features/spotify_search/spotify_search.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:djsports/utils.dart';
 import 'package:flutter/material.dart';

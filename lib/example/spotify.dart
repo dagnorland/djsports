@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:djsports/example/spotify_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart' as spotify;
 import 'package:spotify_sdk/enums/image_dimension_enum.dart';
@@ -32,14 +33,9 @@ class Home extends StatefulWidget {
 class HomeState extends State<Home> {
   bool _loading = false;
   bool _connected = false;
-  spotify.SpotifyApiCredentials credentialsdjSportshall =
-      spotify.SpotifyApiCredentials(
-    '7205348d8ded4b66ae65aca652168b0c',
-    'f691c1f8731b4932b6003e5be60cce6b',
-  );
   spotify.SpotifyApiCredentials credentials = spotify.SpotifyApiCredentials(
-    'df6ecd8a2142469bb2a4e3339585f356',
-    '39604512c9bc4c3eaae21edfb424692b',
+    dotenv.env['SPOTIFY_CLIENTID'],
+    dotenv.env['SPOTIFY_SECRET'],
   );
 
   String spotifyRedirectUrl = 'djsports://spotify-login-callback';
