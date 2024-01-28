@@ -103,20 +103,28 @@ class SpotifyTrackSearchResultTile extends StatelessWidget {
       child: Column(
         children: [
           if (track.album!.images!.first.url != null)
-            ClipPath(
-              clipper: const ShapeBorderClipper(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                ),
-              ),
-              child: CachedNetworkImage(
-                imageUrl: track.album!.images!.first.url!,
-              ),
-            ),
+            SizedBox(
+                height: 120,
+                width: 120,
+                child: ClipPath(
+                  clipper: const ShapeBorderClipper(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                    ),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: track.album!.images!.first.url!,
+                  ),
+                )),
           const SizedBox(height: 8.0),
           Text(
             track.name!,
-            style: theme.textTheme.titleLarge,
+            style: theme.textTheme.titleSmall,
+            textAlign: TextAlign.start,
+          ),
+          Text(
+            track.artists!.first.name!,
+            style: theme.textTheme.titleSmall,
             textAlign: TextAlign.start,
           )
         ],

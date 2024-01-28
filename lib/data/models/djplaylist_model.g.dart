@@ -17,6 +17,7 @@ class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return DJPlaylist(
+      id: fields[0] as String,
       name: fields[1] as String,
       type: fields[2] as String,
       spotifyUri: fields[3] as String,
@@ -25,7 +26,7 @@ class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
       currentTrack: fields[6] as int,
       playCount: fields[7] as int,
       trackIds: (fields[8] as List).cast<String>(),
-    )..id = fields[0] as String;
+    );
   }
 
   @override
@@ -77,6 +78,7 @@ Map<String, dynamic> _$StringListToJson(StringList instance) =>
     };
 
 DJPlaylist _$DJPlaylistFromJson(Map<String, dynamic> json) => DJPlaylist(
+      id: json['id'] as String,
       name: json['name'] as String,
       type: json['type'] as String,
       spotifyUri: json['spotifyUri'] as String,
@@ -86,7 +88,7 @@ DJPlaylist _$DJPlaylistFromJson(Map<String, dynamic> json) => DJPlaylist(
       playCount: json['playCount'] as int? ?? 0,
       trackIds:
           (json['trackIds'] as List<dynamic>).map((e) => e as String).toList(),
-    )..id = json['id'] as String;
+    );
 
 Map<String, dynamic> _$DJPlaylistToJson(DJPlaylist instance) =>
     <String, dynamic>{

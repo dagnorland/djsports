@@ -17,6 +17,7 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return DJTrack(
+      id: fields[0] as String,
       name: fields[1] as String,
       album: fields[2] as String,
       artist: fields[3] as String,
@@ -26,7 +27,7 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
       playCount: fields[7] as int,
       spotifyUri: fields[8] as String,
       mp3Uri: fields[9] as String,
-    )..id = fields[0] as String;
+    );
   }
 
   @override
@@ -71,6 +72,7 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
 // **************************************************************************
 
 DJTrack _$DJTrackFromJson(Map<String, dynamic> json) => DJTrack(
+      id: json['id'] as String,
       name: json['name'] as String,
       album: json['album'] as String,
       artist: json['artist'] as String,
@@ -80,7 +82,7 @@ DJTrack _$DJTrackFromJson(Map<String, dynamic> json) => DJTrack(
       playCount: json['playCount'] as int,
       spotifyUri: json['spotifyUri'] as String,
       mp3Uri: json['mp3Uri'] as String,
-    )..id = json['id'] as String;
+    );
 
 Map<String, dynamic> _$DJTrackToJson(DJTrack instance) => <String, dynamic>{
       'id': instance.id,

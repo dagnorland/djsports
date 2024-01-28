@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
-import 'package:uuid/uuid.dart';
 
 part 'djplaylist_model.g.dart';
 
@@ -55,15 +54,15 @@ class StringList {
 @JsonSerializable()
 class DJPlaylist extends HiveObject {
   DJPlaylist(
-      {required this.name,
+      {required this.id,
+      required this.name,
       required this.type,
       required this.spotifyUri,
       required this.autoNext,
       required this.shuffleAtEnd,
       this.currentTrack = 0,
       this.playCount = 0,
-      required this.trackIds})
-      : id = const Uuid().v4();
+      required this.trackIds}); // = const Uuid().v4();
 
   @HiveField(0)
   String id;
@@ -84,7 +83,9 @@ class DJPlaylist extends HiveObject {
   @HiveField(8)
   List<String> trackIds;
 
-  factory DJPlaylist.simple(String name, DJPlaylistType type) => DJPlaylist(
+  factory DJPlaylist.simple(String id, String name, DJPlaylistType type) =>
+      DJPlaylist(
+        id: id,
         name: name,
         type: type.name,
         playCount: 0,
@@ -99,6 +100,11 @@ class DJPlaylist extends HiveObject {
       _$DJPlaylistFromJson(json);
 
   Map<String, dynamic> toJson() => _$DJPlaylistToJson(this);
+
+  DJPlaylist addTrack(String trackId) {
+    trackIds.add(trackId);
+    return this;
+  }
 
   void setCurrentTrack(String trackId) {
     debugPrint(

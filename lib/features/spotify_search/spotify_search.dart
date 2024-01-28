@@ -4,6 +4,7 @@ import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+@Deprecated('Use SpotifySearchDelegate instead')
 class SpotifySearchPage extends ConsumerWidget {
   const SpotifySearchPage({super.key});
 

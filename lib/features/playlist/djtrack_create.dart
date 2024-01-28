@@ -210,6 +210,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                     if (widget.id.isEmpty) {
                       ref.read(hiveTrackData.notifier).addDJTrack(
                             DJTrack(
+                              id: '',
                               name: nameController.text,
                               album: albumController.text,
                               artist: artistController.text,
@@ -224,6 +225,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                     } else {
                       ref.read(hiveTrackData.notifier).updateDJTrack(
                             DJTrack(
+                              id: '',
                               name: nameController.text,
                               album: albumController.text,
                               artist: artistController.text,

@@ -2,6 +2,7 @@ import 'dart:core';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
+import 'package:uuid/uuid.dart';
 
 void testDJPlaylistController() {
   // We create 4 playlists,
@@ -11,6 +12,7 @@ void testDJPlaylistController() {
   // Then changes some tracks and saves them again
 
   DJPlaylist firstPlaylist = DJPlaylist(
+      id: const Uuid().v4(),
       name: 'Score Home team',
       type: DJPlaylistType.score.name,
       spotifyUri: '',
@@ -21,6 +23,7 @@ void testDJPlaylistController() {
       trackIds: []);
 
   DJPlaylist secondPlaylist = DJPlaylist(
+      id: const Uuid().v4(),
       name: 'Score Away team',
       spotifyUri: '',
       autoNext: true,
@@ -30,6 +33,7 @@ void testDJPlaylistController() {
       trackIds: []);
 
   DJPlaylist thirdPlaylist = DJPlaylist(
+      id: const Uuid().v4(),
       name: 'Penalty',
       spotifyUri: '',
       autoNext: true,
@@ -39,6 +43,7 @@ void testDJPlaylistController() {
       trackIds: []);
 
   DJPlaylist fourthPlaylist = DJPlaylist(
+      id: const Uuid().v4(),
       name: 'Get well',
       spotifyUri: '',
       autoNext: true,
@@ -48,6 +53,7 @@ void testDJPlaylistController() {
       trackIds: []);
 
   DJPlaylist fifthPlaylist = DJPlaylist(
+      id: const Uuid().v4(),
       name: 'Cheer',
       spotifyUri: '',
       autoNext: true,
@@ -57,6 +63,7 @@ void testDJPlaylistController() {
       trackIds: []);
 
   DJPlaylist sixthPlaylist = DJPlaylist(
+      id: const Uuid().v4(),
       name: 'Interups',
       spotifyUri: '',
       autoNext: true,

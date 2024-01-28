@@ -1,5 +1,4 @@
 import 'package:djsports/data/models/spotify_search_result.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart' as spotify;
@@ -14,12 +13,9 @@ class SpotifySearchRepository {
     List<spotify.Track> result = [];
     if (pages.isNotEmpty) {
       for (var page in pages) {
-        if (page is Page) {
-          for (var pageItem in page.items!) {
-            spotify.Track spotifyTrack = pageItem;
-            debugPrint('Track: ${spotifyTrack.name}');
-            result.add(spotifyTrack);
-          }
+        for (var pageItem in page.items!) {
+          spotify.Track spotifyTrack = pageItem;
+          result.add(spotifyTrack);
         }
       }
     }

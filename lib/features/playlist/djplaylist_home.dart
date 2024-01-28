@@ -1,6 +1,6 @@
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
-import 'package:djsports/features/playlist/djplaylist_create.dart';
+import 'package:djsports/features/playlist/djplaylist_edit_create_page.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
 import 'package:djsports/utils.dart';
@@ -39,28 +39,33 @@ class _HomePageState extends ConsumerState<HomePage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 5.0),
-            child: IconButton(
-                onPressed: () {
-                  ref.invalidate(typeFilteredDataProvider);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DJPlaylistEditScreen(
-                        id: '',
-                        isNew: true,
-                        name: '',
-                        type: Type.score.name,
-                        spotifyUri: '',
-                        index: 0,
-                      ),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor),
+              child: Text(
+                'New playlist',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge!
+                    .copyWith(color: Colors.white),
+              ),
+              onPressed: () {
+                ref.invalidate(typeFilteredDataProvider);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DJPlaylistEditScreen(
+                      id: '',
+                      isNew: true,
+                      name: '',
+                      type: Type.score.name,
+                      spotifyUri: '',
+                      trackIds: const [],
                     ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.add_box_outlined,
-                  color: Colors.green,
-                  size: 30,
-                )),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -83,6 +88,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         name: data[index].name,
                         type: data[index].type,
                         spotifyUri: data[index].spotifyUri,
+                        trackIds: data[index].trackIds,
                         onEdit: () {
                           Navigator.push(
                             context,
@@ -90,18 +96,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                               builder: (context) => DJPlaylistEditScreen(
                                 isNew: false,
                                 id: data[index].id,
-                                index: index,
                                 name: data[index].name,
                                 type: data[index].type,
                                 spotifyUri: data[index].spotifyUri,
+                                trackIds: [...data[index].trackIds],
                               ),
                             ),
                           );
                         },
                         onDelete: () {
-                          ref
-                              .read(hivePlaylistData.notifier)
-                              .removeDJPlaylist(data[index].id);
+                          ref.read(hivePlaylistData.notifier).removeDJPlaylist(
+                              ref.read(hiveTrackData.notifier), data[index].id);
                         },
                       );
                     },

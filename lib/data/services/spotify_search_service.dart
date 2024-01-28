@@ -12,7 +12,7 @@ class SpotifySearchService {
     // Implementation based on: https://youtu.be/7O1UO5rEpRc
     // ReactiveConf 2018 - Brian Egan & Filip Hracek: Practical Rx with Flutter
     _results = _searchTerms
-        .debounce((_) => TimerStream(true, const Duration(milliseconds: 500)))
+        .debounce((_) => TimerStream(true, const Duration(milliseconds: 10)))
         .switchMap((query) async* {
       yield await searchRepository.searchTracks(query);
     }); // discard previous events

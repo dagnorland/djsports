@@ -10,7 +10,8 @@ const String djtrackBoxName = "djtrack";
 @JsonSerializable()
 class DJTrack extends HiveObject {
   DJTrack(
-      {required this.name,
+      {required this.id,
+      required this.name,
       required this.album,
       required this.artist,
       required this.startTime,
@@ -18,8 +19,7 @@ class DJTrack extends HiveObject {
       required this.duration,
       required this.playCount,
       required this.spotifyUri,
-      required this.mp3Uri})
-      : id = const Uuid().v4();
+      required this.mp3Uri});
 
   @HiveField(0)
   String id;
@@ -46,6 +46,7 @@ class DJTrack extends HiveObject {
       _$DJTrackFromJson(json);
 
   factory DJTrack.empty() => DJTrack(
+      id: '',
       name: "empty",
       album: "empty",
       artist: "",
@@ -62,6 +63,7 @@ class DJTrack extends HiveObject {
           required String artist,
           String spotifyUri = 'spotify:track:2USlegnFJLrVLpoVfPimKB'}) =>
       DJTrack(
+          id: const Uuid().v4(),
           name: name,
           album: album,
           artist: artist,

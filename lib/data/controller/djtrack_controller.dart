@@ -1,6 +1,7 @@
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/repo/djtrack_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 final djtrackRepositoryProvider = Provider<DJTrackRepo>((ref) => DJTrackRepo());
 
@@ -19,9 +20,17 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     state = repo!.getDJTracks();
   }
 
-  ///add todo to local Storage
+  List<DJTrack> getDJTracks(List<String> trackIds) {
+    return repo!
+        .getDJTracks()
+        .where((element) => trackIds.contains(element.id))
+        .toList();
+  }
 
   void addDJTrack(DJTrack djTrack) {
+    if (djTrack.id.isEmpty) {
+      djTrack.id = const Uuid().v4();
+    }
     state = repo!.addDJTrack(djTrack);
   }
 

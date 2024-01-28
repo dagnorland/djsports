@@ -12,6 +12,10 @@ class DJTrackRepo {
     return _box;
   }
 
+  DJTrack getDJTrack(String id) {
+    return _hive.values.toList().firstWhere((element) => element.id == id);
+  }
+
   List<DJTrack> addDJTrack(DJTrack playlist) {
     _hive.add(playlist);
     return _hive.values.toList();

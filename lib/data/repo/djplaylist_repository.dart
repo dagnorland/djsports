@@ -1,5 +1,6 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class DJPlaylistRepo {
   late Box<DJPlaylist> _hive;
@@ -13,6 +14,9 @@ class DJPlaylistRepo {
   }
 
   List<DJPlaylist> addDJPlaylist(DJPlaylist playlist) {
+    if (playlist.id.isEmpty) {
+      playlist.id = const Uuid().v4();
+    }
     _hive.add(playlist);
     return _hive.values.toList();
   }
@@ -20,6 +24,16 @@ class DJPlaylistRepo {
   List<DJPlaylist> removeDJPlaylist(String id) {
     _hive.deleteAt(
         _hive.values.toList().indexWhere((element) => element.id == id));
+    return _hive.values.toList();
+  }
+
+  List<DJPlaylist> removeDJTrackFromPlaylist(
+      String playlistId, String trackId) {
+    DJPlaylist playlist =
+        _hive.values.toList().firstWhere((element) => element.id == playlistId);
+
+    playlist.trackIds.removeWhere((element) => element == trackId);
+    updateDJPlaylist(playlist);
     return _hive.values.toList();
   }
 

@@ -16,6 +16,12 @@
             "request": "launch",
             "type": "dart",
             "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
+        },             
+        {
+            "name": "djsports Samsung X200",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "R8YW70LMS7N"
         },
         {
             "name": "djsports Chrome/WEB",
@@ -60,7 +66,14 @@
             "type": "dart",
             "program": "lib/example/spotify.dart",
             "deviceId": "macos"
-    },
+        },
+        {
+            "name": "djsports WEB Spotify Example ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/spotify.dart",
+            "deviceId": "chrome"
+        },
         {
             "name": "djsports iPad Spotify Example ",
             "request": "launch",
