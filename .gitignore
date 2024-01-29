@@ -3,7 +3,6 @@
 # Files and directories created by pub
 .dart_tool/
 .packages
-.fvm/
 .gradle/
 build/
 # If you're building an application, you may want to check-in your pubspec.lock
@@ -29,4 +28,4 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 custom_lint.log
-.fvm/fvm_config.json
+.fvm/flutter_sdk
