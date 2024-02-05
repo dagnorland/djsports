@@ -2,9 +2,11 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/services/spotify_playlist_service.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
 import 'package:djsports/features/playlist/djtrack_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_tracks_view.dart';
+import 'package:djsports/features/spotify_playlist_sync/spotify_playlist_sync_delegate.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:djsports/utils.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +57,29 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     trackIds = widget.trackIds;
 
     super.initState();
+  }
+
+  Future<void> _spotifySync(
+      BuildContext context, WidgetRef ref, String playlistId) async {
+    DJPlaylist playlist = ref
+        .read(hivePlaylistData.notifier)
+        .repo!
+        .getDJPlaylists()
+        .firstWhere((element) => element.id == widget.id);
+
+    List<String> trackIds = ref
+        .read(hiveTrackData.notifier)
+        .getDJTracksSpotifyUri(playlist.trackIds);
+
+    final service = ref.read(playlistServiceProvider);
+    final searchDelegate = SpotifyPlaylistDelegate(service, trackIds);
+
+    //final result = service.searchRepository.getPlaylistTracks(playlistId);
+    final track = await showSearch<Track?>(
+      context: context,
+      delegate: searchDelegate,
+    );
+    debugPrint('result: $track');
   }
 
   void _showSearch(BuildContext context, WidgetRef ref) async {
@@ -134,24 +159,28 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: Theme.of(context).primaryColor, width: 2),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: Theme.of(context).primaryColor, width: 2),
-                ),
-                hintText: ' Enter name',
-              ),
-            ),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.only(right: 10.0),
+                child: TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor, width: 2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor, width: 2),
+                    ),
+                    hintText: ' Enter name',
+                  ),
+                )),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(right: 10.0),
               child: TextField(
                 controller: spotifyUriController,
+                onChanged: (value) => setState(() {}),
                 decoration: InputDecoration(
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
@@ -165,6 +194,22 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            if (spotifyUriController.text.isNotEmpty)
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                ),
+                onPressed: () =>
+                    _spotifySync(context, ref, spotifyUriController.text),
+                child: Text(
+                  'Sync with spotify',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge!
+                      .copyWith(color: Colors.white),
+                ),
+              ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

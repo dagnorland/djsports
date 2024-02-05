@@ -89,11 +89,9 @@ class DJTrack extends HiveObject {
     return ('${minutes.toString().padLeft(2, '0')}:${remainSec.toString().padLeft(2, '0')}');
   }
 
-  String getDurationFormatted() {
-    int tempDuration = duration;
-
-    int minutes = tempDuration ~/ 60;
-    int remainSec = (tempDuration % 60);
+  String formatMillisecondsAsMMSS(int milliseconds) {
+    int minutes = milliseconds ~/ 60;
+    int remainSec = (milliseconds % 60);
     return ('${minutes.toString().padLeft(2, '0')}:${remainSec.toString().padLeft(2, '0')}');
   }
 }

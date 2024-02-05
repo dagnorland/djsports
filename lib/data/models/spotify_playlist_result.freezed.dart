@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'spotify_search_result.dart';
+part of 'spotify_playlist_result.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -15,22 +15,22 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
-mixin _$SpotifySearchResult {
+mixin _$SpotifyPlaylistResult {
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(List<Track> tracks) $default, {
+    TResult Function(Iterable<Track> tracks) $default, {
     required TResult Function(SpotifyAPIError error) error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(List<Track> tracks)? $default, {
+    TResult? Function(Iterable<Track> tracks)? $default, {
     TResult? Function(SpotifyAPIError error)? error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(List<Track> tracks)? $default, {
+    TResult Function(Iterable<Track> tracks)? $default, {
     TResult Function(SpotifyAPIError error)? error,
     required TResult orElse(),
   }) =>
@@ -57,16 +57,17 @@ mixin _$SpotifySearchResult {
 }
 
 /// @nodoc
-abstract class $SpotifySearchResultCopyWith<$Res> {
-  factory $SpotifySearchResultCopyWith(
-          SpotifySearchResult value, $Res Function(SpotifySearchResult) then) =
-      _$SpotifySearchResultCopyWithImpl<$Res, SpotifySearchResult>;
+abstract class $SpotifyPlaylistResultCopyWith<$Res> {
+  factory $SpotifyPlaylistResultCopyWith(SpotifyPlaylistResult value,
+          $Res Function(SpotifyPlaylistResult) then) =
+      _$SpotifyPlaylistResultCopyWithImpl<$Res, SpotifyPlaylistResult>;
 }
 
 /// @nodoc
-class _$SpotifySearchResultCopyWithImpl<$Res, $Val extends SpotifySearchResult>
-    implements $SpotifySearchResultCopyWith<$Res> {
-  _$SpotifySearchResultCopyWithImpl(this._value, this._then);
+class _$SpotifyPlaylistResultCopyWithImpl<$Res,
+        $Val extends SpotifyPlaylistResult>
+    implements $SpotifyPlaylistResultCopyWith<$Res> {
+  _$SpotifyPlaylistResultCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
@@ -80,12 +81,12 @@ abstract class _$$DataImplCopyWith<$Res> {
           _$DataImpl value, $Res Function(_$DataImpl) then) =
       __$$DataImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({List<Track> tracks});
+  $Res call({Iterable<Track> tracks});
 }
 
 /// @nodoc
 class __$$DataImplCopyWithImpl<$Res>
-    extends _$SpotifySearchResultCopyWithImpl<$Res, _$DataImpl>
+    extends _$SpotifyPlaylistResultCopyWithImpl<$Res, _$DataImpl>
     implements _$$DataImplCopyWith<$Res> {
   __$$DataImplCopyWithImpl(_$DataImpl _value, $Res Function(_$DataImpl) _then)
       : super(_value, _then);
@@ -97,9 +98,9 @@ class __$$DataImplCopyWithImpl<$Res>
   }) {
     return _then(_$DataImpl(
       null == tracks
-          ? _value._tracks
+          ? _value.tracks
           : tracks // ignore: cast_nullable_to_non_nullable
-              as List<Track>,
+              as Iterable<Track>,
     ));
   }
 }
@@ -107,19 +108,14 @@ class __$$DataImplCopyWithImpl<$Res>
 /// @nodoc
 
 class _$DataImpl implements Data {
-  const _$DataImpl(final List<Track> tracks) : _tracks = tracks;
+  const _$DataImpl(this.tracks);
 
-  final List<Track> _tracks;
   @override
-  List<Track> get tracks {
-    if (_tracks is EqualUnmodifiableListView) return _tracks;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_tracks);
-  }
+  final Iterable<Track> tracks;
 
   @override
   String toString() {
-    return 'SpotifySearchResult(tracks: $tracks)';
+    return 'SpotifyPlaylistResult(tracks: $tracks)';
   }
 
   @override
@@ -127,12 +123,12 @@ class _$DataImpl implements Data {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$DataImpl &&
-            const DeepCollectionEquality().equals(other._tracks, _tracks));
+            const DeepCollectionEquality().equals(other.tracks, tracks));
   }
 
   @override
   int get hashCode =>
-      Object.hash(runtimeType, const DeepCollectionEquality().hash(_tracks));
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(tracks));
 
   @JsonKey(ignore: true)
   @override
@@ -143,7 +139,7 @@ class _$DataImpl implements Data {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(List<Track> tracks) $default, {
+    TResult Function(Iterable<Track> tracks) $default, {
     required TResult Function(SpotifyAPIError error) error,
   }) {
     return $default(tracks);
@@ -152,7 +148,7 @@ class _$DataImpl implements Data {
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(List<Track> tracks)? $default, {
+    TResult? Function(Iterable<Track> tracks)? $default, {
     TResult? Function(SpotifyAPIError error)? error,
   }) {
     return $default?.call(tracks);
@@ -161,7 +157,7 @@ class _$DataImpl implements Data {
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(List<Track> tracks)? $default, {
+    TResult Function(Iterable<Track> tracks)? $default, {
     TResult Function(SpotifyAPIError error)? error,
     required TResult orElse(),
   }) {
@@ -203,10 +199,10 @@ class _$DataImpl implements Data {
   }
 }
 
-abstract class Data implements SpotifySearchResult {
-  const factory Data(final List<Track> tracks) = _$DataImpl;
+abstract class Data implements SpotifyPlaylistResult {
+  const factory Data(final Iterable<Track> tracks) = _$DataImpl;
 
-  List<Track> get tracks;
+  Iterable<Track> get tracks;
   @JsonKey(ignore: true)
   _$$DataImplCopyWith<_$DataImpl> get copyWith =>
       throw _privateConstructorUsedError;
@@ -223,7 +219,7 @@ abstract class _$$ErrorImplCopyWith<$Res> {
 
 /// @nodoc
 class __$$ErrorImplCopyWithImpl<$Res>
-    extends _$SpotifySearchResultCopyWithImpl<$Res, _$ErrorImpl>
+    extends _$SpotifyPlaylistResultCopyWithImpl<$Res, _$ErrorImpl>
     implements _$$ErrorImplCopyWith<$Res> {
   __$$ErrorImplCopyWithImpl(
       _$ErrorImpl _value, $Res Function(_$ErrorImpl) _then)
@@ -253,7 +249,7 @@ class _$ErrorImpl implements Error {
 
   @override
   String toString() {
-    return 'SpotifySearchResult.error(error: $error)';
+    return 'SpotifyPlaylistResult.error(error: $error)';
   }
 
   @override
@@ -276,7 +272,7 @@ class _$ErrorImpl implements Error {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(List<Track> tracks) $default, {
+    TResult Function(Iterable<Track> tracks) $default, {
     required TResult Function(SpotifyAPIError error) error,
   }) {
     return error(this.error);
@@ -285,7 +281,7 @@ class _$ErrorImpl implements Error {
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(List<Track> tracks)? $default, {
+    TResult? Function(Iterable<Track> tracks)? $default, {
     TResult? Function(SpotifyAPIError error)? error,
   }) {
     return error?.call(this.error);
@@ -294,7 +290,7 @@ class _$ErrorImpl implements Error {
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(List<Track> tracks)? $default, {
+    TResult Function(Iterable<Track> tracks)? $default, {
     TResult Function(SpotifyAPIError error)? error,
     required TResult orElse(),
   }) {
@@ -336,7 +332,7 @@ class _$ErrorImpl implements Error {
   }
 }
 
-abstract class Error implements SpotifySearchResult {
+abstract class Error implements SpotifyPlaylistResult {
   const factory Error(final SpotifyAPIError error) = _$ErrorImpl;
 
   SpotifyAPIError get error;

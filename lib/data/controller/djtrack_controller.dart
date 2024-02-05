@@ -20,6 +20,22 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     state = repo!.getDJTracks();
   }
 
+  List<String> getDJTracksSpotifyUri(List<String> trackIds) {
+    if (repo == null) {
+      return [];
+    }
+    final djTracks = repo!
+        .getDJTracks()
+        .where((element) => trackIds.contains(element.id))
+        .toList();
+    for (var djTrack in djTracks) {
+      if (djTrack.spotifyUri.isNotEmpty) {
+        return djTracks.map((e) => e.spotifyUri).toList();
+      }
+    }
+    return [];
+  }
+
   List<DJTrack> getDJTracks(List<String> trackIds) {
     return repo!
         .getDJTracks()

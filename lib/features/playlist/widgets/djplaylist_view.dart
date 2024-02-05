@@ -69,7 +69,7 @@ class DJPlaylistView extends HookConsumerWidget {
                 padding: const EdgeInsets.only(right: 20.0),
                 child: Chip(
                     label: Text(trackIds.isEmpty
-                        ? ' '
+                        ? 'No tracks'
                         : 'Tracks:${trackIds.length.toString()}'))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(

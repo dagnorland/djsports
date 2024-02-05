@@ -1,33 +1,56 @@
+import 'package:djsports/data/models/spotify_playlist_result.dart';
 import 'package:djsports/data/models/spotify_search_result.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotify/spotify.dart' as spotify;
+import 'package:spotify/spotify.dart';
 
 class SpotifySearchRepository {
   const SpotifySearchRepository(this._client);
-  final spotify.SpotifyApi _client;
+  final SpotifyApi _client;
 
   Future<SpotifySearchResult> searchTracks(String query) async {
-    final pages = await _client.search
-        .get(query, types: [spotify.SearchType.track]).first(50);
-    List<spotify.Track> result = [];
+    final pages =
+        await _client.search.get(query, types: [SearchType.track]).first(50);
+    List<Track> result = [];
     if (pages.isNotEmpty) {
       for (var page in pages) {
         for (var pageItem in page.items!) {
-          spotify.Track spotifyTrack = pageItem;
+          Track spotifyTrack = pageItem;
           result.add(spotifyTrack);
         }
       }
     }
     return SpotifySearchResult(result);
   }
+
+  Future<SpotifyPlaylistResult> getPlaylistTracks(String playlistId) async {
+    debugPrint('tracksPage: $playlistId');
+    try {
+      int counter = 0;
+      var tracksPage = await _client.playlists.get(playlistId);
+      Iterable result = tracksPage.tracks?.itemsNative ?? [];
+      Iterable<Track> tracks = [];
+      for (var item in result) {
+        PlaylistTrack newPlaylistTrack = PlaylistTrack.fromJson(item);
+        debugPrint(
+            'getPlaylistTracks: $counter: ${newPlaylistTrack.track!.name}');
+        tracks = tracks.followedBy([newPlaylistTrack.track!]);
+      }
+      debugPrint('getPlaylistTracks: has tracks: ${tracks.length}');
+      return SpotifyPlaylistResult(tracks);
+    } catch (e) {
+      debugPrint('getPlaylistTracks error: $e');
+      return const SpotifyPlaylistResult([]);
+    }
+  }
 }
 
 final searchRepositoryProvider = Provider<SpotifySearchRepository>((ref) {
-  spotify.SpotifyApiCredentials credentials = spotify.SpotifyApiCredentials(
+  SpotifyApiCredentials credentials = SpotifyApiCredentials(
     dotenv.env['SPOTIFY_CLIENTID'],
     dotenv.env['SPOTIFY_SECRET'],
   );
 
-  return SpotifySearchRepository(spotify.SpotifyApi(credentials));
+  return SpotifySearchRepository(SpotifyApi(credentials));
 });
