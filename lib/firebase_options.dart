@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyA1aIEas-VzKHoRUvPDq_j2_8wT7OjCWrs',
+    apiKey: 'to_be_replaced',
     appId: '1:924835253163:android:1253893e882e28e59320ee',
     messagingSenderId: '924835253163',
     projectId: 'djsports-3c714',
@@ -67,7 +67,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '924835253163',
     projectId: 'djsports-3c714',
     storageBucket: 'djsports-3c714.appspot.com',
-    iosClientId: '924835253163-9runjpvt5noccn884hv34rsbpanctpo3.apps.googleusercontent.com',
+    iosClientId:
+        '924835253163-9runjpvt5noccn884hv34rsbpanctpo3.apps.googleusercontent.com',
     iosBundleId: 'com.example.djsports',
   );
 
@@ -77,7 +78,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '924835253163',
     projectId: 'djsports-3c714',
     storageBucket: 'djsports-3c714.appspot.com',
-    iosClientId: '924835253163-kup0ipr4o52o4osn0cn57pu85glvev8m.apps.googleusercontent.com',
+    iosClientId:
+        '924835253163-kup0ipr4o52o4osn0cn57pu85glvev8m.apps.googleusercontent.com',
     iosBundleId: 'com.example.djsports.RunnerTests',
   );
 }
