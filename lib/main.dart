@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/example/auth.dart';
@@ -18,6 +20,10 @@ Future<void> main() async {
   dotenv.dotenv.env.forEach((key, value) {
     debugPrint('$key: $value');
   });
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   /// Initilize Hive Database
   await Hive.initFlutter();

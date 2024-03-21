@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "924835253163",
+    "project_id": "djsports-3c714",
+    "storage_bucket": "djsports-3c714.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:924835253163:android:1253893e882e28e59320ee",
+        "android_client_info": {
+          "package_name": "com.example.djsports"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "924835253163-h74eec2llo10eoh1uqqfata7bkk3808t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1aIEas-VzKHoRUvPDq_j2_8wT7OjCWrs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "924835253163-h74eec2llo10eoh1uqqfata7bkk3808t.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
