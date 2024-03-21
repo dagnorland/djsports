@@ -20,7 +20,7 @@
       ],
       "api_key": [
         {
-          "current_key": ""
+          "current_key": "AIzaSyDqf-RPKxL1nlHa-4GLZlWHaBP2b5W_vp4"
         }
       ],
       "services": {
@@ -29,6 +29,13 @@
             {
               "client_id": "924835253163-h74eec2llo10eoh1uqqfata7bkk3808t.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "924835253163-9runjpvt5noccn884hv34rsbpanctpo3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.djsports"
+              }
             }
           ]
         }
