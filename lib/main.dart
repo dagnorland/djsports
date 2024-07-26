@@ -1,5 +1,3 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/example/auth.dart';
@@ -18,12 +16,8 @@ Future<void> main() async {
 
   // print all elements in dotenv
   dotenv.dotenv.env.forEach((key, value) {
-    debugPrint('$key: $value');
+    debugPrint('Starting app .  $key: $value');
   });
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
   /// Initilize Hive Database
   await Hive.initFlutter();
@@ -75,6 +69,7 @@ class DJSportsApp extends ConsumerWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         primaryColor: Colors.blue.withOpacity(0.7),
+        primaryColorLight: Colors.blueAccent.withOpacity(0.5),
 
         useMaterial3: true,
       ),

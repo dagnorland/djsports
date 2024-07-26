@@ -20,8 +20,14 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     state = repo!.getDJPlaylists();
   }
 
-  void addDJplaylist(DJPlaylist djPlaylist) {
+  String addDJplaylist(DJPlaylist djPlaylist) {
     state = repo!.addDJPlaylist(djPlaylist);
+    if (state != null) {
+      if (state!.isNotEmpty) {
+        return state!.last.id;
+      }
+    }
+    return '';
   }
 
   ///remove todo from local Storage

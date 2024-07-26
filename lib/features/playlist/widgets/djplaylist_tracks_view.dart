@@ -5,11 +5,13 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DJPlaylistTrackView extends HookConsumerWidget {
   final DJTrack track;
+  final int counter;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   const DJPlaylistTrackView({
     super.key,
     required this.track,
+    this.counter = 1,
     required this.onEdit,
     required this.onDelete,
   });
@@ -38,6 +40,24 @@ class DJPlaylistTrackView extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    bool isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    Widget leadingImage = track.networkImageUri.isEmpty
+        ? const SizedBox(
+            width: 50,
+            height: 50,
+            child: Icon(Icons.art_track_outlined, size: 50))
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(track.networkImageUri,
+                width: 50, height: 50, fit: BoxFit.cover),
+          );
+    Widget rowCountWithImage = Chip(
+      backgroundColor: Theme.of(context).secondaryHeaderColor.withOpacity(0.4),
+      label: Text(
+        counter.toString(),
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Card(
@@ -45,24 +65,22 @@ class DJPlaylistTrackView extends HookConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         child: ListTile(
           tileColor: Colors.black12.withOpacity(0.04),
+          leading: rowCountWithImage,
           title: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  Text(
-                    track.name,
-                    maxLines: 1,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'by ${track.artist}',
-                    maxLines: 1,
-                    style: const TextStyle(fontWeight: FontWeight.w300),
-                  ),
-                  // get the chip rightmost in the row
+                  SizedBox(
+                      width: isLandscape ? 800 : 500,
+                      height: 20,
+                      child: Text(
+                        '${track.name} by ${track.artist}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      )),
                 ],
               ),
               // show type as chip
@@ -85,6 +103,9 @@ class DJPlaylistTrackView extends HookConsumerWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Padding(
+                  padding: const EdgeInsets.only(right: 20.0),
+                  child: leadingImage),
               Padding(
                   padding: const EdgeInsets.only(right: 20.0),
                   child: Chip(

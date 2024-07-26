@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart';
 
-class SpotifyPlaylistDelegate extends SearchDelegate<Track?> {
-  SpotifyPlaylistDelegate(this.playlistService, this.existingSpotifyTrackUris);
+class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
+  SpotifyPlaylistTrackDelegate(
+      this.searchQuery, this.playlistService, this.existingSpotifyTrackUris);
   final SpotifyPlaylistService playlistService;
   final List<String> existingSpotifyTrackUris;
+  String searchQuery;
 
   @override
   Widget buildLeading(BuildContext context) {
@@ -23,6 +25,11 @@ class SpotifyPlaylistDelegate extends SearchDelegate<Track?> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
+    if (query.isEmpty && searchQuery.isNotEmpty) {
+      query = searchQuery;
+      searchQuery = '';
+    }
+
     if (query.isEmpty) {
       return const Text('Enter a playlist ID to search');
     }
@@ -44,15 +51,11 @@ class SpotifyPlaylistDelegate extends SearchDelegate<Track?> {
   }
 
   Widget buildMatchingSuggestions(BuildContext context) {
-    debugPrint('buildMatchingSuggestions: $query ${DateTime.now()}');
     return Consumer(
       builder: (_, ref, __) {
         final resultsValue = ref.watch(playlistResultsProvider);
-        debugPrint(
-            'buildMatchingSuggestions playlist resultsValue: $resultsValue ${DateTime.now()}');
         return resultsValue.when(
           data: (result) {
-            debugPrint('buildMatchingSuggestions playlist result: $result');
             return result.when(
               (tracks) => GridView.builder(
                 itemCount: tracks.length,
@@ -60,22 +63,23 @@ class SpotifyPlaylistDelegate extends SearchDelegate<Track?> {
                   maxCrossAxisExtent: 200,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 0.8,
+                  childAspectRatio: 0.85,
                 ),
                 itemBuilder: (context, index) {
-                  debugPrint(
-                      'buildMatchingSuggestions playlist index spotifyUri: ${tracks.elementAt(index).uri}');
                   final trackExist = existingSpotifyTrackUris
                       .contains(tracks.elementAt(index).uri);
                   return Container(
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                          border: Border.all(
-                              width: trackExist ? 0 : 3,
-                              color: trackExist
-                                  ? Colors.green.shade100
-                                  : Colors.red)),
+                        border: Border.all(
+                            width: trackExist ? 0 : 3,
+                            color: trackExist
+                                ? Colors.green.shade100
+                                : Colors.blueGrey.shade100),
+                      ),
                       child: SpotifyTrackSearchResultTile(
                         track: tracks.elementAt(index),
+                        existInPlaylist: trackExist,
                         onSelected: (value) => close(context, value),
                       ));
                 },

@@ -21,38 +21,3 @@ extension StatusExtension on Status {
     return status;
   }
 }
-
-enum Type {
-  all,
-  score,
-  event,
-  penalty,
-  tracks,
-}
-
-extension TypeExtension on Type {
-  String get type {
-    String type;
-    switch (this) {
-      case Type.event:
-        type = 'event';
-        break;
-      case Type.score:
-        type = "score";
-        break;
-      case Type.penalty:
-        type = 'penalty';
-        break;
-      case Type.tracks:
-        type = 'tracks';
-        break;
-      case Type.all:
-        type = "all";
-        break;
-    }
-    return type;
-  }
-}
-
-
-

@@ -1,6 +1,8 @@
 import 'package:hive/hive.dart';
+import 'package:spotify/spotify.dart';
 import 'package:uuid/uuid.dart';
 import 'package:json_annotation/json_annotation.dart';
+//import 'package:spotify/src/models/_models.dart' as spotify;
 
 part 'djtrack_model.g.dart';
 
@@ -19,7 +21,8 @@ class DJTrack extends HiveObject {
       required this.duration,
       required this.playCount,
       required this.spotifyUri,
-      required this.mp3Uri});
+      required this.mp3Uri,
+      required this.networkImageUri});
 
   @HiveField(0)
   String id;
@@ -41,6 +44,8 @@ class DJTrack extends HiveObject {
   String spotifyUri;
   @HiveField(9)
   String mp3Uri;
+  @HiveField(10, defaultValue: '')
+  String networkImageUri;
 
   factory DJTrack.fromJson(Map<String, dynamic> json) =>
       _$DJTrackFromJson(json);
@@ -55,7 +60,8 @@ class DJTrack extends HiveObject {
       duration: 0,
       playCount: 0,
       spotifyUri: '',
-      mp3Uri: '');
+      mp3Uri: '',
+      networkImageUri: '');
 
   factory DJTrack.simple(
           {required String name,
@@ -72,7 +78,8 @@ class DJTrack extends HiveObject {
           duration: 0,
           playCount: 0,
           spotifyUri: spotifyUri,
-          mp3Uri: '');
+          mp3Uri: '',
+          networkImageUri: '');
 
   Map<String, dynamic> toJson() => _$DJTrackToJson(this);
 
@@ -93,5 +100,23 @@ class DJTrack extends HiveObject {
     int minutes = milliseconds ~/ 60;
     int remainSec = (milliseconds % 60);
     return ('${minutes.toString().padLeft(2, '0')}:${remainSec.toString().padLeft(2, '0')}');
+  }
+
+  static DJTrack fromSpotifyTrack(Track track) {
+    String networkImageUri = track.album?.images?.first.url ?? '';
+
+    return DJTrack(
+      id: track.id!,
+      name: track.name!,
+      album: track.album!.name!,
+      artist: track.artists!.first.name!,
+      startTime: 0,
+      startTimeMS: 0,
+      duration: track.durationMs!,
+      playCount: 0,
+      spotifyUri: track.uri!,
+      mp3Uri: '',
+      networkImageUri: networkImageUri,
+    );
   }
 }

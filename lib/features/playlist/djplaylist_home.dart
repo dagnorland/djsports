@@ -1,9 +1,9 @@
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
-import 'package:djsports/features/playlist/djplaylist_edit_create_page.dart';
+import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
-import 'package:djsports/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -16,15 +16,7 @@ class HomePage extends StatefulHookConsumerWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
-    ///List of Todo  without Filter Provider
-    final providerPlaylist = ref.watch(hivePlaylistData);
-    debugPrint(providerPlaylist?.length.toString());
-
-    final providerTrack = ref.watch(hiveTrackData);
-    debugPrint(providerTrack?.length.toString());
-
-    final data = ref.watch(typeFilteredDataProvider);
-    debugPrint('data length ${data.length}');
+    final playlistList = ref.watch(typeFilteredDataProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -33,7 +25,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          "djsports",
+          'djsports',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -58,7 +50,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       id: '',
                       isNew: true,
                       name: '',
-                      type: Type.score.name,
+                      type: DJPlaylistType.score.name,
                       spotifyUri: '',
                       trackIds: const [],
                     ),
@@ -75,38 +67,42 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(
             height: 20,
           ),
-          data.isEmpty
+          playlistList.isEmpty
               ? const Center(
                   child: Text("No data"),
                 )
               : Expanded(
                   flex: 10,
                   child: ListView.builder(
-                    itemCount: data.length,
+                    itemCount: playlistList.length,
                     itemBuilder: (context, index) {
                       return DJPlaylistView(
-                        name: data[index].name,
-                        type: data[index].type,
-                        spotifyUri: data[index].spotifyUri,
-                        trackIds: data[index].trackIds,
+                        name: playlistList[index].name,
+                        type: playlistList[index].type,
+                        spotifyUri: playlistList[index].spotifyUri,
+                        trackIds: playlistList[index].trackIds,
                         onEdit: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => DJPlaylistEditScreen(
                                 isNew: false,
-                                id: data[index].id,
-                                name: data[index].name,
-                                type: data[index].type,
-                                spotifyUri: data[index].spotifyUri,
-                                trackIds: [...data[index].trackIds],
+                                id: playlistList[index].id,
+                                name: playlistList[index].name,
+                                type: playlistList[index].type,
+                                spotifyUri: playlistList[index].spotifyUri,
+                                trackIds: [...playlistList[index].trackIds],
+                                refreshCallback: () {
+                                  setState(() {});
+                                },
                               ),
                             ),
                           );
                         },
                         onDelete: () {
                           ref.read(hivePlaylistData.notifier).removeDJPlaylist(
-                              ref.read(hiveTrackData.notifier), data[index].id);
+                              ref.read(hiveTrackData.notifier),
+                              playlistList[index].id);
                         },
                       );
                     },

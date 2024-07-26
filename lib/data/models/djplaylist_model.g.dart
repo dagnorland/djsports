@@ -84,8 +84,8 @@ DJPlaylist _$DJPlaylistFromJson(Map<String, dynamic> json) => DJPlaylist(
       spotifyUri: json['spotifyUri'] as String,
       autoNext: json['autoNext'] as bool,
       shuffleAtEnd: json['shuffleAtEnd'] as bool,
-      currentTrack: json['currentTrack'] as int? ?? 0,
-      playCount: json['playCount'] as int? ?? 0,
+      currentTrack: (json['currentTrack'] as num?)?.toInt() ?? 0,
+      playCount: (json['playCount'] as num?)?.toInt() ?? 0,
       trackIds:
           (json['trackIds'] as List<dynamic>).map((e) => e as String).toList(),
     );

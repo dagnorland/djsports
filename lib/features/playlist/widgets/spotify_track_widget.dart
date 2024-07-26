@@ -4,21 +4,25 @@ import 'package:spotify/spotify.dart';
 
 class SpotifyTrackSearchResultTile extends StatelessWidget {
   const SpotifyTrackSearchResultTile(
-      {super.key, required this.track, required this.onSelected});
+      {super.key,
+      required this.track,
+      required this.existInPlaylist,
+      required this.onSelected});
   final Track track;
+  final bool existInPlaylist;
   final ValueChanged<Track> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return InkWell(
-      onTap: () => onSelected(track),
+      onTap: () => existInPlaylist ? null : onSelected(track),
       child: Column(
         children: [
           if (track.album!.images!.first.url != null)
             SizedBox(
-                height: 120,
-                width: 120,
+                height: 130,
+                width: 130,
                 child: ClipPath(
                   clipper: const ShapeBorderClipper(
                     shape: RoundedRectangleBorder(
@@ -32,20 +36,25 @@ class SpotifyTrackSearchResultTile extends StatelessWidget {
                 )),
           const SizedBox(height: 8.0),
           Text(
+            maxLines: 1,
             track.name!,
-            style: theme.textTheme.titleSmall,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.start,
           ),
           Text(
+            maxLines: 1,
             track.artists!.first.name!,
             style: theme.textTheme.titleSmall,
             textAlign: TextAlign.start,
           ),
           Text(
-            track.duration!.toString(),
+            track.duration != null
+                ? track.duration.toString().substring(2, 7)
+                : '',
             style: theme.textTheme.titleSmall,
             textAlign: TextAlign.start,
-          )
+          ),
         ],
       ),
     );

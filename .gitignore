@@ -15,6 +15,7 @@ doc/api/
 # dotenv environment variables file
 .env*
 .spotify_keys
+lib/firebase_options.dart
 
 # Avoid committing generated Javascript files:
 *.dart.js
@@ -28,4 +29,6 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 custom_lint.log
-.fvm/flutter_sdk
+
+# FVM Version Cache
+.fvm/

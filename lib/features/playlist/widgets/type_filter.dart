@@ -1,8 +1,7 @@
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-
-import '../../../utils.dart';
 
 class TypeFilter extends HookConsumerWidget {
   const TypeFilter({super.key});
@@ -11,7 +10,7 @@ class TypeFilter extends HookConsumerWidget {
     final status = ref.watch(typeFilterPlaylistProvider);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: Type.values
+      children: DJPlaylistType.values
           .map(
             (type) => InkWell(
               child: SizedBox(

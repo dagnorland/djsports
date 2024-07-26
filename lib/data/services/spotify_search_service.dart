@@ -15,7 +15,6 @@ class SpotifySearchService {
     _results = _searchTerms
         .debounce((_) => TimerStream(true, const Duration(milliseconds: 10)))
         .switchMap((query) async* {
-      debugPrint('query _searchTerms: $query');
       yield await searchRepository.searchTracks(query);
     }); // discard previous events
   }

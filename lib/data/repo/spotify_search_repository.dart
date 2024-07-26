@@ -27,17 +27,13 @@ class SpotifySearchRepository {
   Future<SpotifyPlaylistResult> getPlaylistTracks(String playlistId) async {
     debugPrint('tracksPage: $playlistId');
     try {
-      int counter = 0;
       var tracksPage = await _client.playlists.get(playlistId);
       Iterable result = tracksPage.tracks?.itemsNative ?? [];
       Iterable<Track> tracks = [];
       for (var item in result) {
         PlaylistTrack newPlaylistTrack = PlaylistTrack.fromJson(item);
-        debugPrint(
-            'getPlaylistTracks: $counter: ${newPlaylistTrack.track!.name}');
         tracks = tracks.followedBy([newPlaylistTrack.track!]);
       }
-      debugPrint('getPlaylistTracks: has tracks: ${tracks.length}');
       return SpotifyPlaylistResult(tracks);
     } catch (e) {
       debugPrint('getPlaylistTracks error: $e');

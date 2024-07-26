@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -27,14 +28,29 @@ class DJPlaylistView extends HookConsumerWidget {
   }
 
   Widget playlistWidget(BuildContext context, WidgetRef ref) {
+    bool isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
+        ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
+        : '';
+
+    Widget imageWidget = networkImageUri.isEmpty
+        ? const SizedBox(
+            width: 50,
+            height: 50,
+            child: Icon(Icons.featured_play_list_outlined, size: 50))
+        : Image.network(networkImageUri,
+            width: 50, height: 50, fit: BoxFit.cover);
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
         tileColor: Colors.black12.withOpacity(0.04),
+        leading: imageWidget,
         title: Row(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Text(
               name,
@@ -47,30 +63,61 @@ class DJPlaylistView extends HookConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Text(
-                spotifyUri.isEmpty ? 'No Spotify playlist link' : spotifyUri,
-              ),
+              SizedBox(
+                  width: isLandscape ? 400 : 350,
+                  child: Text(
+                    spotifyUri.isEmpty
+                        ? 'No Spotify playlist link'
+                        : isLandscape
+                            ? spotifyUri
+                            : spotifyUri.substring(0, 40),
+                    maxLines: 1,
+                  )),
             ],
           ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-                padding: const EdgeInsets.only(right: 20.0),
+            Container(
+                padding: const EdgeInsets.only(
+                    left: 4.0, right: 4.0), // Add padding around the Chip
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 80, // Set a minimum width for the Chip
+                    ),
+                    child: Chip(
+                        backgroundColor: Theme.of(context).secondaryHeaderColor,
+                        label: Text(spotifyUri.isEmpty ? 'mp3' : 'spotify')))),
+            Container(
+                padding: const EdgeInsets.only(
+                    left: 4.0, right: 4.0), // Add padding around the Chip
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 90, // Set a minimum width for the Chip
+                    ),
+                    child: Chip(
+                        label: Text(
+                      'Type: ${type.toUpperCase()}',
+                      maxLines: 1,
+                    )))),
+            Container(
+              padding: const EdgeInsets.only(
+                  left: 4.0, right: 4.0), // Add padding around the Chip
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: 90, // Set a minimum width for the Chip
+                ),
                 child: Chip(
-                    label: Text(
-                  'Type:${type.toUpperCase()}',
-                  maxLines: 1,
-                ))),
-            Padding(
-                padding: const EdgeInsets.only(right: 20.0),
-                child: Chip(
-                    label: Text(trackIds.isEmpty
-                        ? 'No tracks'
-                        : 'Tracks:${trackIds.length.toString()}'))),
+                  label: Text(trackIds.isEmpty
+                      ? 'No tracks'
+                      : 'Tracks:${trackIds.length.toString()}'),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor),

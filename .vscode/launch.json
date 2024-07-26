@@ -12,6 +12,13 @@
             "deviceId": "macos"
         },
         {
+            "name": "djsports iPad Pro 13-inch M4 18",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "4A3B045A-1D0E-4E0E-B7FE-741E69BF1CA1"
+        },             
+        
+        {
             "name": "djsports iPadden",
             "request": "launch",
             "type": "dart",

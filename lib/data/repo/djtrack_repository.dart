@@ -16,8 +16,8 @@ class DJTrackRepo {
     return _hive.values.toList().firstWhere((element) => element.id == id);
   }
 
-  List<DJTrack> addDJTrack(DJTrack playlist) {
-    _hive.add(playlist);
+  List<DJTrack> addDJTrack(DJTrack track) {
+    _hive.add(track);
     return _hive.values.toList();
   }
 
@@ -27,11 +27,10 @@ class DJTrackRepo {
     return _hive.values.toList();
   }
 
-  List<DJTrack> updateDJTrack(DJTrack playlist) {
-    final index = _hive.values
-        .toList()
-        .indexWhere((element) => element.id == playlist.id);
-    _hive.putAt(index, playlist);
+  List<DJTrack> updateDJTrack(DJTrack track) {
+    final index =
+        _hive.values.toList().indexWhere((element) => element.id == track.id);
+    _hive.putAt(index, track);
     return _hive.values.toList();
   }
 

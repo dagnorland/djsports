@@ -50,6 +50,21 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     state = repo!.addDJTrack(djTrack);
   }
 
+  String getFirstNetworkImageUri(List<String> trackIds) {
+    if (repo == null) {
+      return '';
+    }
+
+    final tracks = repo!.getDJTracks();
+    for (var track in tracks) {
+      if (trackIds.contains(track.id) && track.networkImageUri.isNotEmpty) {
+        return track.networkImageUri;
+      }
+    }
+
+    return '';
+  }
+
   ///remove todo from local Storage
   void removeDJTrack(String id) {
     state = repo!.removeDJTrack(id);

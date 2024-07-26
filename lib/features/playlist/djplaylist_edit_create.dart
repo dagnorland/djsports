@@ -4,12 +4,13 @@ import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/services/spotify_playlist_service.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
-import 'package:djsports/features/playlist/djtrack_create.dart';
+import 'package:djsports/features/playlist/djtrack_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_tracks_view.dart';
+import 'package:djsports/features/playlist/widgets/djplaylist_type_dropdown.dart';
 import 'package:djsports/features/spotify_playlist_sync/spotify_playlist_sync_delegate.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
-import 'package:djsports/utils.dart';
 import 'package:flutter/material.dart';
+
 // Localization
 //models
 
@@ -29,6 +30,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
     required this.isNew,
     this.status,
     required this.id,
+    this.refreshCallback,
   });
   final String name;
   final String type;
@@ -37,6 +39,8 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
   final String id;
   final bool isNew;
   final String? status;
+  final VoidCallback? refreshCallback;
+
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _EditScreenState();
 }
@@ -44,7 +48,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
 class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
-  Type selectedType = Type.score;
+  DJPlaylistType selectedType = DJPlaylistType.score;
   List<String> trackIds = [];
 
   @override
@@ -53,14 +57,101 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
     }
-    selectedType = Type.values.firstWhere((e) => e.name == widget.type);
+    selectedType =
+        DJPlaylistType.values.firstWhere((e) => e.name == widget.type);
     trackIds = widget.trackIds;
 
     super.initState();
   }
 
-  Future<void> _spotifySync(
+  Future<void> _spotifyPlaylistSync(
       BuildContext context, WidgetRef ref, String playlistId) async {
+    if (widget.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Playlist must be saved before syncing'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Close',
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ));
+      return;
+    }
+    DJPlaylist? playlist = ref
+        .read(hivePlaylistData.notifier)
+        .repo!
+        .getDJPlaylists()
+        .firstWhere((element) => element.id == widget.id);
+
+    List<String> existingTrackSpotifyUris = ref
+        .read(hiveTrackData.notifier)
+        .getDJTracksSpotifyUri(playlist.trackIds);
+    final service = ref.read(playlistServiceProvider);
+
+    Iterable<Track> result = await service.searchRepository
+        .getPlaylistTracks(playlistId)
+        .then((value) => value.when((tracks) {
+              return tracks;
+            }, error: (error) {
+              debugPrint('error: $error');
+              return [];
+            }));
+    int addedCount = 0;
+    int skippedCount = 0;
+    for (Track track in result) {
+      if (existingTrackSpotifyUris.contains(track.uri)) {
+        skippedCount++;
+        continue;
+      }
+      DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
+
+      ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
+      DJPlaylist playlist = ref
+          .read(hivePlaylistData.notifier)
+          .repo!
+          .getDJPlaylists()
+          .firstWhere((element) => element.id == widget.id);
+      ref
+          .read(hivePlaylistData.notifier)
+          .addTrackToDJPlaylist(playlist, addTrack);
+      ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
+      addedCount++;
+    }
+
+    setState(() {
+      trackIds = playlist.trackIds;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          'Added $addedCount tracks, skipped $skippedCount tracks. Playlist has now ${playlist.trackIds.length} tracks'),
+      duration: const Duration(seconds: 3),
+      action: SnackBarAction(
+        label: 'Close',
+        onPressed: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        },
+      ),
+    ));
+  }
+
+  Future<void> _spotifyTrackSync(
+      BuildContext context, WidgetRef ref, String playlistId) async {
+    if (widget.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Playlist must be saved before syncing'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Close',
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ));
+      return;
+    }
+
     DJPlaylist playlist = ref
         .read(hivePlaylistData.notifier)
         .repo!
@@ -72,14 +163,44 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         .getDJTracksSpotifyUri(playlist.trackIds);
 
     final service = ref.read(playlistServiceProvider);
-    final searchDelegate = SpotifyPlaylistDelegate(service, trackIds);
+    final searchDelegate =
+        SpotifyPlaylistTrackDelegate(playlistId, service, trackIds);
 
     //final result = service.searchRepository.getPlaylistTracks(playlistId);
     final track = await showSearch<Track?>(
       context: context,
       delegate: searchDelegate,
     );
-    debugPrint('result: $track');
+    if (track != null) {
+      // make an snackbar showing track name
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('adding track: ${track.name}'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Close',
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ));
+      DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
+
+      ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
+      DJPlaylist playlist = ref
+          .read(hivePlaylistData.notifier)
+          .repo!
+          .getDJPlaylists()
+          .firstWhere((element) => element.id == widget.id);
+      ref
+          .read(hivePlaylistData.notifier)
+          .addTrackToDJPlaylist(playlist, addTrack);
+      ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
+      setState(() {
+        trackIds = playlist.trackIds;
+      });
+    } else {
+      debugPrint('result: ingenting valgt');
+    }
   }
 
   void _showSearch(BuildContext context, WidgetRef ref) async {
@@ -102,18 +223,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           },
         ),
       ));
-      DJTrack addTrack = DJTrack(
-        id: track.id!,
-        name: track.name!,
-        album: track.album!.name!,
-        artist: track.artists!.first.name!,
-        startTime: 0,
-        startTimeMS: 0,
-        duration: track.durationMs!,
-        playCount: 0,
-        spotifyUri: track.uri!,
-        mp3Uri: '',
-      );
+      DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
 
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
       DJPlaylist playlist = ref
@@ -142,6 +252,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         leading: IconButton(
             onPressed: () {
               Navigator.of(context).pop();
+              widget.refreshCallback ?? widget.refreshCallback;
             },
             icon: const Icon(
               Icons.arrow_back,
@@ -164,6 +275,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                 child: TextField(
                   controller: nameController,
                   decoration: InputDecoration(
+                    labelText: 'Playlist name',
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color: Theme.of(context).primaryColor, width: 2),
@@ -180,8 +292,11 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               padding: const EdgeInsets.only(right: 10.0),
               child: TextField(
                 controller: spotifyUriController,
-                onChanged: (value) => setState(() {}),
+                onChanged: (value) => setState(() {
+                  spotifyUriController.text = spotifyUriValidate(value);
+                }),
                 decoration: InputDecoration(
+                  labelText: 'Spotify uri',
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
                         color: Theme.of(context).primaryColor, width: 2),
@@ -195,49 +310,72 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            if (spotifyUriController.text.isNotEmpty)
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                ),
-                onPressed: () =>
-                    _spotifySync(context, ref, spotifyUriController.text),
-                child: Text(
-                  'Sync with spotify',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge!
-                      .copyWith(color: Colors.white),
-                ),
+            Padding(
+                padding: const EdgeInsets.only(right: 10.0),
+                child: Container(
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.only(left: 10.0),
+                    decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.05),
+                        border: Border.all(
+                          color: Theme.of(context).primaryColor,
+                          width: 2,
+                        )),
+                    child: Row(children: [
+                      const Text('Type:    '),
+                      DJPlaylistTypeDropdown(
+                        initialValue: selectedType.name,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedType = DJPlaylistType.values
+                                .firstWhere((e) => e.name == value);
+                          });
+                        },
+                      ),
+                    ]))),
+            const SizedBox(height: 10),
+            if (spotifyUriController.text.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).shadowColor,
+                    ),
+                    onPressed: () => _spotifyTrackSync(
+                        context, ref, spotifyUriController.text),
+                    child: Text(
+                      'Add track from playlist',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge!
+                          .copyWith(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 10,
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).shadowColor,
+                    ),
+                    onPressed: () => _spotifyPlaylistSync(
+                        context, ref, spotifyUriController.text),
+                    child: Text(
+                      'Add missing tracks from spotify playlist',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge!
+                          .copyWith(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
+            ],
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 50),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(
-                          color: Theme.of(context).primaryColor, width: 2),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                        child: DropdownButton<Type>(
-                      value: selectedType,
-                      items: Type.values.map((Type type) {
-                        return DropdownMenuItem<Type>(
-                          value: type,
-                          child: Text(type.toString().split('.').last),
-                        );
-                      }).toList(),
-                      onChanged: (Type? newValue) {
-                        setState(() {
-                          ref.read(typeFilterPlaylistProvider.notifier).state =
-                              newValue!;
-                        });
-                      },
-                    ))),
                 const SizedBox(
                   width: 50,
                 ),
@@ -264,20 +402,22 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
                   onPressed: () {
+                    String newPlayListId = '';
                     if (widget.id.isEmpty) {
-                      ref.read(hivePlaylistData.notifier).addDJplaylist(
-                            DJPlaylist(
-                              id: '',
-                              name: nameController.text,
-                              type: selectedType.name,
-                              spotifyUri: spotifyUriController.text,
-                              shuffleAtEnd: false,
-                              trackIds: [],
-                              currentTrack: 0,
-                              playCount: 0,
-                              autoNext: false,
-                            ),
-                          );
+                      newPlayListId =
+                          ref.read(hivePlaylistData.notifier).addDJplaylist(
+                                DJPlaylist(
+                                  id: '',
+                                  name: nameController.text,
+                                  type: selectedType.name,
+                                  spotifyUri: spotifyUriController.text,
+                                  shuffleAtEnd: false,
+                                  trackIds: [],
+                                  currentTrack: 0,
+                                  playCount: 0,
+                                  autoNext: false,
+                                ),
+                              );
                     } else {
                       ref.read(hivePlaylistData.notifier).updateDJPlaylist(
                             DJPlaylist(
@@ -294,6 +434,22 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                           );
                     }
                     Navigator.pop(context);
+                    if (newPlayListId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DJPlaylistEditScreen(
+                            name: nameController.text,
+                            type: selectedType.name,
+                            spotifyUri: spotifyUriController.text,
+                            trackIds: const [],
+                            isNew: false,
+                            id: newPlayListId,
+                            status: 'Playlist created',
+                          ),
+                        ),
+                      );
+                    }
                   },
                   child: Text(
                     widget.id.isEmpty ? 'Create playlist' : 'Update playlist',
@@ -312,11 +468,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               height: 1,
             ),
             const SizedBox(height: 10),
-            getTrackList(
-                ref.read(hiveTrackData.notifier).getDJTracks(trackIds)),
-            const SizedBox(
-              height: 20,
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -324,7 +475,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor),
                   child: Text(
-                    'Add from Spotify',
+                    'Add from Spotify search',
                     style: Theme.of(context)
                         .textTheme
                         .titleLarge!
@@ -364,6 +515,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                           playCount: 0,
                           spotifyUri: '',
                           mp3Uri: '',
+                          networkImageUri: '',
                           index: 0,
                         ),
                       ),
@@ -371,6 +523,12 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   },
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            getTrackList(
+                ref.read(hiveTrackData.notifier).getDJTracks(trackIds)),
+            const SizedBox(
+              height: 20,
             ),
           ],
         ),
@@ -385,9 +543,12 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         itemCount: tracks.length,
         itemBuilder: (context, index) {
           return DJPlaylistTrackView(
+            counter: index + 1,
             track: tracks[index],
             onEdit: () {
               ref.invalidate(dataTrackProvider);
+              debugPrint(
+                  'edit track: ${tracks[index].name} ${tracks[index].duration} $index');
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -405,6 +566,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     playCount: tracks[index].playCount,
                     spotifyUri: tracks[index].spotifyUri,
                     mp3Uri: tracks[index].mp3Uri,
+                    networkImageUri: tracks[index].networkImageUri,
                     index: index,
                   ),
                 ),
@@ -423,5 +585,16 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         },
       ),
     );
+  }
+
+  String spotifyUriValidate(String value) {
+    if (value.isEmpty) {
+      return '';
+    }
+    if (value.contains('https://open.spotify.com/playlist/')) {
+      // remove the https://open.spotify.com/playlist/ from the uri
+      return value.substring(34);
+    }
+    return value;
   }
 }

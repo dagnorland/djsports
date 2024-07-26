@@ -50,7 +50,8 @@ class HomeState extends State<Home> {
       lineLength: 120, // width of the output
       colors: true, // Colorful log messages
       printEmojis: true, // Print an emoji for each log message
-      printTime: true,
+      dateTimeFormat: DateTimeFormat
+          .dateAndTime, // Use the default print method for DateTime
     ),
   );
 

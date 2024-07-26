@@ -41,6 +41,8 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
   }
 
   Widget buildMatchingSuggestions(BuildContext context) {
+    bool isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     return Consumer(
       builder: (_, ref, __) {
         final resultsValue = ref.watch(searchResultsProvider);
@@ -49,16 +51,19 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
             return result.when(
               (tracks) => GridView.builder(
                 itemCount: tracks.length,
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 200,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.8,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  // if landscape mode set crossAxisCount to 8
+                  crossAxisCount: isLandscape ? 8 : 5,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 5,
+                  childAspectRatio: isLandscape ? 0.7 : 0.9,
                 ),
                 itemBuilder: (context, index) {
                   return SpotifyTrackSearchResultTile(
                     track: tracks[index],
-                    onSelected: (value) => close(context, value),
+                    existInPlaylist: false,
+                    onSelected: (track) =>
+                        addTrackToPlaylist(context, track, ref),
                   );
                 },
               ),
@@ -70,6 +75,10 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
         );
       },
     );
+  }
+
+  void addTrackToPlaylist(BuildContext context, Track track, WidgetRef ref) {
+    close(context, track);
   }
 
   @override

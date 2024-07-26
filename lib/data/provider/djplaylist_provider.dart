@@ -1,4 +1,3 @@
-import 'package:djsports/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../controller/djplaylist_controller.dart';
 import '../models/djplaylist_model.dart';
@@ -6,7 +5,8 @@ import '../repo/djplaylist_repository.dart';
 
 ///filtered data based on user todo status
 
-final typeFilterPlaylistProvider = StateProvider<Type>((ref) => Type.all);
+final typeFilterPlaylistProvider =
+    StateProvider<DJPlaylistType>((ref) => DJPlaylistType.all);
 
 /// Filtered Todo List
 
@@ -15,7 +15,7 @@ final typeFilteredDataProvider = Provider<List<DJPlaylist>>(
     final hiveDatas = ref.watch(hivePlaylistData);
     final typeData = hiveDatas!;
     final type = ref.watch(typeFilterPlaylistProvider);
-    if (type == Type.all) {
+    if (type == DJPlaylistType.all) {
       return hiveDatas.toList();
     }
 
