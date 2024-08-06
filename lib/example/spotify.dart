@@ -50,8 +50,7 @@ class HomeState extends State<Home> {
       lineLength: 120, // width of the output
       colors: true, // Colorful log messages
       printEmojis: true, // Print an emoji for each log message
-      dateTimeFormat: DateTimeFormat
-          .dateAndTime, // Use the default print method for DateTime
+      printTime: true, // Should each log print contain a timestamp
     ),
   );
 
@@ -388,7 +387,8 @@ class HomeState extends State<Home> {
         ),
         builder: (BuildContext context, AsyncSnapshot<Uint8List?> snapshot) {
           if (snapshot.hasData) {
-            return Image.memory(snapshot.data!);
+            return Text(
+                snapshot.hasData.toString()); // Image.memory(snapshot.data!);
           } else if (snapshot.hasError) {
             setStatus(snapshot.error.toString());
             return SizedBox(

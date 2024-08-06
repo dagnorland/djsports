@@ -28,8 +28,16 @@
             "name": "djsports Samsung X200",
             "request": "launch",
             "type": "dart",
-            "deviceId": "R8YW70LMS7N"
+            "deviceId": "R8YW70LMS7N" 
         },
+        {
+            "name": "djsports Samsung Tab S6",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "R52M903GCPJ" 
+        },
+       
         {
             "name": "djsports Chrome/WEB",
             "request": "launch",
@@ -52,6 +60,14 @@
             "name": "djsports Android Tablet",
             "request": "launch",
             "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "emulator-5554"
+        },
+        {
+            "name": "djsports Pixel 8 Pro Simulator",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
             "deviceId": "emulator-5554"
         },
         {
@@ -93,7 +109,7 @@
             "request": "launch",
             "type": "dart",
             "program": "lib/example/spotify.dart",
-            "deviceId": "R8YW70LMS7N"
+            "deviceId": "R8YW70LMS7N" 
         },
         {
             "name": "djsports SM X200 Todo Example ",
