@@ -83,37 +83,36 @@ class DJPlaylistView extends HookConsumerWidget {
           children: [
             Container(
                 padding: const EdgeInsets.only(
-                    left: 4.0, right: 4.0), // Add padding around the Chip
+                    left: 1.0, right: 1.0), // Add padding around the Chip
                 child: ConstrainedBox(
                     constraints: const BoxConstraints(
-                      minWidth: 80, // Set a minimum width for the Chip
+                      minWidth: 40, // Set a minimum width for the Chip
                     ),
                     child: Chip(
                         backgroundColor: Theme.of(context).secondaryHeaderColor,
                         label: Text(spotifyUri.isEmpty ? 'mp3' : 'spotify')))),
             Container(
                 padding: const EdgeInsets.only(
-                    left: 4.0, right: 4.0), // Add padding around the Chip
+                    left: 1.0, right: 1.0), // Add padding around the Chip
                 child: ConstrainedBox(
                     constraints: const BoxConstraints(
-                      minWidth: 90, // Set a minimum width for the Chip
+                      minWidth: 20, // Set a minimum width for the Chip
                     ),
                     child: Chip(
                         label: Text(
-                      'Type: ${type.toUpperCase()}',
+                      type,
                       maxLines: 1,
                     )))),
             Container(
-              padding: const EdgeInsets.only(
-                  left: 4.0, right: 4.0), // Add padding around the Chip
+              padding: const EdgeInsets.only(left: 1.0, right: 1.0),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  minWidth: 90, // Set a minimum width for the Chip
+                  minWidth: 20, // Set a minimum width for the Chip
                 ),
                 child: Chip(
                   label: Text(trackIds.isEmpty
-                      ? 'No tracks'
-                      : 'Tracks:${trackIds.length.toString()}'),
+                      ? 'Empty'
+                      : '#${trackIds.length.toString()}'),
                 ),
               ),
             ),

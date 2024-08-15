@@ -42,6 +42,9 @@ Future<void> main() async {
   runApp(const ProviderScope(child: DJSportsApp()));
 }
 
+// MY TODO SECTION
+// 1. Make play list cards like the tracjlist view on play list.. like the text do not go beyond the buttons on the right
+
 class DJSportsApp extends ConsumerWidget {
   const DJSportsApp({super.key});
 

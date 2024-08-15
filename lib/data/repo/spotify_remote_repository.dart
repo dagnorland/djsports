@@ -1,3 +1,4 @@
+import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -12,19 +13,104 @@ class SpotifyRemoteRepository {
 
   String lastValidAccessToken = '';
   Object lastAccessTokenError = Object();
+  bool isConnectedRemote = false;
   bool isConnected = false;
+  bool isPlaying = false;
 
   Future<bool> connect() async {
-    if (isConnected) {
-      return isConnected;
+    await connectAccessToken();
+    await connectToSpotifyRemote();
+    SpotifyConnectionLog().debugPrintLog();
+
+    return isConnected && isConnectedRemote;
+  }
+
+  Future<bool> pausePlayer() async {
+    {
+      await SpotifySdk.pause();
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'Pause Spotify Remote App');
+      isPlaying = false;
+      return isPlaying;
+    }
+  }
+
+  Future<bool> resumePlayer() async {
+    {
+      await SpotifySdk.resume();
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'Resumed Spotify Remote App');
+      isPlaying = true;
+      return isPlaying;
+    }
+  }
+
+  Future<String> playTrack(String spotifyUri) async {
+    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
+      return '[Error] Not connected to Spotify';
     }
 
     try {
-      final accessToken = await getSpotifyAccessToken();
-      isConnected = accessToken.isNotEmpty;
-      lastValidAccessToken = accessToken;
-      _credentials.accessToken = accessToken;
+      await SpotifySdk.play(spotifyUri: spotifyUri);
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'play track $spotifyUri');
+      return '[Success] Playing track $spotifyUri';
+    } on PlatformException catch (platformException) {
+      if (platformException.details != null) {
+        if (platformException.details
+            .contains('SpotifyDisconnectedException')) {
+          isConnected = false;
+          SpotifyConnectionLog().addSimpleEntry(
+              SpotifyConnectionStatus.notConnected,
+              'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
+          // lets reconnect
+          connectAccessToken();
+          if (isConnected) {
+            connectToSpotifyRemote();
+            if (isConnectedRemote) {
+              SpotifyConnectionLog().addSimpleEntry(
+                  SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+                  'Reconnected. trying replay. spotifyUri');
+              playTrack(spotifyUri);
+            }
+          }
+        }
+      }
+      /*
+        I/flutter (14291): Failed to play. details: com.spotify.android.appremote.api.error.SpotifyDisconnectedException
+        I/flutter (14291): Failed to play. code: playError
+        I/flutter (14291): Failed to play. message: error when playing uri: spotify:track:0cqRj7pUJDkTCEsJkx8snD
+        I/flutter (14291): Failed to play. platformException.code:  playError      
+      */
+      debugPrint('Failed to play. details: ${platformException.details}');
+      debugPrint('Failed to play. code: ${platformException.code}');
+      debugPrint('Failed to play. message: ${platformException.message}');
+      //handleSpotifyPlatformException('play', platformException);
+      //Failed to play. PlatformException(playError, error when playing uri: spotify:track:6Q3K9gVUZRMZqZKrXovbM2, com.spotify.android.appremote.api.error.SpotifyDisconnectedException, null).details
+
+      return '[Error] Failed to play. ${platformException.details}';
     } catch (e) {
+      return '[Error] Failed to play. $e';
+    }
+  }
+
+  Future<bool> connectAccessToken() async {
+    try {
+      final accessToken = await getSpotifyAccessToken();
+      _credentials.accessToken = accessToken;
+      lastValidAccessToken = accessToken;
+      isConnected = accessToken.isNotEmpty;
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotify, 'Connect to Spotify');
+    } catch (e) {
+      // add spotify connection log
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.notConnected,
+          'Failed to connect to Spotify ${e.toString()}');
+
       isConnected = false;
       lastAccessTokenError = e;
     }
@@ -77,33 +163,30 @@ class SpotifyRemoteRepository {
               'playlist-modify-public, '
               'user-read-currently-playing',
           accessToken: lastValidAccessToken);
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'Connected to Spotify Remote App');
+
+      isConnectedRemote = result;
       return result;
     } on PlatformException catch (e) {
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.notConnected,
+          'Error, SpotifyRemote platformexception, not connected. ${e.details}');
       debugPrint('Failed to connect to Spotify Remote. ${e.details}');
       return false;
     } on MissingPluginException {
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.notConnected,
+          'Error, SpotifyRemote missing plugin, not connected. ');
       debugPrint('Failed to connect to Spotify Remote. MissingPluginException');
       return false;
     } catch (e) {
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.notConnected,
+          'Error, SpotifyRemote exception, not connected. ${{e.toString()}}');
       debugPrint('Failed to connect to Spotify Remote. $e');
       return false;
-    }
-  }
-
-  Future<String> playTrack(String spotifyUri) async {
-    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
-      return '[Error] Not connected to Spotify';
-    }
-
-    try {
-      await SpotifySdk.play(spotifyUri: spotifyUri);
-      return '[Success] Playing track $spotifyUri';
-    } on PlatformException catch (platformException) {
-      debugPrint('Failed to play. $platformException.details');
-      //handleSpotifyPlatformException('play', platformException);
-      return '[Error] Failed to play. ${platformException.details}';
-    } catch (e) {
-      return '[Error] Failed to play. $e';
     }
   }
 }

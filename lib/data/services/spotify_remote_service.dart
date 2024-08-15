@@ -7,7 +7,7 @@ class SpotifyRemoteService {
     // Implementation based on: https://youtu.be/7O1UO5rEpRc
     // ReactiveConf 2018 - Brian Egan & Filip Hracek: Practical Rx with Flutter
     _connected = _connect.switchMap((status) async* {
-      yield await remoteRepository.connect();
+      yield await remoteRepository.connectAccessToken();
     }); // discard previous events
   }
   final SpotifyRemoteRepository remoteRepository;

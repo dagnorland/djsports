@@ -37,7 +37,13 @@
             "program": "lib/main.dart",
             "deviceId": "R52M903GCPJ" 
         },
-       
+        {
+            "name": "djsports Samsung SM-X200",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "R8YW70LMS7N" 
+        },        
         {
             "name": "djsports Chrome/WEB",
             "request": "launch",

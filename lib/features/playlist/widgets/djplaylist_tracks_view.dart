@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:djsports/data/models/djtrack_model.dart';
+import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -40,18 +41,18 @@ class DJPlaylistTrackView extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    bool isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
     Widget leadingImage = track.networkImageUri.isEmpty
         ? const SizedBox(
-            width: 50,
-            height: 50,
-            child: Icon(Icons.art_track_outlined, size: 50))
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(track.networkImageUri,
-                width: 50, height: 50, fit: BoxFit.cover),
-          );
+            width: 50, height: 50, child: Icon(Icons.play_arrow, size: 50))
+        : Stack(alignment: Alignment.center, children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(track.networkImageUri,
+                  width: 50, height: 50, fit: BoxFit.cover),
+            ),
+            const Icon(Icons.play_arrow, size: 45, color: Colors.black54),
+          ]);
+
     Widget rowCountWithImage = Chip(
       backgroundColor: Theme.of(context).secondaryHeaderColor.withOpacity(0.4),
       label: Text(
@@ -59,10 +60,10 @@ class DJPlaylistTrackView extends HookConsumerWidget {
       ),
     );
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.only(bottom: 2.0, right: 10),
       child: Card(
         elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
         child: ListTile(
           tileColor: Colors.black12.withOpacity(0.04),
           leading: rowCountWithImage,
@@ -70,42 +71,33 @@ class DJPlaylistTrackView extends HookConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  SizedBox(
-                      width: isLandscape ? 800 : 500,
-                      height: 20,
-                      child: Text(
-                        '${track.name} by ${track.artist}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      )),
-                ],
-              ),
-              // show type as chip
+              Expanded(
+                  child: Text(
+                '${track.name} by ${track.artist}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              )),
             ],
           ),
           subtitle: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text(
-                    'Duration: ${printDuration(Duration(milliseconds: track.duration))}'),
-                const SizedBox(width: 10),
-                Text(
-                    'Start: ${printDuration(Duration(milliseconds: track.startTime))},${(track.startTimeMS)}'),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 2.0),
+            child: Text(
+                '${printDuration(Duration(milliseconds: track.startTime))} - ${printDuration(Duration(milliseconds: track.duration))}'),
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
                   padding: const EdgeInsets.only(right: 20.0),
-                  child: leadingImage),
+                  child: InkWell(
+                      onTap: () {
+                        ref.read(spotifyRemoteRepositoryProvider).playTrack(
+                            track.spotifyUri.isEmpty
+                                ? track.mp3Uri
+                                : track.spotifyUri);
+                      },
+                      child: leadingImage)),
               Padding(
                   padding: const EdgeInsets.only(right: 20.0),
                   child: Chip(

@@ -270,118 +270,168 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            Padding(
-                padding: const EdgeInsets.only(right: 10.0),
-                child: TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Playlist name',
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: Theme.of(context).primaryColor, width: 2),
+            Container(
+                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                child: Row(children: [
+                  Expanded(
+                    flex: 70,
+                    child: TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor, width: 2),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor, width: 2),
+                        ),
+                        hintText: ' Enter name',
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: Theme.of(context).primaryColor, width: 2),
-                    ),
-                    hintText: ' Enter name',
                   ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 30,
+                    child: Container(
+                        height: 58,
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.only(left: 10.0),
+                        decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .primaryColor
+                                .withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: Theme.of(context).primaryColor,
+                              width: 2,
+                            )),
+                        child: Row(children: [
+                          const Text('Type:    '),
+                          DJPlaylistTypeDropdown(
+                            initialValue: selectedType.name,
+                            onChanged: (value) {
+                              setState(() {
+                                selectedType = DJPlaylistType.values
+                                    .firstWhere((e) => e.name == value);
+                              });
+                            },
+                          )
+                        ])),
+                  )
+                ])),
+            const SizedBox(height: 10),
+            Container(
+                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 70,
+                      child: TextField(
+                        controller: spotifyUriController,
+                        onChanged: (value) => setState(() {
+                          spotifyUriController.text = spotifyUriValidate(value);
+                        }),
+                        decoration: InputDecoration(
+                          labelText: 'Spotify uri 2',
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
+                          ),
+                          hintText: ' Paste spotify uri',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 30,
+                      child: Row(children: [
+                        IconButton(
+                          icon: const Icon(Icons.sync),
+                          onPressed: () {
+                            setState(() {
+                              _spotifyPlaylistSync(
+                                  context, ref, spotifyUriController.text);
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () {
+                            setState(() {
+                              _showSearch(context, ref);
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.library_add),
+                          onPressed: () {
+                            setState(() {
+                              _spotifyTrackSync(
+                                  context, ref, spotifyUriController.text);
+                            });
+                          },
+                        )
+                      ]),
+                    )
+                  ],
                 )),
             const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.only(right: 10.0),
-              child: TextField(
-                controller: spotifyUriController,
-                onChanged: (value) => setState(() {
-                  spotifyUriController.text = spotifyUriValidate(value);
-                }),
-                decoration: InputDecoration(
-                  labelText: 'Spotify uri',
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: Theme.of(context).primaryColor, width: 2),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: Theme.of(context).primaryColor, width: 2),
-                  ),
-                  hintText: ' Paste spotify uri',
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Padding(
-                padding: const EdgeInsets.only(right: 10.0),
-                child: Container(
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.only(left: 10.0),
-                    decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.05),
-                        border: Border.all(
-                          color: Theme.of(context).primaryColor,
-                          width: 2,
-                        )),
-                    child: Row(children: [
-                      const Text('Type:    '),
-                      DJPlaylistTypeDropdown(
-                        initialValue: selectedType.name,
-                        onChanged: (value) {
-                          setState(() {
-                            selectedType = DJPlaylistType.values
-                                .firstWhere((e) => e.name == value);
-                          });
-                        },
-                      ),
-                    ]))),
-            const SizedBox(height: 10),
-            if (spotifyUriController.text.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).shadowColor,
-                    ),
-                    onPressed: () => _spotifyTrackSync(
-                        context, ref, spotifyUriController.text),
-                    child: Text(
-                      'Add track from playlist',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .copyWith(color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).shadowColor,
-                    ),
-                    onPressed: () => _spotifyPlaylistSync(
-                        context, ref, spotifyUriController.text),
-                    child: Text(
-                      'Add missing tracks from spotify playlist',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .copyWith(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColorLight),
+                  child: Text(
+                    'Add MP3',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge!
+                        .copyWith(color: Colors.white),
+                  ),
+                  onPressed: () {
+                    ref.invalidate(dataTrackProvider);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DJTrackEditScreen(
+                          playlistId: widget.id,
+                          playlistName: widget.name,
+                          isNew: true,
+                          id: '',
+                          name: '',
+                          album: '',
+                          artist: '',
+                          startTime: 0,
+                          startTimeMS: 0,
+                          duration: 0,
+                          playCount: 0,
+                          spotifyUri: '',
+                          mp3Uri: '',
+                          networkImageUri: '',
+                          index: 0,
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(
-                  width: 50,
+                  width: 30,
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey,
+                    backgroundColor: Theme.of(context).disabledColor,
                   ),
                   onPressed: () {
                     Navigator.pop(context);
@@ -452,7 +502,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     }
                   },
                   child: Text(
-                    widget.id.isEmpty ? 'Create playlist' : 'Update playlist',
+                    widget.id.isEmpty ? 'Create' : 'Update',
                     style: Theme.of(context)
                         .textTheme
                         .titleLarge!
@@ -467,63 +517,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               color: Colors.grey,
               height: 1,
             ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor),
-                  child: Text(
-                    'Add from Spotify search',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge!
-                        .copyWith(color: Colors.white),
-                  ),
-                  onPressed: () => _showSearch(context, ref),
-                ),
-                const SizedBox(
-                  width: 30,
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor),
-                  child: Text(
-                    'Add mp3 file',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge!
-                        .copyWith(color: Colors.white),
-                  ),
-                  onPressed: () {
-                    ref.invalidate(dataTrackProvider);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DJTrackEditScreen(
-                          playlistId: widget.id,
-                          playlistName: widget.name,
-                          isNew: true,
-                          id: '',
-                          name: '',
-                          album: '',
-                          artist: '',
-                          startTime: 0,
-                          startTimeMS: 0,
-                          duration: 0,
-                          playCount: 0,
-                          spotifyUri: '',
-                          mp3Uri: '',
-                          networkImageUri: '',
-                          index: 0,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
+
             const SizedBox(height: 10),
             getTrackList(
                 ref.read(hiveTrackData.notifier).getDJTracks(trackIds)),

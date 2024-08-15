@@ -39,7 +39,7 @@ class _ConnectScreenState extends ConsumerState<SpotifyConnectScreen> {
     // how to use SpotifyRemoteService to connect to Spotify
     responseController.text = 'New try...';
     final spotifyRemoteService = ref.read(spotifyRemoteRepositoryProvider);
-    final connected = await spotifyRemoteService.connect();
+    final connected = await spotifyRemoteService.connectAccessToken();
     final connectedToSpotifyRemote =
         await spotifyRemoteService.connectToSpotifyRemote();
     debugPrint('connectedToSpotifyRemote: $connectedToSpotifyRemote');
