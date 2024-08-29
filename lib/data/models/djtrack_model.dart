@@ -105,14 +105,21 @@ class DJTrack extends HiveObject {
   static DJTrack fromSpotifyTrack(Track track) {
     String networkImageUri = track.album?.images?.first.url ?? '';
 
+    String albumName = '';
+    if (track.album != null) {
+      albumName = track.album!.name!;
+    }
+
+    int duration = track.durationMs ?? 0;
+
     return DJTrack(
       id: track.id!,
       name: track.name!,
-      album: track.album!.name!,
+      album: albumName,
       artist: track.artists!.first.name!,
       startTime: 0,
       startTimeMS: 0,
-      duration: track.durationMs!,
+      duration: duration,
       playCount: 0,
       spotifyUri: track.uri!,
       mp3Uri: '',

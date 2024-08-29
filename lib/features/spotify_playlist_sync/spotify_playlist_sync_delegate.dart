@@ -7,6 +7,7 @@ import 'package:spotify/spotify.dart';
 class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
   SpotifyPlaylistTrackDelegate(
       this.searchQuery, this.playlistService, this.existingSpotifyTrackUris);
+
   final SpotifyPlaylistService playlistService;
   final List<String> existingSpotifyTrackUris;
   String searchQuery;
@@ -35,7 +36,7 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
     }
     // search-as-you-type if enabled
 
-    playlistService.getPlaylistById(query);
+    playlistService.getPlaylistByUri(query);
     return buildMatchingSuggestions(context);
   }
 
@@ -46,7 +47,7 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
     }
     // always search if submitted
     debugPrint('buildResults get playlist by id: $query ${DateTime.now()}');
-    playlistService.getPlaylistById(query);
+    playlistService.getPlaylistByUri(query);
     return buildMatchingSuggestions(context);
   }
 

@@ -17,6 +17,8 @@ class SpotifyRemoteRepository {
   bool isConnected = false;
   bool isPlaying = false;
 
+  DateTime lastConnectionTime = DateTime(1970, 1, 1);
+
   Future<bool> connect() async {
     await connectAccessToken();
     await connectToSpotifyRemote();
@@ -103,6 +105,8 @@ class SpotifyRemoteRepository {
       _credentials.accessToken = accessToken;
       lastValidAccessToken = accessToken;
       isConnected = accessToken.isNotEmpty;
+      lastConnectionTime = DateTime.now();
+
       SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.connectedSpotify, 'Connect to Spotify');
     } catch (e) {
@@ -119,9 +123,22 @@ class SpotifyRemoteRepository {
   }
 
   Future<String> getSpotifyAccessToken() async {
-    if (isConnected && lastValidAccessToken.isNotEmpty) {
+    // how long since last connection
+    Duration timeSinceLastConnection =
+        DateTime.now().difference(lastConnectionTime);
+    debugPrint('Time since last connection: $timeSinceLastConnection');
+
+    // if more than 5 five minutes since last connection, lets reconnect
+    if (lastConnectionTime
+            .isAfter(DateTime.now().subtract(const Duration(minutes: 5))) &&
+        lastValidAccessToken.isNotEmpty) {
+      debugPrint(
+          'getSpotifyAccessToken ALREADY CONNECTED lastConnectionTime: $lastConnectionTime');
       return lastValidAccessToken;
     }
+
+    debugPrint(
+        'getSpotifyAccessToken RECONNECT lastConnectionTime: $lastConnectionTime');
 
     try {
       _credentials.scopes = [

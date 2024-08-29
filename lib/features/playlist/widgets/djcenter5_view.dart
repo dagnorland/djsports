@@ -3,28 +3,17 @@ import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class DJPlaylistView extends HookConsumerWidget {
+class DJCenter5View extends HookConsumerWidget {
   final String name;
   final String type;
   final String spotifyUri;
-  final bool shuffleAtEnd;
-  final bool autoNext;
-  final int currentTrack;
-
   final List<String> trackIds;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  const DJPlaylistView({
+  const DJCenter5View({
     super.key,
     required this.name,
     required this.type,
     required this.spotifyUri,
     required this.trackIds,
-    required this.shuffleAtEnd,
-    required this.autoNext,
-    required this.currentTrack,
-    required this.onEdit,
-    required this.onDelete,
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,31 +113,6 @@ class DJPlaylistView extends HookConsumerWidget {
               ),
             ),
             const SizedBox(width: 10),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor),
-              onPressed: onEdit,
-              child: Text(
-                'Edit',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall!
-                    .copyWith(color: Colors.white),
-              ),
-            ),
-            const SizedBox(width: 10),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor),
-              onPressed: onDelete,
-              child: Text(
-                'Delete',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall!
-                    .copyWith(color: Colors.white),
-              ),
-            ),
           ],
         ),
       ),

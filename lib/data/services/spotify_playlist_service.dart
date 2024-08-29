@@ -16,15 +16,15 @@ class SpotifyPlaylistService {
         .debounce((_) => TimerStream(true, const Duration(milliseconds: 10)))
         .switchMap((query) async* {
       debugPrint('query _getTerms: $query ${DateTime.now()}');
-      yield await searchRepository.getPlaylistTracks(query);
+      yield await searchRepository.getTracksByUri(query);
     }); // discard previous events
   }
   final SpotifySearchRepository searchRepository;
 
   // Input stream (search terms)
   final _getTerms = BehaviorSubject<String>();
-  void getPlaylistById(String query) {
-    debugPrint('query getPlaylistById: $query ${DateTime.now()}');
+  void getPlaylistByUri(String query) {
+    debugPrint('query getPlaylistByUri: $query ${DateTime.now()}');
     _getTerms.add(query);
   }
 

@@ -9,7 +9,9 @@ import 'package:djsports/features/playlist/widgets/djplaylist_tracks_view.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_type_dropdown.dart';
 import 'package:djsports/features/spotify_playlist_sync/spotify_playlist_sync_delegate.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Localization
 //models
@@ -27,14 +29,54 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
     required this.type,
     required this.spotifyUri,
     required this.trackIds,
+    required this.shuffleAtEnd,
+    required this.autoNext,
+    required this.currentTrack,
+    required this.position,
     required this.isNew,
     this.status,
     required this.id,
     this.refreshCallback,
   });
+  factory DJPlaylistEditScreen.fromDJPlaylist(DJPlaylist playlist,
+      {VoidCallback? refreshCallback}) {
+    return DJPlaylistEditScreen(
+      isNew: false,
+      id: playlist.id,
+      name: playlist.name,
+      type: playlist.type,
+      spotifyUri: playlist.spotifyUri,
+      trackIds: [...playlist.trackIds],
+      shuffleAtEnd: playlist.shuffleAtEnd,
+      autoNext: playlist.autoNext,
+      currentTrack: playlist.currentTrack,
+      position: playlist.position,
+      refreshCallback: refreshCallback,
+    );
+  }
+
+  factory DJPlaylistEditScreen.empty() {
+    return DJPlaylistEditScreen(
+      name: '',
+      type: DJPlaylistType.score.name,
+      spotifyUri: '',
+      trackIds: const [],
+      shuffleAtEnd: true,
+      autoNext: true,
+      currentTrack: 0,
+      position: 10,
+      isNew: true,
+      id: '',
+    );
+  }
+
   final String name;
   final String type;
   final String spotifyUri;
+  final bool shuffleAtEnd;
+  final bool autoNext;
+  final int currentTrack;
+  final int position;
   final List<String> trackIds;
   final String id;
   final bool isNew;
@@ -48,24 +90,60 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
 class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
+  final positionController = TextEditingController();
   DJPlaylistType selectedType = DJPlaylistType.score;
   List<String> trackIds = [];
+  bool shuffleAtEnd = true;
+  bool autoNext = true;
+  int position = 10;
+  int currentTrack = 0;
+  String _errorMessage = '';
 
   @override
   void initState() {
     if (!widget.isNew) {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
+      shuffleAtEnd = widget.shuffleAtEnd;
+      autoNext = widget.autoNext;
+      position = widget.position;
+      positionController.text = position.toString();
+      currentTrack = widget.currentTrack;
+    } else {
+      nameController.text = widget.name;
+      spotifyUriController.text = widget.spotifyUri;
+      positionController.text = position.toString();
     }
     selectedType =
         DJPlaylistType.values.firstWhere((e) => e.name == widget.type);
     trackIds = widget.trackIds;
-
+    positionController.addListener(_validateInput);
     super.initState();
   }
 
+  void _validateInput() {
+    final text = positionController.text;
+    if (text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Value cannot be empty';
+      });
+      return;
+    }
+
+    final value = int.tryParse(text);
+    if (value == null || value < 1 || value > 99) {
+      setState(() {
+        _errorMessage = 'Value must be between 1 and 99';
+      });
+    } else {
+      setState(() {
+        _errorMessage = '';
+      });
+    }
+  }
+
   Future<void> _spotifyPlaylistSync(
-      BuildContext context, WidgetRef ref, String playlistId) async {
+      BuildContext context, WidgetRef ref, String playlistUri) async {
     if (widget.isNew) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Playlist must be saved before syncing'),
@@ -91,13 +169,17 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     final service = ref.read(playlistServiceProvider);
 
     Iterable<Track> result = await service.searchRepository
-        .getPlaylistTracks(playlistId)
+        .getTracksByUri(playlistUri)
         .then((value) => value.when((tracks) {
               return tracks;
             }, error: (error) {
               debugPrint('error: $error');
               return [];
             }));
+
+    String syncName =
+        await service.searchRepository.getSpotifyNameUri(playlistUri);
+
     int addedCount = 0;
     int skippedCount = 0;
     for (Track track in result) {
@@ -116,11 +198,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ref
           .read(hivePlaylistData.notifier)
           .addTrackToDJPlaylist(playlist, addTrack);
+      playlist.name = syncName;
       ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
       addedCount++;
     }
 
     setState(() {
+      nameController.text = playlist.name;
       trackIds = playlist.trackIds;
     });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -373,7 +457,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                         ),
                         const SizedBox(width: 10),
                         IconButton(
-                          icon: const Icon(Icons.library_add),
+                          icon: const Icon(Icons.playlist_add_circle_outlined),
                           onPressed: () {
                             setState(() {
                               _spotifyTrackSync(
@@ -386,6 +470,73 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   ],
                 )),
             const SizedBox(height: 10),
+
+            Container(
+                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Row(
+                        children: [
+                          const Text('Shuffle'),
+                          CupertinoCheckbox(
+                            value: shuffleAtEnd,
+                            onChanged: (value) {
+                              setState(() {
+                                shuffleAtEnd = value ?? true;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: Row(
+                        children: [
+                          const Text('Auto next'),
+                          CupertinoCheckbox(
+                            value: autoNext,
+                            onChanged: (value) {
+                              setState(() {
+                                autoNext = value ?? true;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 5,
+                      child: Row(children: [
+                        Text('${widget.currentTrack + 1} / ${trackIds.length}'),
+                      ]),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: Row(
+                        children: [
+                          const Text('Position'),
+                          SizedBox(
+                              width: 50,
+                              child: CupertinoTextField(
+                                maxLength: 2,
+                                keyboardType: TextInputType.number,
+                                controller: positionController,
+                                placeholder: 'Enter a value between 1 and 99',
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly
+                                ],
+                              )),
+                        ],
+                      ),
+                    ),
+                  ],
+                )),
+            const SizedBox(height: 10),
+
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -451,56 +602,67 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
-                  onPressed: () {
-                    String newPlayListId = '';
-                    if (widget.id.isEmpty) {
-                      newPlayListId =
-                          ref.read(hivePlaylistData.notifier).addDJplaylist(
-                                DJPlaylist(
-                                  id: '',
+                  onPressed: _errorMessage.isNotEmpty
+                      ? null
+                      : () {
+                          String newPlayListId = '';
+                          if (widget.id.isEmpty) {
+                            newPlayListId = ref
+                                .read(hivePlaylistData.notifier)
+                                .addDJplaylist(
+                                  DJPlaylist(
+                                    id: '',
+                                    name: nameController.text,
+                                    type: selectedType.name,
+                                    spotifyUri: spotifyUriController.text,
+                                    shuffleAtEnd: shuffleAtEnd,
+                                    trackIds: [],
+                                    currentTrack: currentTrack,
+                                    playCount: 0,
+                                    autoNext: autoNext,
+                                  ),
+                                );
+                          } else {
+                            ref
+                                .read(hivePlaylistData.notifier)
+                                .updateDJPlaylist(
+                                  DJPlaylist(
+                                    id: widget.id,
+                                    name: nameController.text,
+                                    type: selectedType.name,
+                                    spotifyUri: spotifyUriController.text,
+                                    shuffleAtEnd: shuffleAtEnd,
+                                    trackIds: trackIds,
+                                    currentTrack: currentTrack,
+                                    playCount: 0,
+                                    autoNext: autoNext,
+                                    position:
+                                        int.parse(positionController.text),
+                                  ),
+                                );
+                          }
+                          Navigator.pop(context);
+                          if (newPlayListId.isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DJPlaylistEditScreen(
                                   name: nameController.text,
                                   type: selectedType.name,
                                   spotifyUri: spotifyUriController.text,
-                                  shuffleAtEnd: false,
-                                  trackIds: [],
-                                  currentTrack: 0,
-                                  playCount: 0,
-                                  autoNext: false,
+                                  trackIds: const [],
+                                  isNew: false,
+                                  id: newPlayListId,
+                                  status: 'Playlist created',
+                                  shuffleAtEnd: widget.shuffleAtEnd,
+                                  autoNext: widget.autoNext,
+                                  currentTrack: widget.currentTrack,
+                                  position: int.parse(positionController.text),
                                 ),
-                              );
-                    } else {
-                      ref.read(hivePlaylistData.notifier).updateDJPlaylist(
-                            DJPlaylist(
-                              id: widget.id,
-                              name: nameController.text,
-                              type: selectedType.name,
-                              spotifyUri: spotifyUriController.text,
-                              shuffleAtEnd: false,
-                              trackIds: trackIds,
-                              currentTrack: 0,
-                              playCount: 0,
-                              autoNext: false,
-                            ),
-                          );
-                    }
-                    Navigator.pop(context);
-                    if (newPlayListId.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DJPlaylistEditScreen(
-                            name: nameController.text,
-                            type: selectedType.name,
-                            spotifyUri: spotifyUriController.text,
-                            trackIds: const [],
-                            isNew: false,
-                            id: newPlayListId,
-                            status: 'Playlist created',
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                              ),
+                            );
+                          }
+                        },
                   child: Text(
                     widget.id.isEmpty ? 'Create' : 'Update',
                     style: Theme.of(context)
@@ -587,7 +749,12 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     }
     if (value.contains('https://open.spotify.com/playlist/')) {
       // remove the https://open.spotify.com/playlist/ from the uri
-      return value.substring(34);
+      return value.substring('https://open.spotify.com/'.length);
+    }
+
+    if (value.contains('https://open.spotify.com/album/')) {
+      // remove the https://open.spotify.com/ from the uri
+      return value.substring('https://open.spotify.com/'.length);
     }
     return value;
   }

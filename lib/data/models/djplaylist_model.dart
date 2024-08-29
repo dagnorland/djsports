@@ -62,7 +62,8 @@ class DJPlaylist extends HiveObject {
       required this.shuffleAtEnd,
       this.currentTrack = 0,
       this.playCount = 0,
-      required this.trackIds}); // = const Uuid().v4();
+      required this.trackIds,
+      this.position = 0}); // = const Uuid().v4();
 
   @HiveField(0)
   String id;
@@ -82,6 +83,8 @@ class DJPlaylist extends HiveObject {
   int playCount;
   @HiveField(8)
   List<String> trackIds;
+  @HiveField(9, defaultValue: 0)
+  int position;
 
   factory DJPlaylist.simple(String id, String name, DJPlaylistType type) =>
       DJPlaylist(

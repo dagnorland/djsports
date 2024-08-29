@@ -24,20 +24,80 @@ class SpotifySearchRepository {
     return SpotifySearchResult(result);
   }
 
-  Future<SpotifyPlaylistResult> getPlaylistTracks(String playlistId) async {
-    debugPrint('tracksPage: $playlistId');
-    try {
-      var tracksPage = await _client.playlists.get(playlistId);
-      Iterable result = tracksPage.tracks?.itemsNative ?? [];
-      Iterable<Track> tracks = [];
-      for (var item in result) {
-        PlaylistTrack newPlaylistTrack = PlaylistTrack.fromJson(item);
-        tracks = tracks.followedBy([newPlaylistTrack.track!]);
+  Future<String> getSpotifyNameUri(String queryUri) async {
+    debugPrint('tracksPage: $queryUri');
+
+    // does queryUri start with playlist or album
+    if (queryUri.startsWith('album/')) {
+      try {
+        queryUri = queryUri.replaceAll('album/', '');
+        final album = await _client.albums.get(queryUri);
+        Album newAlbum = Album.fromJson(album.toJson());
+        return newAlbum.name ?? '';
+      } catch (e) {
+        debugPrint('getSpotifyNameUri error: $e');
+        return '';
       }
-      return SpotifyPlaylistResult(tracks);
-    } catch (e) {
-      debugPrint('getPlaylistTracks error: $e');
-      return const SpotifyPlaylistResult([]);
+    } else {
+      try {
+        // remove playlist/ from queryUri
+        queryUri = queryUri.replaceAll('playlist/', '');
+        var tracksPage = await _client.playlists.get(queryUri);
+        return tracksPage.name ?? '';
+      } catch (e) {
+        debugPrint('getPlaylistTracks error: $e');
+        return '';
+      }
+    }
+  }
+
+  Future<SpotifyPlaylistResult> getTracksByUri(String queryUri) async {
+    debugPrint('tracksPage: $queryUri');
+
+    // does queryUri start with playlist or album
+    if (queryUri.startsWith('album/')) {
+      try {
+        queryUri = queryUri.replaceAll('album/', '');
+        final album = await _client.albums.get(queryUri);
+        Album newAlbum = Album.fromJson(album.toJson());
+
+        final albumTracks = await _client.albums.get(queryUri);
+
+        Iterable<Track> tracks = [];
+        for (var item in albumTracks.tracks!) {
+          AlbumSimple newAlbumTrack = AlbumSimple.fromJson(item.toJson());
+          // convert AlbumSimple to Track
+          Track newTrack = Track.fromJson(newAlbumTrack.toJson());
+          newTrack.durationMs ??= 0;
+          if (newTrack.durationMs == 0) {
+            newTrack.durationMs = 600000;
+          }
+          newTrack.album = newAlbum;
+          tracks = tracks.followedBy([newTrack]);
+        }
+        return SpotifyPlaylistResult(tracks);
+      } catch (e) {
+        debugPrint('getPlaylistTracks error: $e');
+        return const SpotifyPlaylistResult([]);
+      }
+    } else {
+      try {
+        // remove playlist/ from queryUri
+        queryUri = queryUri.replaceAll('playlist/', '');
+
+        var tracksPage = await _client.playlists.get(queryUri);
+
+        Iterable result = tracksPage.tracks?.itemsNative ?? [];
+        Iterable<Track> tracks = [];
+        for (var item in result) {
+          PlaylistTrack newPlaylistTrack = PlaylistTrack.fromJson(item);
+          tracks = tracks.followedBy([newPlaylistTrack.track!]);
+        }
+        return SpotifyPlaylistResult(tracks);
+      } catch (e) {
+        debugPrint('getPlaylistTracks error: $e');
+        return const SpotifyPlaylistResult([]);
+      }
     }
   }
 }

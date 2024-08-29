@@ -1,7 +1,7 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/example/auth.dart';
-import 'package:djsports/features/playlist/djplaylist_home.dart';
+import 'package:djsports/features/djsports/djsports_home_page.dart';
 import 'package:flutter/material.dart';
 // Riverpod
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -9,6 +9,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' as dotenv;
 
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+// MP3 play notes
+// https://www.youtube.com/watch?v=DIqB8qEZW1U
+// https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbXlZRUZOVWZZZmY3T1JXOEJyb21pYzJmdS0yd3xBQ3Jtc0tuX0RMMDE4TjV2SW80WG9CcWRFLXlCTnR4RzhNekd0RTlXRG5iQmRzSk9XMENNeWNKeE42YWg0TWU1Nm9UeDZVbXU1WURXUUdyS2t3NkFMZkJmd2JiV0pFTWFieldxR2RxTXBYaXNLazJYeUFuS3prRQ&q=https%3A%2F%2Fdrp.li%2FIq9Bk&v=DIqB8qEZW1U
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
