@@ -1,4 +1,3 @@
-import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
