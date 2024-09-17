@@ -4,13 +4,11 @@ import '../models/djplaylist_model.dart';
 import '../repo/djplaylist_repository.dart';
 
 ///filtered data based on user todo status
-
 final typeFilterPlaylistProvider =
     StateProvider<DJPlaylistType>((ref) => DJPlaylistType.all);
 
 /// Filtered Todo List
-
-final typeFilteredDataProvider = Provider<List<DJPlaylist>>(
+final typeFilteredAllDataProvider = Provider<List<DJPlaylist>>(
   (ref) {
     final hiveDatas = ref.watch(hivePlaylistData);
     final typeData = hiveDatas!;

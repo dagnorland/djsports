@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -45,18 +46,71 @@ class DJCenterTrackView extends HookConsumerWidget {
 
     // get size of parent
     final size = MediaQuery.of(context).size;
-
-    return Stack(
-      children: [
-        Card(child: getImageWidget(networkImageUri, size.width, size.height)),
-        Center(
-            child: Text(
-          name,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
-          overflow: TextOverflow.ellipsis,
-        )),
-      ],
-    );
+    return CarouselView(
+        itemExtent: 330,
+        shrinkExtent: 200,
+        children: List<Widget>.generate(trackIds.length, (int index) {
+          DJTrack djTrack =
+              ref.read(hiveTrackData.notifier).getDJTracks(trackIds)[index];
+          if (djTrack.networkImageUri.isNotEmpty) {
+            networkImageUri = djTrack.networkImageUri;
+          }
+          return Stack(children: [
+            getImageWidget(networkImageUri, size.width, size.height),
+            Center(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                  const SizedBox(height: 20),
+                  Card(
+                      shape: const RoundedRectangleBorder(
+                          side: BorderSide(color: Colors.white)),
+                      color: Colors.black.withOpacity(0.5),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(children: [
+                          Text(
+                            maxLines: 1,
+                            name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            maxLines: 1,
+                            djTrack.artist,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            maxLines: 1,
+                            djTrack.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            maxLines: 1,
+                            '${currentTrack + 1} of ${trackIds.length}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ]),
+                      ))
+                ]))
+          ]);
+        }));
   }
 
   Widget playlistWidgetOriginal(BuildContext context, WidgetRef ref) {

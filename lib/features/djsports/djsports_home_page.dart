@@ -2,7 +2,6 @@ import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:djsports/features/djcenter/djcenter_5.dart';
 import 'package:djsports/features/djcenter/djcenter_playlist_carousel.dart';
 import 'package:djsports/features/djcenter/djcenter_playlist_gridview_2.dart';
 import 'package:djsports/features/djcenter/djcenter_playlist_sliver.dart';
@@ -52,7 +51,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (!spotifyConnect) {
       _spotifyConnect(context, ref);
     }
-    final playlistList = ref.watch(typeFilteredDataProvider);
+    final playlistList = ref.watch(typeFilteredAllDataProvider);
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -117,7 +116,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             .copyWith(color: Colors.white),
                       ),
                       onPressed: () {
-                        ref.invalidate(typeFilteredDataProvider);
+                        ref.invalidate(typeFilteredAllDataProvider);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -159,32 +158,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blueAccent.shade700),
                       child: Text(
-                        'MC',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(color: Colors.white),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DJCenter5Page(
-                              refreshCallback: () {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent.shade700),
-                      child: Text(
                         'Sliver',
                         style: Theme.of(context)
                             .textTheme
@@ -211,7 +184,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blueAccent.shade700),
                       child: Text(
-                        'Gridview',
+                        'Grid',
                         style: Theme.of(context)
                             .textTheme
                             .titleLarge!

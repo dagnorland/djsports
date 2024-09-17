@@ -35,7 +35,7 @@ class _DJCenterGridViewPageState extends ConsumerState<DJCenterGridviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final playlistList = ref.watch(typeFilteredDataProvider);
+    final playlistList = ref.watch(typeFilteredAllDataProvider);
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,

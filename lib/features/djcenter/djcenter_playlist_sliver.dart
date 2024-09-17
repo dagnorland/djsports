@@ -1,3 +1,4 @@
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/playlist/widgets/djcenter5_track_view.dart';
@@ -34,9 +35,85 @@ class _DJCenterSliverViewPageState
     }
   }
 
+  List<Widget> getSliversByType(
+      List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
+    List<DJPlaylist> filteredPlaylists = playlistList
+        .where((playlist) => playlist.type == playlistType.name.toString())
+        .toList();
+    return getSlivers(filteredPlaylists, playlistType);
+  }
+
+  List<Widget> getSlivers(
+      List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
+    return <Widget>[
+      ///First sliver is the App Bar
+      SliverAppBar(
+        ///Properties of app bar
+        backgroundColor: Colors.white,
+        floating: false,
+        pinned: true,
+        expandedHeight: 10.0,
+
+        ///Properties of the App Bar when it is expanded
+        flexibleSpace: FlexibleSpaceBar(
+          centerTitle: true,
+          titlePadding: const EdgeInsets.only(left: 20.0, bottom: 20.0),
+          title: Text(
+            playlistType.name.toUpperCase(),
+            style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 12.0,
+                fontWeight: FontWeight.bold),
+          ),
+          background: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Colors.black26,
+                  width: 1.0,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          /// Calculate the number of items in the horizontal axis based on screen width
+          crossAxisCount: (MediaQuery.of(context).size.width / 200).floor(),
+          mainAxisExtent: 200,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+
+        ///Lazy building of list
+        delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) {
+            /// To convert this infinite list to a list with "n" no of items,
+            /// uncomment the following line:
+            /// if (index > n) return null;
+
+            return DJCenterTrackView(
+              name: playlistList[index].name,
+              type: playlistList[index].type,
+              spotifyUri: playlistList[index].spotifyUri,
+              trackIds: playlistList[index].trackIds,
+              currentTrack: playlistList[index].currentTrack,
+            );
+          },
+
+          /// Set childCount to limit no.of items
+          /// childCount: 100,
+          ///
+          childCount: playlistList.length,
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final playlistList = ref.watch(typeFilteredDataProvider);
+    final playlists = ref.watch(typeFilteredAllDataProvider);
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -57,69 +134,10 @@ class _DJCenterSliverViewPageState
             ),
           ),
           body: CustomScrollView(
-            slivers: <Widget>[
-              ///First sliver is the App Bar
-              SliverAppBar(
-                ///Properties of app bar
-                backgroundColor: Colors.white,
-                floating: false,
-                pinned: true,
-                expandedHeight: 200.0,
-
-                ///Properties of the App Bar when it is expanded
-                flexibleSpace: FlexibleSpaceBar(
-                  centerTitle: true,
-                  titlePadding: const EdgeInsets.only(left: 20.0, bottom: 20.0),
-                  title: const Text(
-                    "dj CENTER SLIVER",
-                    style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 12.0,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: Colors.black26,
-                          width: 1.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  ///no.of items in the horizontal axis
-                  crossAxisCount: 4,
-                  mainAxisExtent: 200,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-
-                ///Lazy building of list
-                delegate: SliverChildBuilderDelegate(
-                  (BuildContext context, int index) {
-                    /// To convert this infinite list to a list with "n" no of items,
-                    /// uncomment the following line:
-                    /// if (index > n) return null;
-                    return DJCenterTrackView(
-                      name: playlistList[index].name,
-                      type: playlistList[index].type,
-                      spotifyUri: playlistList[index].spotifyUri,
-                      trackIds: playlistList[index].trackIds,
-                      currentTrack: playlistList[index].currentTrack,
-                    );
-                  },
-
-                  /// Set childCount to limit no.of items
-                  /// childCount: 100,
-                  ///
-                  childCount: playlistList.length,
-                ),
-              )
-            ],
+            slivers: getSliversByType(playlists, DJPlaylistType.score) +
+                getSliversByType(playlists, DJPlaylistType.event) +
+                getSliversByType(playlists, DJPlaylistType.fireUp) +
+                getSliversByType(playlists, DJPlaylistType.tracks),
           ),
         ));
   }
