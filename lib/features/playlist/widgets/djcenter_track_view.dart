@@ -1,6 +1,7 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -23,7 +24,8 @@ class DJCenterTrackView extends HookConsumerWidget {
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return playlistWidget(context, ref);
+    CarouselController carouselController = CarouselController();
+    return playlistWidget(context, ref, carouselController);
   }
 
   String textConstraintSize(String text, int max) {
@@ -35,12 +37,20 @@ class DJCenterTrackView extends HookConsumerWidget {
 
   Widget playButtonWidget(
       BuildContext context, WidgetRef ref, DJTrack djTrack) {
-    return IconButton(
-      icon: const Icon(Icons.play_arrow, size: 70),
-      color: Colors.yellow,
-      onPressed: () {
-        ref.read(hiveTrackData.notifier).resumePlayer();
-      },
+    return Container(
+      height: 45,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.8),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.play_circle, size: 30),
+        color: Colors.white,
+        onPressed: () {
+          debugPrint('playButtonWidget onPressed ${djTrack.name}');
+          //ref.read(hiveTrackData.notifier).play(djTrack);
+        },
+      ),
     );
   }
 
@@ -51,7 +61,8 @@ class DJCenterTrackView extends HookConsumerWidget {
             width: width, height: width, fit: BoxFit.cover);
   }
 
-  Widget playlistWidget(BuildContext context, WidgetRef ref) {
+  Widget playlistWidget(BuildContext context, WidgetRef ref,
+      CarouselController carouselController) {
     String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
         : '';
@@ -60,8 +71,23 @@ class DJCenterTrackView extends HookConsumerWidget {
     // get size of parent
     final size = MediaQuery.of(context).size;
     return CarouselView(
+        controller: carouselController,
         itemExtent: 330,
         shrinkExtent: 200,
+        onTap: (value) async {
+          debugPrint('onTap $value');
+          debugPrint(trackIds[value]);
+          DJTrack track =
+              ref.read(hiveTrackData.notifier).getDJTracks(trackIds)[value];
+          ref.read(spotifyRemoteRepositoryProvider).playTrack(
+              track.spotifyUri.isEmpty ? track.mp3Uri : track.spotifyUri);
+          //double nextTrackNbr = value + 1;
+          double newPosition = (value * 312) + 313;
+          debugPrint('newPosition $newPosition');
+          await carouselController.position.animateTo(newPosition,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOutCubicEmphasized);
+        },
         children: List<Widget>.generate(trackIds.length, (int trackIdIndex) {
           DJTrack djTrack = ref
               .read(hiveTrackData.notifier)
@@ -76,7 +102,7 @@ class DJCenterTrackView extends HookConsumerWidget {
               left: 0,
               right: 0,
               child: Text(
-                '#${trackIdIndex + 1}/${trackIds.length}',
+                '   #${trackIdIndex + 1}/${trackIds.length}',
                 style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 14,
@@ -118,13 +144,15 @@ class DJCenterTrackView extends HookConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.only(left: 20, right: 10),
+                    padding: const EdgeInsets.only(left: 10, right: 10),
                     decoration: const BoxDecoration(
                       backgroundBlendMode: BlendMode.darken,
                       color: Colors.black,
                     ),
                     child: Text(
                       djTrack.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 14,
@@ -132,7 +160,7 @@ class DJCenterTrackView extends HookConsumerWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.only(left: 20, right: 10),
+                    padding: const EdgeInsets.only(left: 10, right: 10),
                     decoration: const BoxDecoration(
                       backgroundBlendMode: BlendMode.darken,
                       color: Colors.black,
@@ -140,7 +168,9 @@ class DJCenterTrackView extends HookConsumerWidget {
                     child: Row(children: [
                       const SizedBox(width: 10),
                       Text(
-                        djTrack.name,
+                        textConstraintSize(djTrack.name, 25),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 18,

@@ -1,6 +1,6 @@
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:djsports/features/playlist/widgets/djcenter5_track_view.dart';
+import 'package:djsports/features/playlist/widgets/djcenter_track_view.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -66,11 +66,12 @@ class _DJCenterCarsouelPageState extends ConsumerState<DJCenterCarouselPage> {
               },
               children: List.generate(playlistList.length, (index) {
                 return DJCenterTrackView(
-                  name: playlistList[index].name,
+                  playlistName: playlistList[index].name,
                   type: playlistList[index].type,
                   spotifyUri: playlistList[index].spotifyUri,
                   trackIds: playlistList[index].trackIds,
                   currentTrack: playlistList[index].currentTrack,
+                  parentWidthSize: 200,
                 );
               }),
             ),

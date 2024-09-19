@@ -1,5 +1,6 @@
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/repo/djtrack_repository.dart';
+import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -41,6 +42,14 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
         .getDJTracks()
         .where((element) => trackIds.contains(element.id))
         .toList();
+  }
+
+  Future<bool> resumePlayer() async {
+    {
+      bool isPlaying =
+          await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
+      return isPlaying;
+    }
   }
 
   void addDJTrack(DJTrack djTrack) {

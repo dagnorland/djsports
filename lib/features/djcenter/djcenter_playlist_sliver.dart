@@ -1,7 +1,7 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:djsports/features/playlist/widgets/djcenter5_track_view.dart';
+import 'package:djsports/features/playlist/widgets/djcenter_track_view.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -45,8 +45,8 @@ class _DJCenterSliverViewPageState
 
   List<Widget> getSlivers(
       List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
+    const constGridItemWidth = 290;
     return <Widget>[
-      ///First sliver is the App Bar
       SliverAppBar(
         ///Properties of app bar
         backgroundColor: Colors.white,
@@ -56,8 +56,8 @@ class _DJCenterSliverViewPageState
 
         ///Properties of the App Bar when it is expanded
         flexibleSpace: FlexibleSpaceBar(
-          centerTitle: true,
-          titlePadding: const EdgeInsets.only(left: 20.0, bottom: 20.0),
+          centerTitle: false,
+          titlePadding: const EdgeInsets.only(left: 120.0, bottom: 20.0),
           title: Text(
             playlistType.name.toUpperCase(),
             style: const TextStyle(
@@ -65,23 +65,14 @@ class _DJCenterSliverViewPageState
                 fontSize: 12.0,
                 fontWeight: FontWeight.bold),
           ),
-          background: Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: Colors.black26,
-                  width: 1.0,
-                ),
-              ),
-            ),
-          ),
         ),
       ),
       SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           /// Calculate the number of items in the horizontal axis based on screen width
-          crossAxisCount: (MediaQuery.of(context).size.width / 200).floor(),
-          mainAxisExtent: 200,
+          crossAxisCount:
+              (MediaQuery.of(context).size.width / constGridItemWidth).floor(),
+          mainAxisExtent: 175,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
         ),
@@ -92,13 +83,14 @@ class _DJCenterSliverViewPageState
             /// To convert this infinite list to a list with "n" no of items,
             /// uncomment the following line:
             /// if (index > n) return null;
-
+            ///
             return DJCenterTrackView(
-              name: playlistList[index].name,
+              playlistName: playlistList[index].name,
               type: playlistList[index].type,
               spotifyUri: playlistList[index].spotifyUri,
               trackIds: playlistList[index].trackIds,
               currentTrack: playlistList[index].currentTrack,
+              parentWidthSize: constGridItemWidth,
             );
           },
 
@@ -132,6 +124,30 @@ class _DJCenterSliverViewPageState
               style:
                   TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
             ),
+            actions: [
+              ref.read(spotifyRemoteRepositoryProvider).isConnected
+                  ? IconButton(
+                      onPressed: () {
+                        setState(() {
+                          resumePlayer();
+                        });
+                      },
+                      icon: Icon(Icons.play_arrow,
+                          color: isPlaying ? Colors.grey : Colors.green),
+                    )
+                  : Container(),
+              ref.read(spotifyRemoteRepositoryProvider).isConnected
+                  ? IconButton(
+                      onPressed: () {
+                        setState(() {
+                          pausePlayer();
+                        });
+                      },
+                      icon: Icon(Icons.pause,
+                          color: isPlaying ? Colors.green : Colors.grey),
+                    )
+                  : Container(),
+            ],
           ),
           body: CustomScrollView(
             slivers: getSliversByType(playlists, DJPlaylistType.score) +
