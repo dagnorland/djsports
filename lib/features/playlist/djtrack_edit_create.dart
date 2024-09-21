@@ -1,5 +1,6 @@
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
@@ -137,6 +138,19 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
       return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
     } else {
       return "$twoDigitMinutes:$twoDigitSeconds";
+    }
+  }
+
+  int getStartTime() {
+    try {
+      final startTimeParts = startTimeController.text.split(':');
+      final minutes = int.parse(startTimeParts[0]);
+      final seconds = int.parse(startTimeParts[1]);
+      final totalMilliseconds =
+          (minutes * 60 + seconds) * 1000 + editStartTimeMS;
+      return totalMilliseconds;
+    } catch (e) {
+      return 0;
     }
   }
 
@@ -320,6 +334,45 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                         }),
                       ),
                     ),
+                    // add play and resume buttons
+                    Expanded(
+                      flex: 20,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.play_arrow),
+                              color: Theme.of(context).primaryColor,
+                              iconSize: 45,
+                              onPressed: () {
+                                // Add your play functionality here
+                                ref
+                                    .read(spotifyRemoteRepositoryProvider)
+                                    .playTrackAndJumpStart(
+                                        spotifyUriController.text.isEmpty
+                                            ? mp3UriController.text
+                                            : spotifyUriController.text,
+                                        getStartTime());
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.pause),
+                              color: Theme.of(context).primaryColor,
+                              iconSize: 45,
+                              onPressed: () {
+                                // Add your pause functionality here
+                                ref
+                                    .read(spotifyRemoteRepositoryProvider)
+                                    .pausePlayer();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                     Expanded(
                       flex: 20,
                       child: Padding(

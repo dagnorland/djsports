@@ -40,6 +40,7 @@ dependencies:
   spotify_sdk:
     path: /Users/dagnorland/projects/spotify_sdk
   spotify: ^0.13.7
+  volume_controller: ^2.0.8
   riverpod_annotation: ^2.3.3
   logger: ^1.0.0
   uuid: ^4.3.2

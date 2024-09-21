@@ -49,7 +49,7 @@ class _DJCenterSliverViewPageState
     return <Widget>[
       SliverAppBar(
         toolbarHeight: 20,
-        backgroundColor: Colors.black,
+        backgroundColor: playlistType.color,
         expandedHeight: 20.0,
         leading: Text(playlistType.name.toString(),
             style: const TextStyle(
@@ -94,7 +94,7 @@ class _DJCenterSliverViewPageState
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.black,
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.backspace),

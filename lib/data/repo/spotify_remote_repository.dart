@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify/spotify.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
+import 'package:volume_controller/volume_controller.dart';
 
 class SpotifyRemoteRepository {
   SpotifyRemoteRepository(this._credentials, this._spotifyRedirectUrl);
@@ -16,6 +17,7 @@ class SpotifyRemoteRepository {
   bool isConnectedRemote = false;
   bool isConnected = false;
   bool isPlaying = false;
+  static const numberOfRetries = 8;
 
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
 
@@ -46,6 +48,78 @@ class SpotifyRemoteRepository {
           'Resumed Spotify Remote App');
       isPlaying = true;
       return isPlaying;
+    }
+  }
+
+  Future<String> playTrackAndJumpStart(String spotifyUri, int jumpStart) async {
+    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
+      return '[Error] Not connected to Spotify';
+    }
+
+    try {
+      // turn volume down
+      double volume = await VolumeController().getVolume();
+      if (volume == 0) {
+        volume = 0.5;
+      }
+      VolumeController().setVolume(0);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      await SpotifySdk.play(spotifyUri: spotifyUri);
+      if (jumpStart > 0) {
+        try {
+          int retryCount = 0;
+          bool success = false;
+
+          while (retryCount < numberOfRetries && !success) {
+            try {
+              await SpotifySdk.seekTo(positionedMilliseconds: jumpStart);
+              success = true;
+              debugPrint('SUCCESS after $retryCount retries');
+            } catch (e) {
+              retryCount++;
+              debugPrint('Retry jump start $retryCount');
+              if (retryCount >= numberOfRetries) {
+                debugPrint(
+                    'Failed to jump start after $numberOfRetries attempts. $e');
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to jump start. $e');
+        }
+      }
+
+      VolumeController().setVolume(volume);
+
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'play track $spotifyUri');
+      return '[Success] Playing track $spotifyUri';
+    } on PlatformException catch (platformException) {
+      if (platformException.details != null) {
+        if (platformException.details
+            .contains('SpotifyDisconnectedException')) {
+          isConnected = false;
+          SpotifyConnectionLog().addSimpleEntry(
+              SpotifyConnectionStatus.notConnected,
+              'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
+          // lets reconnect
+          connectAccessToken();
+          if (isConnected) {
+            connectToSpotifyRemote();
+            if (isConnectedRemote) {
+              SpotifyConnectionLog().addSimpleEntry(
+                  SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+                  'Reconnected. trying replay. spotifyUri');
+              playTrack(spotifyUri);
+            }
+          }
+        }
+      }
+      return '[Error] Failed to play. ${platformException.details}';
+    } catch (e) {
+      return '[Error] Failed to play. $e';
     }
   }
 

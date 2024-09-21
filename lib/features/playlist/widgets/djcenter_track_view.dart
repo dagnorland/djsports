@@ -131,10 +131,14 @@ class DJCenterTrackView extends HookConsumerWidget {
         onTap: (value) async {
           DJTrack track =
               ref.read(hiveTrackData.notifier).getDJTracks(trackIds)[value];
-          ref.read(spotifyRemoteRepositoryProvider).playTrack(
-              track.spotifyUri.isEmpty ? track.mp3Uri : track.spotifyUri);
+          ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(
+              track.spotifyUri.isEmpty ? track.mp3Uri : track.spotifyUri,
+              track.startTime + track.startTimeMS);
           //double nextTrackNbr = value + 1;
-          double newPosition = (value * 306) + 304;
+          double newPosition = (value * 315) + 315;
+          if (value == trackIds.length - 1) {
+            newPosition = 0;
+          }
           debugPrint('newPosition $newPosition');
           await carouselController.position.animateTo(newPosition,
               duration: const Duration(milliseconds: 450),

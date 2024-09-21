@@ -39,6 +39,33 @@ extension TypeExtension on DJPlaylistType {
   }
 }
 
+extension TypeColor on DJPlaylistType {
+  Color get color {
+    Color color;
+    switch (this) {
+      case DJPlaylistType.score:
+        color = Colors.red;
+        break;
+      case DJPlaylistType.event:
+        color = Colors.green;
+        break;
+      case DJPlaylistType.fireUp:
+        color = Colors.blue;
+        break;
+      case DJPlaylistType.tracks:
+        color = Colors.orange;
+        break;
+      case DJPlaylistType.system:
+        color = Colors.purple;
+        break;
+      case DJPlaylistType.all:
+        color = Colors.black;
+        break;
+    }
+    return color;
+  }
+}
+
 @JsonSerializable()
 class StringList {
   List<String> items = [];
