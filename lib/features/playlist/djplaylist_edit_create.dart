@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
@@ -98,6 +100,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   int position = 10;
   int currentTrack = 0;
   String _errorMessage = '';
+  List<DJTrack> playlistTrackList = [];
+
+  //FutureOr Function(dynamic value) get result => false;
 
   @override
   void initState() {
@@ -118,6 +123,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         DJPlaylistType.values.firstWhere((e) => e.name == widget.type);
     trackIds = widget.trackIds;
     positionController.addListener(_validateInput);
+    playlistTrackList = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
     super.initState();
   }
 
@@ -681,8 +687,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             ),
 
             const SizedBox(height: 10),
-            getTrackList(
-                ref.read(hiveTrackData.notifier).getDJTracks(trackIds)),
+            getTrackList(playlistTrackList),
             const SizedBox(
               height: 20,
             ),
@@ -705,28 +710,36 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               ref.invalidate(dataTrackProvider);
               debugPrint(
                   'edit track: ${tracks[index].name} ${tracks[index].duration} $index');
+              DJTrack track = tracks[index];
+              // get result from pop
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => DJTrackEditScreen(
                     playlistId: widget.id,
-                    playlistName: tracks[index].name,
+                    playlistName: track.name,
                     isNew: false,
-                    id: tracks[index].id,
-                    name: tracks[index].name,
-                    album: tracks[index].album,
-                    artist: tracks[index].artist,
-                    startTime: tracks[index].startTime,
-                    startTimeMS: tracks[index].startTimeMS,
-                    duration: tracks[index].duration,
-                    playCount: tracks[index].playCount,
-                    spotifyUri: tracks[index].spotifyUri,
-                    mp3Uri: tracks[index].mp3Uri,
-                    networkImageUri: tracks[index].networkImageUri,
+                    id: track.id,
+                    name: track.name,
+                    album: track.album,
+                    artist: track.artist,
+                    startTime: track.startTime,
+                    startTimeMS: track.startTimeMS,
+                    duration: track.duration,
+                    playCount: track.playCount,
+                    spotifyUri: track.spotifyUri,
+                    mp3Uri: track.mp3Uri,
+                    networkImageUri: track.networkImageUri,
                     index: index,
                   ),
                 ),
-              );
+              ).then((value) {
+                setState(() {
+                  playlistTrackList =
+                      ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+                });
+              });
             },
             onDelete: () {
               DJPlaylist playlist = ref

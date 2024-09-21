@@ -24,6 +24,14 @@ class DJPlaylistTrackView extends HookConsumerWidget {
     return '$minutes:$seconds';
   }
 
+  String printDurationWithMS(Duration duration, int ms) {
+    String result = printDuration(duration);
+    if (ms > 0) {
+      result += '.$ms';
+    }
+    return result;
+  }
+
   String printDuration(Duration duration) {
     String twoDigits(int n) {
       if (n >= 10) return "$n";
@@ -83,7 +91,7 @@ class DJPlaylistTrackView extends HookConsumerWidget {
           subtitle: Padding(
             padding: const EdgeInsets.symmetric(vertical: 2.0),
             child: Text(
-                '${printDuration(Duration(milliseconds: track.startTime))} - ${printDuration(Duration(milliseconds: track.duration))}'),
+                '${printDurationWithMS(Duration(milliseconds: track.startTime), track.startTimeMS)} - ${printDuration(Duration(milliseconds: track.duration))}'),
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,

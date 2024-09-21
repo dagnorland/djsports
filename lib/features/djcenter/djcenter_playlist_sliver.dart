@@ -48,24 +48,14 @@ class _DJCenterSliverViewPageState
     const constGridItemWidth = 290;
     return <Widget>[
       SliverAppBar(
-        ///Properties of app bar
-        backgroundColor: Colors.white,
-        floating: false,
-        pinned: true,
-        expandedHeight: 10.0,
-
-        ///Properties of the App Bar when it is expanded
-        flexibleSpace: FlexibleSpaceBar(
-          centerTitle: false,
-          titlePadding: const EdgeInsets.only(left: 120.0, bottom: 20.0),
-          title: Text(
-            playlistType.name.toUpperCase(),
+        toolbarHeight: 20,
+        backgroundColor: Colors.black,
+        expandedHeight: 20.0,
+        leading: Text(playlistType.name.toString(),
             style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 12.0,
-                fontWeight: FontWeight.bold),
-          ),
-        ),
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14.0)),
       ),
       SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -73,30 +63,24 @@ class _DJCenterSliverViewPageState
           crossAxisCount:
               (MediaQuery.of(context).size.width / constGridItemWidth).floor(),
           mainAxisExtent: 175,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
+          crossAxisSpacing: 5,
+          mainAxisSpacing: 5,
         ),
-
-        ///Lazy building of list
         delegate: SliverChildBuilderDelegate(
           (BuildContext context, int index) {
-            /// To convert this infinite list to a list with "n" no of items,
-            /// uncomment the following line:
-            /// if (index > n) return null;
-            ///
-            return DJCenterTrackView(
-              playlistName: playlistList[index].name,
-              type: playlistList[index].type,
-              spotifyUri: playlistList[index].spotifyUri,
-              trackIds: playlistList[index].trackIds,
-              currentTrack: playlistList[index].currentTrack,
-              parentWidthSize: constGridItemWidth,
+            return Container(
+              margin: const EdgeInsets.all(0.0),
+              color: Colors.black,
+              child: DJCenterTrackView(
+                playlistName: playlistList[index].name,
+                type: playlistList[index].type,
+                spotifyUri: playlistList[index].spotifyUri,
+                trackIds: playlistList[index].trackIds,
+                currentTrack: playlistList[index].currentTrack,
+                parentWidthSize: constGridItemWidth,
+              ),
             );
           },
-
-          /// Set childCount to limit no.of items
-          /// childCount: 100,
-          ///
           childCount: playlistList.length,
         ),
       ),
@@ -150,6 +134,7 @@ class _DJCenterSliverViewPageState
             ],
           ),
           body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
             slivers: getSliversByType(playlists, DJPlaylistType.score) +
                 getSliversByType(playlists, DJPlaylistType.event) +
                 getSliversByType(playlists, DJPlaylistType.fireUp) +
@@ -157,39 +142,4 @@ class _DJCenterSliverViewPageState
           ),
         ));
   }
-
-  Widget listItem(Color color, String title) => Container(
-        height: 100.0,
-        color: color,
-        child: Center(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      );
 }
-
-//          body: GridView.count(
-//            crossAxisCount: 4,
-//            childAspectRatio: .4,
-//            controller: ScrollController(keepScrollOffset: false),
-//            shrinkWrap: false,
-//            scrollDirection: Axis.horizontal,
-//            crossAxisSpacing: 5,
-//            mainAxisSpacing: 5,
-//            children: List.generate(playlistList.length, (index) {
-//              return DJCenterTrackView(
-//                name: playlistList[index].name,
-//                type: playlistList[index].type,
-//                spotifyUri: playlistList[index].spotifyUri,
-//                trackIds: playlistList[index].trackIds,
-//                currentTrack: playlistList[index].currentTrack,
-//              );
-//            }),
-//          ),
