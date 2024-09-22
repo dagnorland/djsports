@@ -67,6 +67,7 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
       SliverAppBar(
         toolbarHeight: 20,
         backgroundColor: playlistType.color,
+        pinned: playlistType.name == DJPlaylistType.hotspot.name ? true : false,
         expandedHeight: 20.0,
         leading: Text(playlistType.name.toString(),
             style: const TextStyle(
@@ -210,13 +211,25 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
                     : Container(),
               ],
             ),
-            body: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: getSliversByType(playlists, DJPlaylistType.hotspot) +
-                  [soundControlWidget()] +
-                  getSliversByType(playlists, DJPlaylistType.match) +
-                  getSliversByType(playlists, DJPlaylistType.funStuff) +
-                  getSliversByType(playlists, DJPlaylistType.preMatch),
+            body: Column(
+              children: [
+                Expanded(
+                    flex: 15,
+                    child: CustomScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        slivers: getSliversByType(
+                                playlists, DJPlaylistType.hotspot) +
+                            [soundControlWidget()])),
+                Expanded(
+                    flex: 20,
+                    child: CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: getSliversByType(
+                              playlists, DJPlaylistType.match) +
+                          getSliversByType(playlists, DJPlaylistType.funStuff) +
+                          getSliversByType(playlists, DJPlaylistType.preMatch),
+                    ))
+              ],
             )));
   }
 }
