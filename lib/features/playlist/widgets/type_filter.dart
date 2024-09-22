@@ -14,7 +14,7 @@ class TypeFilter extends HookConsumerWidget {
           .map(
             (type) => InkWell(
               child: SizedBox(
-                width: 110,
+                width: 130,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
                       backgroundColor: status == type

@@ -9,27 +9,27 @@ const String djplaylistBoxName = "djplaylist";
 const String djplaylistTracksBoxName = "djplaylisttracks";
 const String musicCenterBoxName = "musiccenterbox";
 
-// Make a DJPlaylisttype with enums score, event, fireUp, tracks, system
-enum DJPlaylistType { all, score, event, fireUp, tracks, system }
+// Make a DJPlaylisttype with enums hotspot, match, fun_stuff, pre_match, archived
+enum DJPlaylistType { all, hotspot, match, funStuff, preMatch, archived }
 
 extension TypeExtension on DJPlaylistType {
   String get type {
     String type;
     switch (this) {
-      case DJPlaylistType.score:
-        type = 'score';
+      case DJPlaylistType.hotspot:
+        type = 'hotspot';
         break;
-      case DJPlaylistType.event:
-        type = "event";
+      case DJPlaylistType.match:
+        type = 'match';
         break;
-      case DJPlaylistType.fireUp:
-        type = "fireUp";
+      case DJPlaylistType.funStuff:
+        type = 'fun stuff';
         break;
-      case DJPlaylistType.tracks:
-        type = "tracks";
+      case DJPlaylistType.preMatch:
+        type = 'pre match';
         break;
-      case DJPlaylistType.system:
-        type = "system";
+      case DJPlaylistType.archived:
+        type = 'archived';
         break;
       case DJPlaylistType.all:
         type = "all";
@@ -43,20 +43,20 @@ extension TypeColor on DJPlaylistType {
   Color get color {
     Color color;
     switch (this) {
-      case DJPlaylistType.score:
+      case DJPlaylistType.hotspot:
         color = Colors.red;
         break;
-      case DJPlaylistType.event:
+      case DJPlaylistType.match:
         color = Colors.green;
         break;
-      case DJPlaylistType.fireUp:
+      case DJPlaylistType.funStuff:
+        color = Colors.yellow;
+        break;
+      case DJPlaylistType.preMatch:
         color = Colors.blue;
         break;
-      case DJPlaylistType.tracks:
-        color = Colors.orange;
-        break;
-      case DJPlaylistType.system:
-        color = Colors.purple;
+      case DJPlaylistType.archived:
+        color = Colors.greenAccent;
         break;
       case DJPlaylistType.all:
         color = Colors.black;

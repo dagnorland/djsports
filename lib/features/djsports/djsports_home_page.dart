@@ -2,13 +2,10 @@ import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:djsports/features/djcenter/djcenter_playlist_carousel.dart';
-import 'package:djsports/features/djcenter/djcenter_playlist_gridview_2.dart';
-import 'package:djsports/features/djcenter/djcenter_playlist_sliver.dart';
+import 'package:djsports/features/djmatch_center/djmatch_center.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
-import 'package:djsports/features/spotify_connect/spotify_example_connect.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify_sdk/models/connection_status.dart';
@@ -158,7 +155,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blueAccent.shade700),
                       child: Text(
-                        'Sliver',
+                        'djMatchCenter',
                         style: Theme.of(context)
                             .textTheme
                             .titleLarge!
@@ -168,85 +165,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => DJCenterSliverViewPage(
+                            builder: (context) => DJMatchCenterViewPage(
                               refreshCallback: () {
                                 setState(() {});
                               },
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent.shade700),
-                      child: Text(
-                        'Grid',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(color: Colors.white),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DJCenterGridviewPage(
-                              refreshCallback: () {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent.shade700),
-                      child: Text(
-                        'Carousel',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(color: Colors.white),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DJCenterCarouselPage(
-                              refreshCallback: () {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade700),
-                      child: Text(
-                        'T!',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(color: Colors.white),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SpotifyConnectExample(),
                           ),
                         );
                       },

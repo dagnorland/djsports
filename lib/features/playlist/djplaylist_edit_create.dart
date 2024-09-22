@@ -60,7 +60,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
   factory DJPlaylistEditScreen.empty() {
     return DJPlaylistEditScreen(
       name: '',
-      type: DJPlaylistType.score.name,
+      type: DJPlaylistType.hotspot.name,
       spotifyUri: '',
       trackIds: const [],
       shuffleAtEnd: true,
@@ -93,7 +93,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
   final positionController = TextEditingController();
-  DJPlaylistType selectedType = DJPlaylistType.score;
+  DJPlaylistType selectedType = DJPlaylistType.funStuff;
   List<String> trackIds = [];
   bool shuffleAtEnd = true;
   bool autoNext = true;

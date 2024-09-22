@@ -52,8 +52,8 @@ class DJTrack extends HiveObject {
 
   factory DJTrack.empty() => DJTrack(
       id: '',
-      name: "empty",
-      album: "empty",
+      name: "",
+      album: "",
       artist: "",
       startTime: 0,
       startTimeMS: 0,

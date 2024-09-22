@@ -1,3 +1,4 @@
+import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,8 +19,37 @@ class SpotifyRemoteRepository {
   bool isConnected = false;
   bool isPlaying = false;
   static const numberOfRetries = 8;
+  double volume = 0.5;
+  String latestType = '';
+  DJTrack latestTrack = DJTrack.empty();
+  String latestImageUri = '';
 
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
+
+  String volumeAsPercent() {
+    return (volume * 100).toStringAsFixed(0);
+  }
+
+  Future<double> getVolume() async {
+    return await VolumeController().getVolume();
+  }
+
+  void setVolume(double volume) async {
+    VolumeController().setVolume(volume);
+  }
+
+  void adjustVolume(double adjustment) async {
+    final currentVolume = await VolumeController().getVolume();
+    if (currentVolume + adjustment > 1) {
+      adjustment = 1;
+    } else if (currentVolume + adjustment < 0) {
+      adjustment = 0;
+    } else {
+      adjustment = currentVolume + adjustment;
+    }
+    VolumeController().setVolume(adjustment);
+    volume = double.parse(adjustment.toStringAsFixed(1));
+  }
 
   Future<bool> connect() async {
     await connectAccessToken();
@@ -279,6 +309,20 @@ class SpotifyRemoteRepository {
       debugPrint('Failed to connect to Spotify Remote. $e');
       return false;
     }
+  }
+
+  void setLastPlayedTrack(
+      String playlistName, String playlistTypeName, DJTrack track) {
+    latestType = playlistTypeName;
+    latestTrack = track;
+    latestImageUri = track.networkImageUri;
+  }
+
+  String getLastPlayedInfo() {
+    if (latestType.isEmpty && latestTrack.name.isEmpty) {
+      return 'Let the game begin!';
+    }
+    return '$latestType - ${latestTrack.name}';
   }
 }
 

@@ -14,7 +14,7 @@ void testDJPlaylistController() {
   DJPlaylist firstPlaylist = DJPlaylist(
       id: const Uuid().v4(),
       name: 'Score Home team',
-      type: DJPlaylistType.score.name,
+      type: DJPlaylistType.hotspot.name,
       spotifyUri: '',
       autoNext: true,
       shuffleAtEnd: false,
@@ -28,7 +28,7 @@ void testDJPlaylistController() {
       spotifyUri: '',
       autoNext: true,
       shuffleAtEnd: false,
-      type: DJPlaylistType.score.name,
+      type: DJPlaylistType.hotspot.name,
       playCount: 0,
       trackIds: []);
 
@@ -38,7 +38,7 @@ void testDJPlaylistController() {
       spotifyUri: '',
       autoNext: true,
       shuffleAtEnd: false,
-      type: DJPlaylistType.event.name,
+      type: DJPlaylistType.hotspot.name,
       playCount: 0,
       trackIds: []);
 
@@ -48,7 +48,7 @@ void testDJPlaylistController() {
       spotifyUri: '',
       autoNext: true,
       shuffleAtEnd: false,
-      type: DJPlaylistType.event.name,
+      type: DJPlaylistType.match.name,
       playCount: 0,
       trackIds: []);
 
@@ -58,7 +58,7 @@ void testDJPlaylistController() {
       spotifyUri: '',
       autoNext: true,
       shuffleAtEnd: false,
-      type: DJPlaylistType.event.name,
+      type: DJPlaylistType.match.name,
       playCount: 0,
       trackIds: []);
 
@@ -68,7 +68,7 @@ void testDJPlaylistController() {
       spotifyUri: '',
       autoNext: true,
       shuffleAtEnd: false,
-      type: DJPlaylistType.event.name,
+      type: DJPlaylistType.funStuff.name,
       playCount: 0,
       trackIds: []);
 
