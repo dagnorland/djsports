@@ -4,10 +4,51 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
-            "name": "djsports",
+            "name": "djsports macOs",
             "request": "launch",
-            "type": "dart"
+            "type": "dart",
+            "deviceId": "macos"
+        },
+        {
+            "name": "djsports iPad Pro 13-inch M4 18",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "4A3B045A-1D0E-4E0E-B7FE-741E69BF1CA1"
+        },             
+        
+        {
+            "name": "djsports iPadden",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
+        },             
+        {
+            "name": "djsports Samsung X200",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "R8YW70LMS7N" 
+        },
+        {
+            "name": "djsports Samsung Tab S6",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "R52M903GCPJ" 
+        },
+        {
+            "name": "djsports Samsung SM-X200",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "R8YW70LMS7N" 
+        },        
+        {
+            "name": "djsports Chrome/WEB",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome"
         },
         {
             "name": "djsports (profile mode)",
@@ -25,6 +66,14 @@
             "name": "djsports Android Tablet",
             "request": "launch",
             "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "emulator-5554"
+        },
+        {
+            "name": "djsports Pixel 8 Pro Simulator",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
             "deviceId": "emulator-5554"
         },
         {
@@ -32,6 +81,50 @@
             "request": "launch",
             "type": "dart",
             "deviceId": "macos"
+        },
+        {
+            "name": "djsports macOS Spotify Auth ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/auth.dart",
+            "deviceId": "macos"
+        },
+        {
+            "name": "djsports macOS Spotify Example ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/spotify.dart",
+            "deviceId": "macos"
+        },
+        {
+            "name": "djsports WEB Spotify Example ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/spotify.dart",
+            "deviceId": "chrome"
+        },
+        {
+            "name": "djsports iPad Spotify Example ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/spotify.dart",
+            "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
+        },
+        {
+            "name": "djsports SM X200 Spotify Example ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/spotify.dart",
+            "deviceId": "R8YW70LMS7N" 
+        },
+        {
+            "name": "djsports SM X200 Todo Example ",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/example/todo_app.dart",
+            "deviceId": "R8YW70LMS7N"
         }
+
+        
     ]
 }
