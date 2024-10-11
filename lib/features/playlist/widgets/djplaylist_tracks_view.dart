@@ -50,15 +50,31 @@ class DJPlaylistTrackView extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     Widget leadingImage = track.networkImageUri.isEmpty
+        ? const SizedBox(width: 50, height: 50)
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(track.networkImageUri,
+                width: 50, height: 50, fit: BoxFit.cover),
+          );
+    Widget musicSourceImage = track.networkImageUri.isEmpty
         ? const SizedBox(
-            width: 50, height: 50, child: Icon(Icons.play_arrow, size: 50))
+            width: 50,
+            height: 50,
+            child: Icon(
+              Icons.play_arrow,
+              size: 45,
+              color: Colors.black38,
+            ))
         : Stack(alignment: Alignment.center, children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(track.networkImageUri,
-                  width: 50, height: 50, fit: BoxFit.cover),
+              child: Image.asset(
+                  ref.read(spotifyRemoteRepositoryProvider).spotifyLogoFileName,
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover),
             ),
-            const Icon(Icons.play_arrow, size: 45, color: Colors.black54),
+            const Icon(Icons.play_arrow, size: 45, color: Colors.black38),
           ]);
 
     Widget rowCountWithImage = Chip(
@@ -100,18 +116,22 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                   padding: const EdgeInsets.only(right: 20.0),
                   child: InkWell(
                       onTap: () {
-                        ref.read(spotifyRemoteRepositoryProvider).playTrack(
-                            track.spotifyUri.isEmpty
-                                ? track.mp3Uri
-                                : track.spotifyUri);
+                        ref
+                            .read(spotifyRemoteRepositoryProvider)
+                            .playTrackAndJumpStart(track,
+                                track.startTime + track.startTimeMS, '', '');
                       },
                       child: leadingImage)),
               Padding(
                   padding: const EdgeInsets.only(right: 20.0),
-                  child: Chip(
-                      backgroundColor: Theme.of(context).secondaryHeaderColor,
-                      label:
-                          Text(track.spotifyUri.isEmpty ? 'mp3' : 'spotify'))),
+                  child: InkWell(
+                      onTap: () {
+                        ref
+                            .read(spotifyRemoteRepositoryProvider)
+                            .playTrackAndJumpStart(track,
+                                track.startTime + track.startTimeMS, '', '');
+                      },
+                      child: musicSourceImage)),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor),

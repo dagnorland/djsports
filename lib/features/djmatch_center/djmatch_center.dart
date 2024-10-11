@@ -1,7 +1,8 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:djsports/features/djmatch_center/widgets/djmatch_center_track_view.dart';
+import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
+import 'package:djsports/features/djmatch_center/widgets/djmatch_center_playlist_tracks_carousel.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -20,21 +21,19 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
   bool spotifyConnect = false;
   bool spotifyRemoteConnect = false;
   bool isPlaying = false;
-  double _volume = 0;
 
   @override
   void initState() {
     VolumeController().listener((volume) {
-      setState(() {
-        _volume = volume;
-      });
+      ref.read(spotifyRemoteRepositoryProvider).setVolume(volume);
     });
-    initVolume();
     super.initState();
   }
 
-  Future<void> initVolume() async {
-    _volume = await VolumeController().getVolume();
+  @override
+  void dispose() {
+    VolumeController().removeListener();
+    super.dispose();
   }
 
   Future<bool> pausePlayer() async {
@@ -88,10 +87,9 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
           (BuildContext context, int index) {
             return Container(
               margin: const EdgeInsets.all(0.0),
-              color: Colors.black,
-              child: DJCenterTrackView(
+              child: DJCenterPlaylistTracksCarousel(
                 playlistName: playlistList[index].name,
-                type: playlistList[index].type,
+                playlistType: playlistList[index].type,
                 spotifyUri: playlistList[index].spotifyUri,
                 trackIds: playlistList[index].trackIds,
                 currentTrack: playlistList[index].currentTrack,
@@ -133,7 +131,7 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
             },
           ),
           const Gap(10),
-          Chip(label: Text('${(_volume * 100).toStringAsFixed(0)} %')),
+          const CurrentVolumeWidget(),
           const Gap(20),
           IconButton(
             icon: const Icon(Icons.volume_up, color: Colors.white, size: 70),
@@ -216,7 +214,7 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
                 Expanded(
                     flex: 15,
                     child: CustomScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
+                        physics: const BouncingScrollPhysics(),
                         slivers: getSliversByType(
                                 playlists, DJPlaylistType.hotspot) +
                             [soundControlWidget()])),

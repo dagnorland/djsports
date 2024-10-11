@@ -3,6 +3,7 @@ import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/djmatch_center/djmatch_center.dart';
+import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
@@ -78,6 +79,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       color: Colors.black, fontWeight: FontWeight.bold),
                 ),
                 actions: [
+                  const CurrentVolumeWidget(),
                   ref.read(spotifyRemoteRepositoryProvider).isConnected
                       ? IconButton(
                           onPressed: () {

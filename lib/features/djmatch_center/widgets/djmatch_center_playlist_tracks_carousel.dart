@@ -5,18 +5,18 @@ import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class DJCenterTrackView extends HookConsumerWidget {
+class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   final String playlistName;
-  final String type;
+  final String playlistType;
   final String spotifyUri;
   final int currentTrack;
   final List<String> trackIds;
   final int parentWidthSize;
 
-  const DJCenterTrackView({
+  const DJCenterPlaylistTracksCarousel({
     super.key,
     required this.playlistName,
-    required this.type,
+    required this.playlistType,
     required this.spotifyUri,
     required this.currentTrack,
     required this.trackIds,
@@ -44,12 +44,6 @@ class DJCenterTrackView extends HookConsumerWidget {
     } else {
       return "$twoDigitMinutes:$twoDigitSeconds";
     }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    CarouselController carouselController = CarouselController();
-    return playlistWidget(context, ref, carouselController);
   }
 
   String textConstraintSize(String text, int max) {
@@ -115,34 +109,29 @@ class DJCenterTrackView extends HookConsumerWidget {
         : Image.network(networkImageUri, width: width, height: height);
   }
 
-  Widget playlistWidget(BuildContext context, WidgetRef ref,
-      CarouselController carouselController) {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    CarouselController carouselController = CarouselController();
     String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
         : '';
-    //final djTracks = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
 
-    // get size of parent
     return CarouselView(
         controller: carouselController,
         itemExtent: 330,
         shrinkExtent: 200,
         backgroundColor: Colors.white,
-        onTap: (value) async {
+        onTap: (value) {
           DJTrack track =
               ref.read(hiveTrackData.notifier).getDJTracks(trackIds)[value];
-          ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(
-              track.spotifyUri.isEmpty ? track.mp3Uri : track.spotifyUri,
-              track.startTime + track.startTimeMS);
-          ref
-              .read(spotifyRemoteRepositoryProvider)
-              .setLastPlayedTrack(playlistName, type, track);
+          ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(track,
+              track.startTime + track.startTimeMS, playlistType, playlistName);
 
           double newPosition = (value * 315) + 315;
           if (value == trackIds.length - 1) {
             newPosition = 0;
           }
-          await carouselController.position.animateTo(newPosition,
+          carouselController.position.animateTo(newPosition,
               duration: const Duration(milliseconds: 450),
               curve: Curves.easeInOutCubicEmphasized);
         },
@@ -232,51 +221,5 @@ class DJCenterTrackView extends HookConsumerWidget {
                 ]),
           ]);
         }));
-  }
-
-  Widget playlistWidgetOriginal(BuildContext context, WidgetRef ref) {
-    String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
-        ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
-        : '';
-
-    Widget imageWidget = networkImageUri.isEmpty
-        ? const SizedBox(
-            width: 50,
-            height: 50,
-            child: Icon(Icons.featured_play_list_outlined, size: 50))
-        : Image.network(networkImageUri,
-            width: 45, height: 45, fit: BoxFit.cover);
-    final djTracks = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-
-    return Container(
-      color: Colors.yellowAccent,
-      height: 50,
-      width: 300,
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: imageWidget,
-          ),
-          Column(children: [
-            Text(
-              playlistName,
-              style: const TextStyle(fontWeight: FontWeight.w900),
-              overflow: TextOverflow.ellipsis,
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5.0),
-                child: Text(
-                  textConstraintSize(
-                      '#${currentTrack + 1}  ${djTracks[currentTrack].name}',
-                      50),
-                  overflow: TextOverflow.fade,
-                  style: const TextStyle(fontWeight: FontWeight.w400),
-                  maxLines: 1,
-                )),
-          ]),
-        ],
-      ),
-    );
   }
 }
