@@ -7,12 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' as dotenv;
+import 'package:audio_service/audio_service.dart';
+import 'package:djsports/data/services/djaudio_handler.dart'; // Legg til denne importen
 
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 // MP3 play notes
 // https://www.youtube.com/watch?v=DIqB8qEZW1U
 // https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbXlZRUZOVWZZZmY3T1JXOEJyb21pYzJmdS0yd3xBQ3Jtc0tuX0RMMDE4TjV2SW80WG9CcWRFLXlCTnR4RzhNekd0RTlXRG5iQmRzSk9XMENNeWNKeE42YWg0TWU1Nm9UeDZVbXU1WURXUUdyS2t3NkFMZkJmd2JiV0pFTWFieldxR2RxTXBYaXNLazJYeUFuS3prRQ&q=https%3A%2F%2Fdrp.li%2FIq9Bk&v=DIqB8qEZW1U
+
+final audioHandlerProvider =
+    Provider<AudioHandler>((ref) => throw UnimplementedError());
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,12 +47,21 @@ Future<void> main() async {
   await Hive.openBox<DJPlaylist>('djplaylist');
   await Hive.openBox<DJTrack>('djtrack');
 
-  /// Here I'm Using RiverPod for StateManagement so Wrapping MyApp with ProviderScope
-  runApp(const ProviderScope(child: DJSportsApp()));
-}
+  final audioHandler = await AudioService.init(
+    builder: () => DJAudioHandler(), // Bruk DJAudioHandler her
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.example.djsports.audio',
+      androidNotificationChannelName: 'djSports Audio Service',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+    ),
+  );
 
-// MY TODO SECTION
-// 1. Make play list cards like the tracjlist view on play list.. like the text do not go beyond the buttons on the right
+  /// Here I'm Using RiverPod for StateManagement so Wrapping MyApp with ProviderScope
+  runApp(ProviderScope(overrides: [
+    audioHandlerProvider.overrideWithValue(audioHandler),
+  ], child: const DJSportsApp()));
+}
 
 class DJSportsApp extends ConsumerWidget {
   const DJSportsApp({super.key});
@@ -74,6 +88,7 @@ class DJSportsApp extends ConsumerWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
+        //
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         primaryColor: Colors.blue.withOpacity(0.7),
         primaryColorLight: Colors.blueAccent.withOpacity(0.5),

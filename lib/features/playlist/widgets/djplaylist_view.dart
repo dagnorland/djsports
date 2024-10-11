@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -41,6 +42,27 @@ class DJPlaylistView extends HookConsumerWidget {
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
         : '';
 
+    Widget musicSourceImage = networkImageUri.isEmpty
+        ? const SizedBox(
+            width: 50,
+            height: 50,
+            child: Icon(
+              Icons.play_arrow,
+              size: 45,
+              color: Colors.black38,
+            ))
+        : Stack(alignment: Alignment.center, children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                  ref.read(spotifyRemoteRepositoryProvider).spotifyLogoFileName,
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover),
+            ),
+            const Icon(Icons.play_arrow, size: 45, color: Colors.black38),
+          ]);
+
     Widget imageWidget = networkImageUri.isEmpty
         ? const SizedBox(
             width: 50,
@@ -73,10 +95,10 @@ class DJPlaylistView extends HookConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               SizedBox(
-                  width: isLandscape ? 400 : 350,
+                  width: isLandscape ? 400 : 340,
                   child: Text(
                     spotifyUri.isEmpty
-                        ? 'No Spotify playlist link'
+                        ? ''
                         : isLandscape
                             ? spotifyUri
                             : spotifyUri.substring(0, 40),
@@ -88,42 +110,32 @@ class DJPlaylistView extends HookConsumerWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-                padding: const EdgeInsets.only(
-                    left: 1.0, right: 1.0), // Add padding around the Chip
-                child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: 40, // Set a minimum width for the Chip
-                    ),
-                    child: Chip(
-                        backgroundColor: Theme.of(context).secondaryHeaderColor,
-                        label: Text(spotifyUri.isEmpty ? 'mp3' : 'spotify')))),
-            Container(
-                padding: const EdgeInsets.only(
-                    left: 1.0, right: 1.0), // Add padding around the Chip
-                child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: 20, // Set a minimum width for the Chip
-                    ),
-                    child: Chip(
-                        label: Text(
-                      type,
-                      maxLines: 1,
-                    )))),
-            Container(
-              padding: const EdgeInsets.only(left: 1.0, right: 1.0),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minWidth: 20, // Set a minimum width for the Chip
-                ),
-                child: Chip(
-                  label: Text(trackIds.isEmpty
-                      ? 'Empty'
-                      : '#${trackIds.length.toString()}'),
-                ),
-              ),
+            Row(
+              children: [
+                SizedBox(
+                    width: isLandscape ? 270 : 140,
+                    child: Row(children: [
+                      if (isLandscape)
+                        Expanded(flex: 33, child: musicSourceImage),
+                      Expanded(
+                          flex: 35,
+                          child: Chip(
+                              label: Text(
+                            type,
+                            maxLines: 1,
+                          ))),
+                      Expanded(
+                        flex: 33,
+                        child: Chip(
+                          label: Text(trackIds.isEmpty
+                              ? 'Empty'
+                              : '#${trackIds.length.toString()}'),
+                        ),
+                      )
+                    ])),
+              ],
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 5),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor),
@@ -136,7 +148,7 @@ class DJPlaylistView extends HookConsumerWidget {
                     .copyWith(color: Colors.white),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 5),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor),

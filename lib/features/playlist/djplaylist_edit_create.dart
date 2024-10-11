@@ -4,6 +4,7 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_playlist_service.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
 import 'package:djsports/features/playlist/djtrack_edit_create.dart';
@@ -213,17 +214,12 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       nameController.text = playlist.name;
       trackIds = playlist.trackIds;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-          'Added $addedCount tracks, skipped $skippedCount tracks. Playlist has now ${playlist.trackIds.length} tracks'),
-      duration: const Duration(seconds: 3),
-      action: SnackBarAction(
-        label: 'Close',
-        onPressed: () {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        },
-      ),
-    ));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'La til $addedCount spor, hoppet over $skippedCount spor. Spillelisten har nå ${playlist.trackIds.length} spor'),
+      ));
+    }
   }
 
   Future<void> _spotifyTrackSync(
@@ -349,6 +345,28 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               color: Colors.black,
               size: 30,
             )),
+        actions: [
+          ref.read(spotifyRemoteRepositoryProvider).isConnected
+              ? IconButton(
+                  onPressed: () {
+                    setState(() {
+                      ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
+                    });
+                  },
+                  icon: const Icon(Icons.play_arrow, color: Colors.green),
+                )
+              : Container(),
+          ref.read(spotifyRemoteRepositoryProvider).isConnected
+              ? IconButton(
+                  onPressed: () {
+                    setState(() {
+                      ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+                    });
+                  },
+                  icon: const Icon(Icons.pause, color: Colors.green),
+                )
+              : Container(),
+        ],
         title: Text(
           widget.id.isEmpty ? "Create Playlist" : "Edit Playlist",
           style: TextStyle(
@@ -424,7 +442,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                           spotifyUriController.text = spotifyUriValidate(value);
                         }),
                         decoration: InputDecoration(
-                          labelText: 'Spotify uri 2',
+                          labelText: 'Spotify uri',
                           enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                                 color: Theme.of(context).primaryColor,
@@ -708,8 +726,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             track: tracks[index],
             onEdit: () {
               ref.invalidate(dataTrackProvider);
-              debugPrint(
-                  'edit track: ${tracks[index].name} ${tracks[index].duration} $index');
               DJTrack track = tracks[index];
               // get result from pop
 

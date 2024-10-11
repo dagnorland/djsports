@@ -23,8 +23,11 @@ class SpotifyRemoteRepository {
   String latestType = '';
   DJTrack latestTrack = DJTrack.empty();
   String latestImageUri = '';
-
+  int latestDurationStartupMS = 0;
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
+
+  String spotifyLogoFileName =
+      'assets/images/spotify/Spotify_Primary_Logo_RGB_Green.png';
 
   String volumeAsPercent() {
     return (volume * 100).toStringAsFixed(0);
@@ -34,8 +37,13 @@ class SpotifyRemoteRepository {
     return await VolumeController().getVolume();
   }
 
+  double getVolumeStatic() {
+    return volume;
+  }
+
   void setVolume(double volume) async {
-    VolumeController().setVolume(volume);
+    this.volume = volume;
+    VolumeController().setVolume(volume, showSystemUI: false);
   }
 
   void adjustVolume(double adjustment) async {
@@ -81,33 +89,49 @@ class SpotifyRemoteRepository {
     }
   }
 
-  Future<String> playTrackAndJumpStart(String spotifyUri, int jumpStart) async {
+  Future<String> playTrackAndJumpStart(DJTrack track, int jumpStart,
+      String playlistName, String playlistType) async {
     if (!isConnected || !lastValidAccessToken.isNotEmpty) {
       return '[Error] Not connected to Spotify';
     }
 
+    // make a timer to find duration between two timestamps
+    final startTime = DateTime.now();
+    debugPrint('Start time: $startTime');
+
     try {
       // turn volume down
+      debugPrint('before volume: ${DateTime.now().difference(startTime)}');
       double volume = await VolumeController().getVolume();
+      debugPrint('after volume: ${DateTime.now().difference(startTime)}');
       if (volume == 0) {
         volume = 0.5;
       }
-      VolumeController().setVolume(0);
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      await SpotifySdk.play(spotifyUri: spotifyUri);
+      if (jumpStart > 0) {
+        VolumeController().setVolume(0);
+      }
+      debugPrint('before play: ${DateTime.now().difference(startTime)}');
+      await SpotifySdk.play(spotifyUri: track.spotifyUri);
+      setLastPlayedTrack(playlistName, playlistType, track);
+      debugPrint('after play: ${DateTime.now().difference(startTime)}');
       if (jumpStart > 0) {
         try {
+          await Future.delayed(const Duration(milliseconds: 150));
+          debugPrint('after delay: ${DateTime.now().difference(startTime)}');
           int retryCount = 0;
           bool success = false;
 
           while (retryCount < numberOfRetries && !success) {
             try {
               await SpotifySdk.seekTo(positionedMilliseconds: jumpStart);
+              debugPrint(
+                  'success $retryCount : ${DateTime.now().difference(startTime)}');
               success = true;
               debugPrint('SUCCESS after $retryCount retries');
             } catch (e) {
               retryCount++;
+              debugPrint(
+                  'retry $retryCount : ${DateTime.now().difference(startTime)}');
               debugPrint('Retry jump start $retryCount');
               if (retryCount >= numberOfRetries) {
                 debugPrint(
@@ -118,6 +142,101 @@ class SpotifyRemoteRepository {
         } catch (e) {
           debugPrint('Failed to jump start. $e');
         }
+        final endTime = DateTime.now();
+        final duration = endTime.difference(startTime);
+        debugPrint('Duration to jump start: $duration');
+        latestDurationStartupMS = duration.inMilliseconds;
+      }
+
+      VolumeController().setVolume(volume);
+
+      SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'play track ${track.spotifyUri}');
+      return '[Success] Playing track ${track.spotifyUri}';
+    } on PlatformException catch (platformException) {
+      if (platformException.details != null) {
+        if (platformException.details
+            .contains('SpotifyDisconnectedException')) {
+          isConnected = false;
+          SpotifyConnectionLog().addSimpleEntry(
+              SpotifyConnectionStatus.notConnected,
+              'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
+          // lets reconnect
+          connectAccessToken();
+          if (isConnected) {
+            connectToSpotifyRemote();
+            if (isConnectedRemote) {
+              SpotifyConnectionLog().addSimpleEntry(
+                  SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+                  'Reconnected. trying replay. spotifyUri');
+              playTrack(track.spotifyUri);
+            }
+          }
+        }
+      }
+      return '[Error] Failed to play. ${platformException.details}';
+    } catch (e) {
+      return '[Error] Failed to play. $e';
+    }
+  }
+
+  Future<String> playSpotiyfyUriAndJumpStart(
+      String spotifyUri, int jumpStart) async {
+    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
+      return '[Error] Not connected to Spotify';
+    }
+
+    // make a timer to find duration between two timestamps
+    final startTime = DateTime.now();
+    debugPrint('Start time: $startTime');
+
+    try {
+      // turn volume down
+      debugPrint('before volume: ${DateTime.now().difference(startTime)}');
+      double volume = await VolumeController().getVolume();
+      debugPrint('after volume: ${DateTime.now().difference(startTime)}');
+      if (volume == 0) {
+        volume = 0.5;
+      }
+      if (jumpStart > 0) {
+        VolumeController().setVolume(0);
+      }
+      debugPrint('before play: ${DateTime.now().difference(startTime)}');
+      await SpotifySdk.play(spotifyUri: spotifyUri);
+      debugPrint('after play: ${DateTime.now().difference(startTime)}');
+      if (jumpStart > 0) {
+        try {
+          await Future.delayed(const Duration(milliseconds: 80));
+          debugPrint('after delay: ${DateTime.now().difference(startTime)}');
+          int retryCount = 0;
+          bool success = false;
+
+          while (retryCount < numberOfRetries && !success) {
+            try {
+              await SpotifySdk.seekTo(positionedMilliseconds: jumpStart);
+              debugPrint(
+                  'success $retryCount : ${DateTime.now().difference(startTime)}');
+              success = true;
+              debugPrint('SUCCESS after $retryCount retries');
+            } catch (e) {
+              retryCount++;
+              debugPrint(
+                  'retry $retryCount : ${DateTime.now().difference(startTime)}');
+              debugPrint('Retry jump start $retryCount');
+              if (retryCount >= numberOfRetries) {
+                debugPrint(
+                    'Failed to jump start after $numberOfRetries attempts. $e');
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to jump start. $e');
+        }
+        final endTime = DateTime.now();
+        final duration = endTime.difference(startTime);
+        debugPrint('Duration to jump start: $duration');
+        latestDurationStartupMS = duration.inMilliseconds;
       }
 
       VolumeController().setVolume(volume);
@@ -322,7 +441,7 @@ class SpotifyRemoteRepository {
     if (latestType.isEmpty && latestTrack.name.isEmpty) {
       return 'Let the game begin!';
     }
-    return '$latestType - ${latestTrack.name}';
+    return '$latestType - ${latestTrack.name} - $latestDurationStartupMS ms';
   }
 }
 

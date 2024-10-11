@@ -285,7 +285,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                       width: 10,
                     ),
                     Expanded(
-                      flex: 20,
+                      flex: 30,
                       child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: CupertinoTimerPicker(
@@ -350,7 +350,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                                 // Add your play functionality here
                                 ref
                                     .read(spotifyRemoteRepositoryProvider)
-                                    .playTrackAndJumpStart(
+                                    .playSpotiyfyUriAndJumpStart(
                                         spotifyUriController.text.isEmpty
                                             ? mp3UriController.text
                                             : spotifyUriController.text,
