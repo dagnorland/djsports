@@ -3,5 +3,7 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$USER_HOME$/fvm/versions/3.22.3" vcs="Git" />
+    <mapping directory="$USER_HOME$/fvm/versions/3.24.3" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../spotify_sdk" vcs="Git" />
   </component>
 </project>

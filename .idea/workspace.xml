@@ -10,42 +10,25 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cccb4bf0-fdc3-44f1-b65c-fd4e7049b21c" name="Changes" comment="">
+      <change beforePath="$USER_HOME$/fvm/versions/3.24.3/packages/flutter/lib/src/widgets/scroll_view.dart" beforeDir="false" afterPath="$USER_HOME$/fvm/versions/3.24.3/packages/flutter/lib/src/widgets/scroll_view.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/checksums/checksums.lock" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/dependencies-accessors/dependencies-accessors.lock" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/dependencies-accessors/gc.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/executionHistory/executionHistory.lock" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/fileChanges/last-build.bin" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/fileHashes/fileHashes.lock" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.1.1/gc.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/cache.properties" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/cache.properties" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Dart_SDK.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Dart_SDK.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/libraries/Flutter_Plugins.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Flutter_Plugins.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/migrations.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/migrations.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.metadata" beforeDir="false" afterPath="$PROJECT_DIR$/.metadata" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.vscode/launch.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/launch.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/custom_lint.log" beforeDir="false" afterPath="$PROJECT_DIR$/custom_lint.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/djsports.iml" beforeDir="false" afterPath="$PROJECT_DIR$/djsports.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" beforeDir="false" afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradlew.bat" beforeDir="false" afterPath="$PROJECT_DIR$/gradlew.bat" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Podfile" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Podfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Podfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Podfile.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/AppDelegate.swift" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/AppDelegate.swift" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Base.lproj/Main.storyboard" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Base.lproj/Main.storyboard" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Info.plist" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Runner-Bridging-Header.h" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Runner-Bridging-Header.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/example/spotify.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/example/spotify.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/playlist/djplaylist_home.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/playlist/djplaylist_home.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/repo/spotify_remote_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/repo/spotify_remote_repository.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/djmatch_center/djmatch_center.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/djmatch_center/djmatch_center.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/djmatch_center/widgets/djmatch_center_track_view.dart" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/djsports/djsports_home_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/djsports/djsports_home_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/playlist/djplaylist_edit_create.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/playlist/djplaylist_edit_create.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/playlist/djtrack_edit_create.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/playlist/djtrack_edit_create.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/playlist/widgets/djplaylist_tracks_view.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/playlist/widgets/djplaylist_tracks_view.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/playlist/widgets/djplaylist_view.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/playlist/widgets/djplaylist_view.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../spotify_sdk/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../spotify_sdk/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../spotify_sdk/android/src/main/kotlin/de/minimalme/spotify_sdk/SpotifyImagesApi.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../spotify_sdk/android/src/main/kotlin/de/minimalme/spotify_sdk/SpotifyImagesApi.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -107,7 +90,7 @@
   "keyToString": {
     "Android App.android.app.executor": "Run",
     "Android App.android.app.main.executor": "Run",
-    "Flutter.main.dart.executor": "Run",
+    "Flutter.main.dart.executor": "Debug",
     "Gradle.Upgrade Gradle wrapper.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.cidr.known.project.marker": "true",
@@ -116,13 +99,13 @@
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
     "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "feature/spotify",
+    "git-widget-placeholder": "feature/track__set__start__time",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/dagnorland/projects/djsports",
     "project.structure.last.edited": "Project",
     "project.structure.proportion": "0.17",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "project.kotlinCompiler",
+    "settings.editor.selected.configurable": "AndroidSdkUpdater",
     "show.migrate.to.gradle.popup": "false"
   },
   "keyToStringList": {

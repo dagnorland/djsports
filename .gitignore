@@ -84,3 +84,6 @@ custom_lint.log
 android/.DS_Store
 assets/.DS_Store
 assets/images/.DS_Store
+custom_lint.log
+.idea/.DS_Store
+android/app/src/main/AndroidManifest copy.xml

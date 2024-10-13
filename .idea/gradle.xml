@@ -18,9 +18,9 @@
         <compositeConfiguration>
           <compositeBuild compositeDefinitionSource="SCRIPT">
             <builds>
-              <build path="$USER_HOME$/fvm/versions/3.22.3/packages/flutter_tools/gradle" name="gradle">
+              <build path="$USER_HOME$/fvm/versions/3.24.3/packages/flutter_tools/gradle" name="gradle">
                 <projects>
-                  <project path="$USER_HOME$/fvm/versions/3.22.3/packages/flutter_tools/gradle" />
+                  <project path="$USER_HOME$/fvm/versions/3.24.3/packages/flutter_tools/gradle" />
                 </projects>
               </build>
             </builds>
@@ -31,14 +31,15 @@
         <option name="gradleJvm" value="openjdk-22" />
         <option name="modules">
           <set>
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.2.9/android" />
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/spotify_sdk-2.3.1/android" />
+            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.2.10/android" />
             <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/sqflite-2.3.3+1/android" />
-            <option value="$USER_HOME$/fvm/versions/3.22.3/packages/flutter_tools/gradle" />
+            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/volume_controller-2.0.8/android" />
+            <option value="$USER_HOME$/fvm/versions/3.24.3/packages/flutter_tools/gradle" />
             <option value="$PROJECT_DIR$/android" />
             <option value="$PROJECT_DIR$/android/app" />
             <option value="$PROJECT_DIR$/android/spotify-app-remote" />
             <option value="$PROJECT_DIR$/android/spotify-sdk" />
+            <option value="$PROJECT_DIR$/../spotify_sdk/android" />
           </set>
         </option>
         <option name="resolveExternalAnnotations" value="false" />
