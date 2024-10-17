@@ -78,3 +78,7 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation "io.flutter:flutter_embedding_debug:1.0.0-3316dd8728419ad3534e3f6112aa6291f587078a"
+}

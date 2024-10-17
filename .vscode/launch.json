@@ -28,7 +28,7 @@
             "name": "djsports Samsung X200",
             "request": "launch",
             "type": "dart",
-            "deviceId": "R8YW70LMS7N" 
+            "deviceId": "R8YW70LMS7N"             
         },
         {
             "name": "djsports Samsung Tab S6",

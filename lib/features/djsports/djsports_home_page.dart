@@ -2,11 +2,13 @@ import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/features/djaudio_player/djaudio_player.dart';
 import 'package:djsports/features/djmatch_center/djmatch_center.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
+import 'package:djsports/main.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify_sdk/models/connection_status.dart';
@@ -50,6 +52,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       _spotifyConnect(context, ref);
     }
     final playlistList = ref.watch(typeFilteredAllDataProvider);
+
+    final myInstance = AudioServiceSingleton.instance;
+    myInstance.audioHandler.play();
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -148,6 +153,28 @@ class _HomePageState extends ConsumerState<HomePage> {
                               .read(spotifyRemoteRepositoryProvider)
                               .isConnected) {}
                         });
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 5.0),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent.shade700),
+                      child: Text(
+                        'djPlayer',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge!
+                            .copyWith(color: Colors.white),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const DJAudioPlayerViewPage(),
+                          ),
+                        );
                       },
                     ),
                   ),

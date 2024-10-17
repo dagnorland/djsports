@@ -40,9 +40,10 @@ dependencies:
   spotify_sdk:
     path: /Users/dagnorland/projects/spotify_sdk
   spotify: ^0.13.7
-  audio_service: ^0.18.15  
+  audio_service: ^0.18.2 
   just_audio: ^0.9.41
   on_audio_query: ^2.9.0
+  permission_handler: ^11.3.1
   volume_controller: ^2.0.8
   riverpod_annotation: ^2.3.5
   logger: ^1.0.0
@@ -59,6 +60,8 @@ dependencies:
   flutter_dotenv: ^5.0.0
   gap: ^3.0.1
   web: ^1.0.0
+  carousel_slider: ^5.0.0
+  audio_video_progress_bar: ^2.0.3
 
 dev_dependencies:
   flutter_test:
@@ -94,6 +97,7 @@ flutter:
   assets:  
     - .env
     - assets/images/spotify/Spotify_Primary_Logo_RGB_Green.png
+    - assets/images/default_music.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
