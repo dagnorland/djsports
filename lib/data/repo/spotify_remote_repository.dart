@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:flutter/material.dart';
@@ -42,11 +44,19 @@ class SpotifyRemoteRepository {
   }
 
   void setVolume(double volume) async {
+    if (!Platform.isMacOS) {
+      return;
+    }
+
     this.volume = volume;
     VolumeController().setVolume(volume, showSystemUI: false);
   }
 
   void adjustVolume(double adjustment) async {
+    if (Platform.isMacOS) {
+      return;
+    }
+
     final currentVolume = await VolumeController().getVolume();
     if (currentVolume + adjustment > 1) {
       adjustment = 1;
@@ -60,6 +70,12 @@ class SpotifyRemoteRepository {
   }
 
   Future<bool> connect() async {
+    // MacOs not supported
+    if (Platform.isMacOS) {
+      isConnected = await connectAccessToken();
+      return isConnected;
+    }
+
     await connectAccessToken();
     await connectToSpotifyRemote();
     SpotifyConnectionLog().debugPrintLog();
@@ -392,6 +408,10 @@ class SpotifyRemoteRepository {
   }
 
   Future<bool> connectToSpotifyRemote() async {
+    if (Platform.isMacOS) {
+      isConnectedRemote = false;
+      return isConnectedRemote;
+    }
     try {
       var result = await SpotifySdk.connectToSpotifyRemote(
           clientId: _credentials.clientId.toString(),

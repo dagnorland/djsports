@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
@@ -48,9 +50,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!spotifyConnect) {
-      _spotifyConnect(context, ref);
-    }
+    _spotifyConnect(context, ref);
     final playlistList = ref.watch(typeFilteredAllDataProvider);
 
     final myInstance = AudioServiceSingleton.instance;
@@ -59,7 +59,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: StreamBuilder<ConnectionStatus>(
-          stream: SpotifySdk.subscribeConnectionStatus(),
+          stream: Platform.isMacOS
+              ? const Stream.empty()
+              : SpotifySdk.subscribeConnectionStatus(),
           builder: (context, snapshot) {
             var data = snapshot.data;
             if (data != null) {
@@ -109,26 +111,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       : Container(),
                   Padding(
                     padding: const EdgeInsets.only(right: 5.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor),
-                      child: Text(
-                        'New playlist',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(color: Colors.white),
-                      ),
-                      onPressed: () {
-                        ref.invalidate(typeFilteredAllDataProvider);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DJPlaylistEditScreen.empty(),
-                          ),
-                        );
-                      },
-                    ),
+                    child: newPlaylistButton(ref: ref),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(right: 5.0),
@@ -163,18 +146,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                           backgroundColor: Colors.blueAccent.shade700),
                       child: Text(
                         'djPlayer',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge!
-                            .copyWith(color: Colors.white),
+                        style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                            color:
+                                Platform.isMacOS ? Colors.grey : Colors.white),
                       ),
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DJAudioPlayerViewPage(),
-                          ),
-                        );
+                        Platform.isMacOS
+                            ? null
+                            : Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const DJAudioPlayerViewPage(),
+                                ),
+                              );
                       },
                     ),
                   ),
@@ -213,8 +198,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                     height: 20,
                   ),
                   playlistList.isEmpty
-                      ? const Center(
-                          child: Text("No data"),
+                      ? Expanded(
+                          child: Center(
+                              child: newPlaylistButton(
+                            ref: ref,
+                          )),
                         )
                       : Expanded(
                           flex: 10,
@@ -259,5 +247,110 @@ class _HomePageState extends ConsumerState<HomePage> {
             );
           },
         ));
+  }
+}
+
+class newPlaylistButton extends StatelessWidget {
+  const newPlaylistButton({
+    super.key,
+    required this.ref,
+  });
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).primaryColor),
+      child: Text(
+        'New playlist',
+        style: Theme.of(context)
+            .textTheme
+            .titleLarge!
+            .copyWith(color: Colors.white),
+      ),
+      onPressed: () {
+        ref.invalidate(typeFilteredAllDataProvider);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DJPlaylistEditScreen.empty(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class NewPlaylistButton extends StatefulHookConsumerWidget {
+  const NewPlaylistButton({
+    super.key,
+    required this.ref,
+  });
+
+  final WidgetRef ref;
+
+  @override
+  ConsumerState<NewPlaylistButton> createState() => _NewPlaylistButtonState();
+}
+
+class _NewPlaylistButtonState extends ConsumerState<NewPlaylistButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
+            child: Text(
+              'Ny spilleliste',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge!
+                  .copyWith(color: Colors.white),
+            ),
+            onPressed: () {
+              ref.invalidate(typeFilteredAllDataProvider);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DJPlaylistEditScreen.empty(),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 }

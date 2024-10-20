@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
@@ -24,15 +26,19 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
 
   @override
   void initState() {
-    VolumeController().listener((volume) {
-      ref.read(spotifyRemoteRepositoryProvider).setVolume(volume);
-    });
+    if (!Platform.isMacOS) {
+      VolumeController().listener((volume) {
+        ref.read(spotifyRemoteRepositoryProvider).setVolume(volume);
+      });
+    }
     super.initState();
   }
 
   @override
   void dispose() {
-    VolumeController().removeListener();
+    if (!Platform.isMacOS) {
+      VolumeController().removeListener();
+    }
     super.dispose();
   }
 
@@ -56,11 +62,29 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
     List<DJPlaylist> filteredPlaylists = playlistList
         .where((playlist) => playlist.type == playlistType.name.toString())
         .toList();
+    if (filteredPlaylists.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+            child: Container(
+          color: playlistType.color,
+          child: Text(playlistType.name.toString()),
+        ))
+      ];
+    }
     return getSlivers(filteredPlaylists, playlistType);
   }
 
   List<Widget> getSlivers(
       List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
+    if (playlistList.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+            child: Container(
+          color: playlistType.color,
+          child: const Text('Empty data..'),
+        ))
+      ];
+    }
     const constGridItemWidth = 290;
     return <Widget>[
       SliverAppBar(
@@ -123,7 +147,8 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
           ),
           const Gap(20),
           IconButton(
-            icon: const Icon(Icons.volume_down, color: Colors.white, size: 50),
+            icon: Icon(Icons.volume_down,
+                color: Platform.isMacOS ? Colors.grey : Colors.white, size: 50),
             onPressed: () {
               setState(() {
                 ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.1);
@@ -134,7 +159,8 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
           const CurrentVolumeWidget(),
           const Gap(20),
           IconButton(
-            icon: const Icon(Icons.volume_up, color: Colors.white, size: 70),
+            icon: Icon(Icons.volume_up,
+                color: Platform.isMacOS ? Colors.grey : Colors.white, size: 70),
             onPressed: () {
               setState(() {
                 ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.1);

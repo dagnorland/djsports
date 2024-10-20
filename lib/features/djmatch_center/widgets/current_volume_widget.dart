@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:volume_controller/volume_controller.dart';
 
@@ -32,6 +34,9 @@ class CurrentVolumeWidgetState extends State<CurrentVolumeWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (Platform.isMacOS) {
+      return const SizedBox.shrink();
+    }
     return ValueListenableBuilder<double>(
       valueListenable: _currentVolumeController.listener,
       builder: (context, volume, child) {

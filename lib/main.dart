@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:djsports/data/models/audio_player_album.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
@@ -99,18 +101,25 @@ class _DJSportsAppState extends ConsumerState<DJSportsApp> {
   }
 
   void _init() async {
-    var storagePermission = Permission.storage;
-    if (await storagePermission.status.isGranted) {
-      _loadData();
+    if (Platform.isMacOS) {
+      setState(() {
+        permission = false;
+        loading = false;
+      });
     } else {
-      var status = await storagePermission.request();
-      if (status.isGranted) {
+      var storagePermission = Permission.storage;
+      if (await storagePermission.status.isGranted) {
         _loadData();
       } else {
-        setState(() {
-          permission = false;
-          loading = false;
-        });
+        var status = await storagePermission.request();
+        if (status.isGranted) {
+          _loadData();
+        } else {
+          setState(() {
+            permission = false;
+            loading = false;
+          });
+        }
       }
     }
   }
@@ -162,6 +171,34 @@ class _DJSportsAppState extends ConsumerState<DJSportsApp> {
 }
 
 Future<void> requestStoragePermissions() async {
+  if (Platform.isAndroid) {
+    await requiestAndroidPermissons();
+  } else if (Platform.isIOS) {
+    await requiestIosPermissons();
+  } else if (Platform.isMacOS) {
+    await requiestMacOsPermissons();
+  }
+}
+
+Future<void> requiestMacOsPermissons() async {
+  debugPrint('Lagringstillatelse avslått');
+}
+
+Future<void> requiestIosPermissons() async {
+  if (await Permission.storage.request().isGranted) {
+    // Tillatelse gitt
+    debugPrint('Lagringstillatelse gitt');
+  } else if (await Permission.storage.request().isPermanentlyDenied) {
+    // Tillatelse permanent avslått, åpne app-innstillinger
+    await openAppSettings();
+  } else {
+    // Tillatelse avslått
+    //await openAppSettings();
+    debugPrint('Lagringstillatelse avslått');
+  }
+}
+
+Future<void> requiestAndroidPermissons() async {
   if (await Permission.accessMediaLocation.request().isGranted) {
     // Tillatelse gitt
     debugPrint('Lagringstillatelse gitt');
