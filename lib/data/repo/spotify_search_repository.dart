@@ -51,6 +51,15 @@ class SpotifySearchRepository {
     }
   }
 
+  Future<Iterable<Track>> getOnlyTracksByUri(String queryUri) async {
+    return await getTracksByUri(queryUri).then((value) => value.when((tracks) {
+          return tracks;
+        }, error: (error) {
+          debugPrint('error: $error');
+          return [];
+        }));
+  }
+
   Future<SpotifyPlaylistResult> getTracksByUri(String queryUri) async {
     debugPrint('tracksPage: $queryUri');
 

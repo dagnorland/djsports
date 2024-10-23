@@ -4,6 +4,7 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/provider/spotify_sync_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_playlist_service.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
@@ -153,6 +154,46 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       BuildContext context, WidgetRef ref, String playlistUri) async {
     if (widget.isNew) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Spillelisten må lagres før synkronisering'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Lukk',
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ));
+      return;
+    }
+
+    DJPlaylist playlist = ref
+        .read(hivePlaylistData.notifier)
+        .repo!
+        .getDJPlaylists()
+        .firstWhere((element) => element.id == widget.id);
+
+    List<String> existingTrackSpotifyUris = ref
+        .read(hiveTrackData.notifier)
+        .getDJTracksSpotifyUri(playlist.trackIds);
+    final service = ref.read(playlistServiceProvider);
+
+    await ref.read(spotifySyncProvider.notifier).syncPlaylist(
+          playlistUri,
+          playlist,
+          existingTrackSpotifyUris,
+          service.searchRepository.getOnlyTracksByUri,
+          service.searchRepository.getSpotifyNameUri,
+          ref.read(hiveTrackData.notifier).addDJTrack,
+          ref.read(hivePlaylistData.notifier).addTrackToDJPlaylist,
+          ref.read(hivePlaylistData.notifier).updateDJPlaylist,
+        );
+  }
+
+  @Deprecated('use spotifySyncProvider')
+  Future<void> _spotifyPlaylistSyncDEPRECATED(
+      BuildContext context, WidgetRef ref, String playlistUri) async {
+    if (widget.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Playlist must be saved before syncing'),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
@@ -211,16 +252,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       addedCount++;
     }
 
-    if (addedCount > 0 || skippedCount > 0) {
-      Navigator.pop(context);
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'La til $addedCount spor, hoppet over $skippedCount spor. Spillelisten har nå ${playlist.trackIds.length} spor'),
-      ));
-    }
+    debugPrint('addedCount: $addedCount');
+    debugPrint('skippedCount: $skippedCount');
   }
 
   Future<void> _spotifyTrackSync(
@@ -260,16 +293,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     );
     if (track != null) {
       // make an snackbar showing track name
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('adding track: ${track.name}'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ));
       DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
 
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
@@ -330,6 +353,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final syncProgress = ref.watch(spotifySyncProvider);
+
     return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -501,7 +526,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     ],
                   )),
               const SizedBox(height: 10),
-
               Container(
                   color: Theme.of(context).primaryColor.withOpacity(0.05),
                   child: Row(
@@ -588,21 +612,11 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => DJTrackEditScreen(
+                          builder: (context) => DJTrackEditScreen.fromTrack(
                             playlistId: widget.id,
                             playlistName: widget.name,
                             isNew: true,
-                            id: '',
-                            name: '',
-                            album: '',
-                            artist: '',
-                            startTime: 0,
-                            startTimeMS: 0,
-                            duration: 0,
-                            playCount: 0,
-                            spotifyUri: '',
-                            mp3Uri: '',
-                            networkImageUri: '',
+                            track: DJTrack.empty(),
                             index: 0,
                           ),
                         ),
@@ -714,6 +728,18 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               ),
 
               const SizedBox(height: 10),
+              if (syncProgress.hasValue) ...[
+                syncProgress.when(
+                  data: (progress) => progress.totalTracks > 0
+                      ? Text(
+                          'Lagt til: ${progress.addedCount}, Hoppet over: ${progress.skippedCount}, Totalt: ${progress.totalTracks}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        )
+                      : const SizedBox(),
+                  loading: () => const CircularProgressIndicator(),
+                  error: (error, stack) => Text('Feil: $error'),
+                ),
+              ],
               getTrackList(playlistTrackList),
               const SizedBox(
                 height: 20,
@@ -740,21 +766,11 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => DJTrackEditScreen(
+                  builder: (context) => DJTrackEditScreen.fromTrack(
                     playlistId: widget.id,
                     playlistName: track.name,
                     isNew: false,
-                    id: track.id,
-                    name: track.name,
-                    album: track.album,
-                    artist: track.artist,
-                    startTime: track.startTime,
-                    startTimeMS: track.startTimeMS,
-                    duration: track.duration,
-                    playCount: track.playCount,
-                    spotifyUri: track.spotifyUri,
-                    mp3Uri: track.mp3Uri,
-                    networkImageUri: track.networkImageUri,
+                    track: track,
                     index: index,
                   ),
                 ),

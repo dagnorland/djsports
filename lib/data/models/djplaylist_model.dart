@@ -126,6 +126,32 @@ class DJPlaylist extends HiveObject {
             'spotify:playlist:18SMKqQEhQvRgD6RdoVGp1?si=43ea45edc7074725',
       );
 
+  DJPlaylist copyWith({
+    String? id,
+    String? name,
+    String? type,
+    String? spotifyUri,
+    bool? autoNext,
+    bool? shuffleAtEnd,
+    int? currentTrack,
+    int? playCount,
+    List<String>? trackIds,
+    int? position,
+  }) {
+    return DJPlaylist(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      spotifyUri: spotifyUri ?? this.spotifyUri,
+      autoNext: autoNext ?? this.autoNext,
+      shuffleAtEnd: shuffleAtEnd ?? this.shuffleAtEnd,
+      currentTrack: currentTrack ?? this.currentTrack,
+      playCount: playCount ?? this.playCount,
+      trackIds: trackIds ?? List.from(this.trackIds),
+      position: position ?? this.position,
+    );
+  }
+
   factory DJPlaylist.fromJson(Map<String, dynamic> json) =>
       _$DJPlaylistFromJson(json);
 

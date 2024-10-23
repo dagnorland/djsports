@@ -43,8 +43,29 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
     required this.isNew,
     required this.id,
   });
+
+  DJTrackEditScreen.fromTrack({
+    super.key,
+    required this.playlistName,
+    required this.playlistId,
+    required DJTrack track,
+    required this.index,
+    required this.isNew,
+  })  : name = track.name,
+        album = track.album,
+        artist = track.artist,
+        startTime = track.startTime,
+        startTimeMS = track.startTimeMS,
+        duration = track.duration,
+        playCount = track.playCount,
+        spotifyUri = track.spotifyUri,
+        networkImageUri = track.networkImageUri,
+        mp3Uri = track.mp3Uri,
+        id = track.id;
+
   final String playlistName;
   final String playlistId;
+
   final String name;
   final String album;
   final String artist;
@@ -58,6 +79,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
   final String id;
   final bool isNew;
   final int index;
+
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _EditScreenState();
 }
