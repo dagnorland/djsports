@@ -6,7 +6,7 @@ part of 'spotify_sync_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$spotifySyncHash() => r'6277a5358ceee71475ea17c966e38cc5ab254f21';
+String _$spotifySyncHash() => r'6ad6b8dd12530e3582c5d7eda08aa184ce9e24aa';
 
 /// See also [SpotifySync].
 @ProviderFor(SpotifySync)

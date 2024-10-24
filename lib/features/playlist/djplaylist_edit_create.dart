@@ -91,7 +91,8 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
   ConsumerState<ConsumerStatefulWidget> createState() => _EditScreenState();
 }
 
-class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
+class _EditScreenState extends ConsumerState<DJPlaylistEditScreen>
+    with SingleTickerProviderStateMixin {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
   final positionController = TextEditingController();
@@ -105,6 +106,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   List<DJTrack> playlistTrackList = [];
 
   //FutureOr Function(dynamic value) get result => false;
+
+  late AnimationController _animationController;
 
   @override
   void initState() {
@@ -126,7 +129,19 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     trackIds = widget.trackIds;
     positionController.addListener(_validateInput);
     playlistTrackList = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
+
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   void _validateInput() {
@@ -187,73 +202,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           ref.read(hivePlaylistData.notifier).addTrackToDJPlaylist,
           ref.read(hivePlaylistData.notifier).updateDJPlaylist,
         );
-  }
-
-  @Deprecated('use spotifySyncProvider')
-  Future<void> _spotifyPlaylistSyncDEPRECATED(
-      BuildContext context, WidgetRef ref, String playlistUri) async {
-    if (widget.isNew) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Playlist must be saved before syncing'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ));
-      return;
-    }
-
-    DJPlaylist? playlist = ref
-        .read(hivePlaylistData.notifier)
-        .repo!
-        .getDJPlaylists()
-        .firstWhere((element) => element.id == widget.id);
-
-    List<String> existingTrackSpotifyUris = ref
-        .read(hiveTrackData.notifier)
-        .getDJTracksSpotifyUri(playlist.trackIds);
-    final service = ref.read(playlistServiceProvider);
-
-    Iterable<Track> result = await service.searchRepository
-        .getTracksByUri(playlistUri)
-        .then((value) => value.when((tracks) {
-              return tracks;
-            }, error: (error) {
-              debugPrint('error: $error');
-              return [];
-            }));
-
-    String syncName =
-        await service.searchRepository.getSpotifyNameUri(playlistUri);
-
-    int addedCount = 0;
-    int skippedCount = 0;
-    for (Track track in result) {
-      if (existingTrackSpotifyUris.contains(track.uri)) {
-        skippedCount++;
-        continue;
-      }
-      DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
-
-      ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
-      DJPlaylist playlist = ref
-          .read(hivePlaylistData.notifier)
-          .repo!
-          .getDJPlaylists()
-          .firstWhere((element) => element.id == widget.id);
-      ref
-          .read(hivePlaylistData.notifier)
-          .addTrackToDJPlaylist(playlist, addTrack);
-      playlist.name = syncName;
-      ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
-      addedCount++;
-    }
-
-    debugPrint('addedCount: $addedCount');
-    debugPrint('skippedCount: $skippedCount');
   }
 
   Future<void> _spotifyTrackSync(
@@ -354,7 +302,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   @override
   Widget build(BuildContext context) {
     final syncProgress = ref.watch(spotifySyncProvider);
-
     return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -404,349 +351,369 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         ),
         body: Padding(
           padding: const EdgeInsets.all(10.0),
-          child: Column(
-            children: [
-              Container(
-                  color: Theme.of(context).primaryColor.withOpacity(0.05),
-                  child: Row(children: [
-                    Expanded(
-                      flex: 70,
-                      child: TextField(
-                        controller: nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Name',
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: Theme.of(context).primaryColor,
-                                width: 2),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: Theme.of(context).primaryColor,
-                                width: 2),
-                          ),
-                          hintText: ' Enter name',
-                        ),
+          child: syncProgress.when(
+            data: (progress) => djPlaylistForm(context),
+            loading: () => syncInProgress(context),
+            error: (error, stack) => Text('Error: $error'),
+          ),
+        ));
+  }
+
+  Widget syncInProgress(BuildContext context) {
+    debugPrint('syncInProgress');
+    return Center(
+      child: Column(
+        children: [
+          AnimatedBuilder(
+            animation: _animationController,
+            builder: (_, child) {
+              return Transform.rotate(
+                angle: _animationController.value * 3 * 3.14159,
+                child: child,
+              );
+            },
+            child: const Icon(
+              Icons.sync,
+              size: 150,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Synkroniserer spilleliste...'),
+        ],
+      ),
+    );
+  }
+
+  Widget djPlaylistForm(BuildContext context) {
+    final syncProgress = ref.watch(spotifySyncProvider);
+
+    return Column(
+      children: [
+        Container(
+            color: Theme.of(context).primaryColor.withOpacity(0.05),
+            child: Row(children: [
+              Expanded(
+                flex: 70,
+                child: TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor, width: 2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor, width: 2),
+                    ),
+                    hintText: ' Enter name',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 30,
+                child: Container(
+                    height: 58,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.only(left: 10.0),
+                    decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: Theme.of(context).primaryColor,
+                          width: 2,
+                        )),
+                    child: Row(children: [
+                      const Text('Type:    '),
+                      DJPlaylistTypeDropdown(
+                        initialValue: selectedType.name,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedType = DJPlaylistType.values
+                                .firstWhere((e) => e.name == value);
+                          });
+                        },
+                      )
+                    ])),
+              )
+            ])),
+        const SizedBox(height: 10),
+        Container(
+            color: Theme.of(context).primaryColor.withOpacity(0.05),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 70,
+                  child: TextField(
+                    controller: spotifyUriController,
+                    onChanged: (value) => setState(() {
+                      spotifyUriController.text = spotifyUriValidate(value);
+                    }),
+                    decoration: InputDecoration(
+                      labelText: 'Spotify uri',
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor, width: 2),
                       ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor, width: 2),
+                      ),
+                      hintText: ' Paste spotify uri',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 30,
+                  child: Row(children: [
+                    IconButton(
+                      icon: const Icon(Icons.sync),
+                      onPressed: () {
+                        setState(() {
+                          _spotifyPlaylistSync(
+                              context, ref, spotifyUriController.text);
+                        });
+                      },
                     ),
                     const SizedBox(width: 10),
-                    Expanded(
-                      flex: 30,
-                      child: Container(
-                          height: 58,
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 10.0),
-                          decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .primaryColor
-                                  .withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: Theme.of(context).primaryColor,
-                                width: 2,
-                              )),
-                          child: Row(children: [
-                            const Text('Type:    '),
-                            DJPlaylistTypeDropdown(
-                              initialValue: selectedType.name,
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedType = DJPlaylistType.values
-                                      .firstWhere((e) => e.name == value);
-                                });
-                              },
-                            )
-                          ])),
+                    IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () {
+                        setState(() {
+                          _showSearch(context, ref);
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                    IconButton(
+                      icon: const Icon(Icons.playlist_add_circle_outlined),
+                      onPressed: () {
+                        setState(() {
+                          _spotifyTrackSync(
+                              context, ref, spotifyUriController.text);
+                        });
+                      },
                     )
-                  ])),
-              const SizedBox(height: 10),
-              Container(
-                  color: Theme.of(context).primaryColor.withOpacity(0.05),
+                  ]),
+                )
+              ],
+            )),
+        const SizedBox(height: 10),
+        Container(
+            color: Theme.of(context).primaryColor.withOpacity(0.05),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 5,
                   child: Row(
                     children: [
-                      Expanded(
-                        flex: 70,
-                        child: TextField(
-                          controller: spotifyUriController,
-                          onChanged: (value) => setState(() {
-                            spotifyUriController.text =
-                                spotifyUriValidate(value);
-                          }),
-                          decoration: InputDecoration(
-                            labelText: 'Spotify uri',
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).primaryColor,
-                                  width: 2),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).primaryColor,
-                                  width: 2),
-                            ),
-                            hintText: ' Paste spotify uri',
-                          ),
-                        ),
+                      const Text('Shuffle'),
+                      CupertinoCheckbox(
+                        value: shuffleAtEnd,
+                        onChanged: (value) {
+                          setState(() {
+                            shuffleAtEnd = value ?? true;
+                          });
+                        },
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 30,
-                        child: Row(children: [
-                          IconButton(
-                            icon: const Icon(Icons.sync),
-                            onPressed: () {
-                              setState(() {
-                                _spotifyPlaylistSync(
-                                    context, ref, spotifyUriController.text);
-                              });
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          IconButton(
-                            icon: const Icon(Icons.search),
-                            onPressed: () {
-                              setState(() {
-                                _showSearch(context, ref);
-                              });
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          IconButton(
-                            icon:
-                                const Icon(Icons.playlist_add_circle_outlined),
-                            onPressed: () {
-                              setState(() {
-                                _spotifyTrackSync(
-                                    context, ref, spotifyUriController.text);
-                              });
-                            },
-                          )
-                        ]),
-                      )
                     ],
-                  )),
-              const SizedBox(height: 10),
-              Container(
-                  color: Theme.of(context).primaryColor.withOpacity(0.05),
+                  ),
+                ),
+                Expanded(
+                  flex: 5,
                   child: Row(
                     children: [
-                      Expanded(
-                        flex: 5,
-                        child: Row(
-                          children: [
-                            const Text('Shuffle'),
-                            CupertinoCheckbox(
-                              value: shuffleAtEnd,
-                              onChanged: (value) {
-                                setState(() {
-                                  shuffleAtEnd = value ?? true;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        flex: 5,
-                        child: Row(
-                          children: [
-                            const Text('Auto next'),
-                            CupertinoCheckbox(
-                              value: autoNext,
-                              onChanged: (value) {
-                                setState(() {
-                                  autoNext = value ?? true;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 5,
-                        child: Row(children: [
-                          Text(
-                              '${widget.currentTrack + 1} / ${trackIds.length}'),
-                        ]),
-                      ),
-                      Expanded(
-                        flex: 5,
-                        child: Row(
-                          children: [
-                            const Text('Position'),
-                            SizedBox(
-                                width: 50,
-                                child: CupertinoTextField(
-                                  maxLength: 2,
-                                  keyboardType: TextInputType.number,
-                                  controller: positionController,
-                                  placeholder: 'Enter a value between 1 and 99',
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly
-                                  ],
-                                )),
-                          ],
-                        ),
+                      const Text('Auto next'),
+                      CupertinoCheckbox(
+                        value: autoNext,
+                        onChanged: (value) {
+                          setState(() {
+                            autoNext = value ?? true;
+                          });
+                        },
                       ),
                     ],
-                  )),
-              const SizedBox(height: 10),
-
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColorLight),
-                    child: Text(
-                      'Add MP3',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .copyWith(color: Colors.white),
-                    ),
-                    onPressed: () {
-                      ref.invalidate(dataTrackProvider);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DJTrackEditScreen.fromTrack(
-                            playlistId: widget.id,
-                            playlistName: widget.name,
-                            isNew: true,
-                            track: DJTrack.empty(),
-                            index: 0,
-                          ),
-                        ),
-                      );
-                    },
                   ),
-                  const SizedBox(
-                    width: 30,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 5,
+                  child: Row(children: [
+                    Text('${widget.currentTrack + 1} / ${trackIds.length}'),
+                  ]),
+                ),
+                Expanded(
+                  flex: 5,
+                  child: Row(
+                    children: [
+                      const Text('Position'),
+                      SizedBox(
+                          width: 50,
+                          child: CupertinoTextField(
+                            maxLength: 2,
+                            keyboardType: TextInputType.number,
+                            controller: positionController,
+                            placeholder: 'Enter a value between 1 and 99',
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                          )),
+                    ],
                   ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).disabledColor,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      'Cancel',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .copyWith(color: Colors.white),
+                ),
+              ],
+            )),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColorLight),
+              child: Text(
+                'Add MP3',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge!
+                    .copyWith(color: Colors.white),
+              ),
+              onPressed: () {
+                ref.invalidate(dataTrackProvider);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DJTrackEditScreen.fromTrack(
+                      playlistId: widget.id,
+                      playlistName: widget.name,
+                      isNew: true,
+                      track: DJTrack.empty(),
+                      index: 0,
                     ),
                   ),
-                  const SizedBox(
-                    width: 30,
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                    ),
-                    onPressed: _errorMessage.isNotEmpty
-                        ? null
-                        : () {
-                            String newPlayListId = '';
-                            if (widget.id.isEmpty) {
-                              newPlayListId = ref
-                                  .read(hivePlaylistData.notifier)
-                                  .addDJplaylist(
-                                    DJPlaylist(
-                                      id: '',
-                                      name: nameController.text,
-                                      type: selectedType.name,
-                                      spotifyUri: spotifyUriController.text,
-                                      shuffleAtEnd: shuffleAtEnd,
-                                      trackIds: [],
-                                      currentTrack: currentTrack,
-                                      playCount: 0,
-                                      autoNext: autoNext,
-                                    ),
-                                  );
-                            } else {
-                              ref
-                                  .read(hivePlaylistData.notifier)
-                                  .updateDJPlaylist(
-                                    DJPlaylist(
-                                      id: widget.id,
-                                      name: nameController.text,
-                                      type: selectedType.name,
-                                      spotifyUri: spotifyUriController.text,
-                                      shuffleAtEnd: shuffleAtEnd,
-                                      trackIds: trackIds,
-                                      currentTrack: currentTrack,
-                                      playCount: 0,
-                                      autoNext: autoNext,
-                                      position:
-                                          int.parse(positionController.text),
-                                    ),
-                                  );
-                            }
-                            Navigator.pop(context);
-                            if (newPlayListId.isNotEmpty) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DJPlaylistEditScreen(
+                );
+              },
+            ),
+            const SizedBox(
+              width: 30,
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).disabledColor,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge!
+                    .copyWith(color: Colors.white),
+              ),
+            ),
+            const SizedBox(
+              width: 30,
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+              ),
+              onPressed: _errorMessage.isNotEmpty
+                  ? null
+                  : () {
+                      String newPlayListId = '';
+                      if (widget.id.isEmpty) {
+                        newPlayListId =
+                            ref.read(hivePlaylistData.notifier).addDJplaylist(
+                                  DJPlaylist(
+                                    id: '',
                                     name: nameController.text,
                                     type: selectedType.name,
                                     spotifyUri: spotifyUriController.text,
-                                    trackIds: const [],
-                                    isNew: false,
-                                    id: newPlayListId,
-                                    status: 'Playlist created',
-                                    shuffleAtEnd: widget.shuffleAtEnd,
-                                    autoNext: widget.autoNext,
-                                    currentTrack: widget.currentTrack,
-                                    position:
-                                        int.parse(positionController.text),
+                                    shuffleAtEnd: shuffleAtEnd,
+                                    trackIds: [],
+                                    currentTrack: currentTrack,
+                                    playCount: 0,
+                                    autoNext: autoNext,
                                   ),
-                                ),
-                              );
-                            }
-                          },
-                    child: Text(
-                      widget.id.isEmpty ? 'Create' : 'Update',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge!
-                          .copyWith(color: Colors.white),
-                    ),
-                  ),
-                ],
+                                );
+                      } else {
+                        ref.read(hivePlaylistData.notifier).updateDJPlaylist(
+                              DJPlaylist(
+                                id: widget.id,
+                                name: nameController.text,
+                                type: selectedType.name,
+                                spotifyUri: spotifyUriController.text,
+                                shuffleAtEnd: shuffleAtEnd,
+                                trackIds: trackIds,
+                                currentTrack: currentTrack,
+                                playCount: 0,
+                                autoNext: autoNext,
+                                position: int.parse(positionController.text),
+                              ),
+                            );
+                      }
+                      Navigator.pop(context);
+                      if (newPlayListId.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DJPlaylistEditScreen(
+                              name: nameController.text,
+                              type: selectedType.name,
+                              spotifyUri: spotifyUriController.text,
+                              trackIds: const [],
+                              isNew: false,
+                              id: newPlayListId,
+                              status: 'Playlist created',
+                              shuffleAtEnd: widget.shuffleAtEnd,
+                              autoNext: widget.autoNext,
+                              currentTrack: widget.currentTrack,
+                              position: int.parse(positionController.text),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+              child: Text(
+                widget.id.isEmpty ? 'Create' : 'Update',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge!
+                    .copyWith(color: Colors.white),
               ),
-              // divider line
-              const SizedBox(height: 10),
-              const Divider(
-                color: Colors.grey,
-                height: 1,
-              ),
+            ),
+          ],
+        ),
+        // divider line
+        const SizedBox(height: 10),
+        const Divider(
+          color: Colors.grey,
+          height: 1,
+        ),
 
-              const SizedBox(height: 10),
-              if (syncProgress.hasValue) ...[
-                syncProgress.when(
-                  data: (progress) => progress.totalTracks > 0
-                      ? Text(
-                          'Lagt til: ${progress.addedCount}, Hoppet over: ${progress.skippedCount}, Totalt: ${progress.totalTracks}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        )
-                      : const SizedBox(),
-                  loading: () => const CircularProgressIndicator(),
-                  error: (error, stack) => Text('Feil: $error'),
-                ),
-              ],
-              getTrackList(playlistTrackList),
-              const SizedBox(
-                height: 20,
-              ),
-            ],
+        const SizedBox(height: 10),
+        if (syncProgress.hasValue) ...[
+          syncProgress.when(
+            data: (progress) => progress.hasRun
+                ? Text(
+                    'Lagt til: ${progress.addedCount}, Hoppet over: ${progress.skippedCount}, Totalt: ${progress.totalTracks}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  )
+                : const SizedBox(),
+            loading: () => const SizedBox(),
+            error: (error, stack) => Text('Error during sync: $error'),
           ),
-        ));
+        ],
+        getTrackList(playlistTrackList),
+        const SizedBox(
+          height: 20,
+        ),
+      ],
+    );
   }
 
   Widget getTrackList(List<DJTrack> tracks) {
@@ -802,7 +769,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     }
     if (value.contains('https://open.spotify.com/playlist/')) {
       // remove the https://open.spotify.com/playlist/ from the uri
-      return value.substring('https://open.spotify.com/'.length);
+      return value.substring('https://open.spotify.com/playlist/'.length);
     }
 
     if (value.contains('https://open.spotify.com/album/')) {

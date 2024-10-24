@@ -19,6 +19,7 @@ mixin _$SyncProgress {
   int get addedCount => throw _privateConstructorUsedError;
   int get skippedCount => throw _privateConstructorUsedError;
   int get totalTracks => throw _privateConstructorUsedError;
+  bool get hasRun => throw _privateConstructorUsedError;
 
   /// Create a copy of SyncProgress
   /// with the given fields replaced by the non-null parameter values.
@@ -33,7 +34,7 @@ abstract class $SyncProgressCopyWith<$Res> {
           SyncProgress value, $Res Function(SyncProgress) then) =
       _$SyncProgressCopyWithImpl<$Res, SyncProgress>;
   @useResult
-  $Res call({int addedCount, int skippedCount, int totalTracks});
+  $Res call({int addedCount, int skippedCount, int totalTracks, bool hasRun});
 }
 
 /// @nodoc
@@ -54,6 +55,7 @@ class _$SyncProgressCopyWithImpl<$Res, $Val extends SyncProgress>
     Object? addedCount = null,
     Object? skippedCount = null,
     Object? totalTracks = null,
+    Object? hasRun = null,
   }) {
     return _then(_value.copyWith(
       addedCount: null == addedCount
@@ -68,6 +70,10 @@ class _$SyncProgressCopyWithImpl<$Res, $Val extends SyncProgress>
           ? _value.totalTracks
           : totalTracks // ignore: cast_nullable_to_non_nullable
               as int,
+      hasRun: null == hasRun
+          ? _value.hasRun
+          : hasRun // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -80,7 +86,7 @@ abstract class _$$SyncProgressImplCopyWith<$Res>
       __$$SyncProgressImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({int addedCount, int skippedCount, int totalTracks});
+  $Res call({int addedCount, int skippedCount, int totalTracks, bool hasRun});
 }
 
 /// @nodoc
@@ -99,6 +105,7 @@ class __$$SyncProgressImplCopyWithImpl<$Res>
     Object? addedCount = null,
     Object? skippedCount = null,
     Object? totalTracks = null,
+    Object? hasRun = null,
   }) {
     return _then(_$SyncProgressImpl(
       addedCount: null == addedCount
@@ -113,6 +120,10 @@ class __$$SyncProgressImplCopyWithImpl<$Res>
           ? _value.totalTracks
           : totalTracks // ignore: cast_nullable_to_non_nullable
               as int,
+      hasRun: null == hasRun
+          ? _value.hasRun
+          : hasRun // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -121,7 +132,10 @@ class __$$SyncProgressImplCopyWithImpl<$Res>
 
 class _$SyncProgressImpl implements _SyncProgress {
   const _$SyncProgressImpl(
-      {this.addedCount = 0, this.skippedCount = 0, this.totalTracks = 0});
+      {this.addedCount = 0,
+      this.skippedCount = 0,
+      this.totalTracks = 0,
+      this.hasRun = false});
 
   @override
   @JsonKey()
@@ -132,10 +146,13 @@ class _$SyncProgressImpl implements _SyncProgress {
   @override
   @JsonKey()
   final int totalTracks;
+  @override
+  @JsonKey()
+  final bool hasRun;
 
   @override
   String toString() {
-    return 'SyncProgress(addedCount: $addedCount, skippedCount: $skippedCount, totalTracks: $totalTracks)';
+    return 'SyncProgress(addedCount: $addedCount, skippedCount: $skippedCount, totalTracks: $totalTracks, hasRun: $hasRun)';
   }
 
   @override
@@ -148,12 +165,13 @@ class _$SyncProgressImpl implements _SyncProgress {
             (identical(other.skippedCount, skippedCount) ||
                 other.skippedCount == skippedCount) &&
             (identical(other.totalTracks, totalTracks) ||
-                other.totalTracks == totalTracks));
+                other.totalTracks == totalTracks) &&
+            (identical(other.hasRun, hasRun) || other.hasRun == hasRun));
   }
 
   @override
   int get hashCode =>
-      Object.hash(runtimeType, addedCount, skippedCount, totalTracks);
+      Object.hash(runtimeType, addedCount, skippedCount, totalTracks, hasRun);
 
   /// Create a copy of SyncProgress
   /// with the given fields replaced by the non-null parameter values.
@@ -168,7 +186,8 @@ abstract class _SyncProgress implements SyncProgress {
   const factory _SyncProgress(
       {final int addedCount,
       final int skippedCount,
-      final int totalTracks}) = _$SyncProgressImpl;
+      final int totalTracks,
+      final bool hasRun}) = _$SyncProgressImpl;
 
   @override
   int get addedCount;
@@ -176,6 +195,8 @@ abstract class _SyncProgress implements SyncProgress {
   int get skippedCount;
   @override
   int get totalTracks;
+  @override
+  bool get hasRun;
 
   /// Create a copy of SyncProgress
   /// with the given fields replaced by the non-null parameter values.

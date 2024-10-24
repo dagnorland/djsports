@@ -14,6 +14,7 @@ class SyncProgress with _$SyncProgress {
     @Default(0) int addedCount,
     @Default(0) int skippedCount,
     @Default(0) int totalTracks,
+    @Default(false) bool hasRun,
   }) = _SyncProgress;
 }
 
@@ -61,6 +62,8 @@ class SpotifySync extends _$SpotifySync {
             addedCount: progress.addedCount + 1,
           );
         }
+
+        progress = progress.copyWith(hasRun: true);
 
         state = AsyncValue.data(progress);
       }
