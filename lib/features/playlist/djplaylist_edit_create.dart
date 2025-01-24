@@ -151,7 +151,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
   Future<void> _spotifyPlaylistSync(
       BuildContext context, WidgetRef ref, String playlistUri) async {
-    if (widget.isNew) {
+    String playlistId = widget.id;
+
+    if (playlistId.isEmpty && playlistUri.isNotEmpty) {
+      playlistId = newPlaylistFromFormData();
+    }
+
+    if (widget.isNew && playlistId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Playlist must be saved before syncing'),
         duration: const Duration(seconds: 3),
@@ -164,11 +170,19 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ));
       return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Syncronising playlist tracks...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
     DJPlaylist? playlist = ref
         .read(hivePlaylistData.notifier)
         .repo!
         .getDJPlaylists()
-        .firstWhere((element) => element.id == widget.id);
+        .firstWhere((element) => element.id == playlistId);
 
     List<String> existingTrackSpotifyUris = ref
         .read(hiveTrackData.notifier)
@@ -189,6 +203,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     int addedCount = 0;
     int skippedCount = 0;
+
     for (Track track in result) {
       if (existingTrackSpotifyUris.contains(track.uri)) {
         skippedCount++;
@@ -197,11 +212,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
 
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
-      DJPlaylist playlist = ref
-          .read(hivePlaylistData.notifier)
-          .repo!
-          .getDJPlaylists()
-          .firstWhere((element) => element.id == widget.id);
+
       ref
           .read(hivePlaylistData.notifier)
           .addTrackToDJPlaylist(playlist, addTrack);
@@ -210,16 +221,26 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       addedCount++;
     }
 
-    setState(() {
-      nameController.text = playlist.name;
-      trackIds = playlist.trackIds;
-    });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
             'La til $addedCount spor, hoppet over $skippedCount spor. Spillelisten har nå ${playlist.trackIds.length} spor'),
       ));
     }
+
+    Navigator.of(context).pop();
+    widget.refreshCallback ?? widget.refreshCallback;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DJPlaylistEditScreen.fromDJPlaylist(
+          playlist,
+          refreshCallback: () {
+            setState(() {});
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _spotifyTrackSync(
@@ -283,6 +304,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
       setState(() {
         trackIds = playlist.trackIds;
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
       });
     } else {
       debugPrint('result: ingenting valgt');
@@ -323,8 +346,26 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
       setState(() {
         trackIds = playlist.trackIds;
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
       });
     }
+  }
+
+  String newPlaylistFromFormData() {
+    return ref.read(hivePlaylistData.notifier).addDJplaylist(
+          DJPlaylist(
+            id: '',
+            name: nameController.text,
+            type: selectedType.name,
+            spotifyUri: spotifyUriController.text,
+            shuffleAtEnd: shuffleAtEnd,
+            trackIds: [],
+            currentTrack: currentTrack,
+            playCount: 0,
+            autoNext: autoNext,
+          ),
+        );
   }
 
   @override
@@ -368,7 +409,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               : Container(),
         ],
         title: Text(
-          widget.id.isEmpty ? "Create Playlist" : "Edit Playlist",
+          widget.id.isEmpty ? 'Create Playlist' : 'Edit Playlist',
           style: TextStyle(
               color: Theme.of(context).primaryColor,
               fontWeight: FontWeight.bold),
@@ -535,7 +576,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     Expanded(
                       flex: 5,
                       child: Row(children: [
-                        Text('${widget.currentTrack + 1} / ${trackIds.length}'),
+                        Text(
+                            '${widget.currentTrack + 1} / ${trackIds.length} : ${playlistTrackList.length}'),
                       ]),
                     ),
                     Expanded(
@@ -631,21 +673,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                       : () {
                           String newPlayListId = '';
                           if (widget.id.isEmpty) {
-                            newPlayListId = ref
-                                .read(hivePlaylistData.notifier)
-                                .addDJplaylist(
-                                  DJPlaylist(
-                                    id: '',
-                                    name: nameController.text,
-                                    type: selectedType.name,
-                                    spotifyUri: spotifyUriController.text,
-                                    shuffleAtEnd: shuffleAtEnd,
-                                    trackIds: [],
-                                    currentTrack: currentTrack,
-                                    playCount: 0,
-                                    autoNext: autoNext,
-                                  ),
-                                );
+                            newPlayListId = newPlaylistFromFormData();
                           } else {
                             ref
                                 .read(hivePlaylistData.notifier)
@@ -764,6 +792,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                       widget.id, tracks[index].id);
               setState(() {
                 trackIds = playlist.trackIds;
+                playlistTrackList =
+                    ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
               });
             },
           );

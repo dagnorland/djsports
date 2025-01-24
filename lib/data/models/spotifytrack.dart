@@ -50,28 +50,27 @@ class Track {
 
   Track.fromJson(Map<String, dynamic> json) {
     if (json['album'] != null) {
-      album = Album.fromJson(json['album']);
+      album = Album.fromJson(json['album'] as Map<String, dynamic>);
     }
-    //album = json['album'];
 
     if (json['artists'] != null) {
       artists = [];
-      json['artists'].forEach((v) {
-        artists.add(Artists.fromJson(v));
-      });
+      for (final artist in (json['artists'] as List)) {
+        artists.add(Artists.fromJson(artist as Map<String, dynamic>));
+      }
     }
-    discNumber = json['disc_number'] ?? 0;
-    durationMs = json['duration_ms'] ?? 100;
-    explicit = json['explicit'] ?? false;
-    href = json['href'] ?? '';
-    id = json['id'] ?? '';
-    isLocal = json['is_local'] ?? false;
-    name = json['name'] ?? '';
-    popularity = json['popularity'] ?? 0;
-    previewUrl = json['preview_url'] ?? '';
-    trackNumber = json['track_number'] ?? 0;
-    type = json['type'] ?? '';
-    uri = json['uri'] ?? '';
+    discNumber = json['disc_number'] as int;
+    durationMs = json['duration_ms'] as int;
+    explicit = json['explicit'] as bool;
+    href = json['href'] as String;
+    id = json['id'] as String;
+    isLocal = json['is_local'] as bool;
+    name = json['name'] as String;
+    popularity = json['popularity'] as int;
+    previewUrl = json['preview_url'] as String;
+    trackNumber = json['track_number'] as int;
+    type = json['type'] as String;
+    uri = json['uri'] as String;
   }
 
   Map<String, dynamic> toJson() {
@@ -136,27 +135,27 @@ class Album {
   }
 
   Album.fromJson(Map<String, dynamic> json) {
-    albumType = json['album_type'];
+    albumType = json['album_type'] as String;
     if (json['artists'] != null) {
-      List<Artists> artists = [];
-      json['artists'].forEach((v) {
-        artists.add(Artists.fromJson(v));
-      });
+      artists = [];
+      for (final artist in (json['artists'] as List)) {
+        artists.add(Artists.fromJson(artist as Map<String, dynamic>));
+      }
     }
-    href = json['href'];
-    id = json['id'];
+    href = json['href'] as String;
+    id = json['id'] as String;
     if (json['images'] != null) {
       images = [];
-      json['images'].forEach((v) {
-        images.add(Images.fromJson(v));
-      });
+      for (final image in (json['images'] as List)) {
+        images.add(Images.fromJson(image as Map<String, dynamic>));
+      }
     }
-    name = json['name'];
-    releaseDate = json['release_date'];
-    releaseDatePrecision = json['release_date_precision'];
-    totalTracks = json['total_tracks'];
-    type = json['type'];
-    uri = json['uri'];
+    name = json['name'] as String;
+    releaseDate = json['release_date'] as String;
+    releaseDatePrecision = json['release_date_precision'] as String;
+    totalTracks = json['total_tracks'] as int;
+    type = json['type'] as String;
+    uri = json['uri'] as String;
   }
 
   Map<String, dynamic> toJson() {
@@ -189,13 +188,12 @@ class Artists {
       required this.name,
       required this.type,
       required this.uri});
-
   Artists.fromJson(Map<String, dynamic> json) {
-    href = json['href'];
-    id = json['id'];
-    name = json['name'];
-    type = json['type'];
-    uri = json['uri'];
+    href = json['href'] as String;
+    id = json['id'] as String;
+    name = json['name'] as String;
+    type = json['type'] as String;
+    uri = json['uri'] as String;
   }
 
   Map<String, dynamic> toJson() {
@@ -217,9 +215,9 @@ class Images {
   Images({required this.height, required this.url, required this.width});
 
   Images.fromJson(Map<String, dynamic> json) {
-    height = json['height'];
-    url = json['url'];
-    width = json['width'];
+    height = json['height'] as int;
+    url = json['url'] as String;
+    width = json['width'] as int;
   }
 
   Map<String, dynamic> toJson() {
@@ -237,7 +235,7 @@ class ExternalIds {
   ExternalIds({required this.isrc});
 
   ExternalIds.fromJson(Map<String, dynamic> json) {
-    isrc = json['isrc'];
+    isrc = json['isrc'] as String;
   }
 
   Map<String, dynamic> toJson() {

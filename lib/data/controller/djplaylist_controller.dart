@@ -15,7 +15,8 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     fetchDJPlaylist();
   }
   late DJPlaylistRepo? repo;
-  final StateNotifierProviderRef ref;
+  final StateNotifierProviderRef<StateNotifier<List<DJPlaylist>?>,
+      List<DJPlaylist>?> ref;
   void fetchDJPlaylist() {
     state = repo!.getDJPlaylists();
   }
@@ -56,7 +57,7 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
   }
 
   void addTrackToDJPlaylist(DJPlaylist djPlaylist, DJTrack djTrack) {
-    djPlaylist = djPlaylist.addTrack(djTrack.id);
+    djPlaylist.addTrack(djTrack.id);
     state = repo!.updateDJPlaylist(djPlaylist);
   }
 }

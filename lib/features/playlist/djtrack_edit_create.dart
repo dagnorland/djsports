@@ -135,9 +135,9 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
     if (duration.inHours > 0) {
-      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+      return '${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds';
     } else {
-      return "$twoDigitMinutes:$twoDigitSeconds";
+      return '$twoDigitMinutes:$twoDigitSeconds';
     }
   }
 
@@ -150,6 +150,17 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           (minutes * 60 + seconds) * 1000 + editStartTimeMS;
       return totalMilliseconds;
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: SelectableText.rich(
+            TextSpan(
+              text: 'Feil ved konvertering av starttid: $e',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+          backgroundColor: Colors.white,
+        ),
+      );
       return 0;
     }
   }

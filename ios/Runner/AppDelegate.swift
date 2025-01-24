@@ -1,7 +1,7 @@
 import Flutter
 import UIKit
 
-@UIApplicationMain
+@main
 @objc class AppDelegate: FlutterAppDelegate, SPTAppRemoteDelegate, SPTAppRemotePlayerStateDelegate {
     let SpotifyClientID = ".env['SPOTIFY_CLIENT_ID']"
         let SpotifyRedirectURL = URL(string: "spotify-ios-quick-start://spotify-login-callback")!

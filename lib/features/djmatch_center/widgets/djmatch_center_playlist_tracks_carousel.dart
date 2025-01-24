@@ -75,8 +75,8 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
           ),
           if (djTrack.startTime + djTrack.startTimeMS > 0)
             Positioned(
-                top: 78,
-                left: 5,
+                top: 80,
+                left: 18,
                 child: Text(
                   printDurationWithMS(Duration(milliseconds: djTrack.startTime),
                       djTrack.startTimeMS),
@@ -87,7 +87,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                       color: Colors.black),
                 )),
           Positioned(
-            top: djTrack.startTime + djTrack.startTimeMS > 0 ? 18 : 25,
+            top: djTrack.startTime + djTrack.startTimeMS > 0 ? 16 : 23,
             left: -20,
             right: 0,
             child: IconButton(

@@ -138,20 +138,20 @@ Future<void> _followingArtists(SpotifyApi spotify) async {
   var cursorPage = spotify.me.following(FollowingType.artist);
   await cursorPage.first().then((cursorPage) {
     debugPrint(cursorPage.items!.map((artist) => artist.name).join(', '));
-  }).catchError((ex) => _prettyPrintError(ex));
+  }).catchError((ex) => _prettyPrintError(ex as Object));
 }
 
 Future<void> _shuffle(bool state, SpotifyApi spotify) async {
   await spotify.player.shuffle(state).then((player) {
     debugPrint('Shuffle: ${player?.isShuffling}');
-  }).catchError((ex) => _prettyPrintError(ex));
+  }).catchError((ex) => _prettyPrintError(ex as Object));
 }
 
 Future<void> _playlists(SpotifyApi spotify) async {
   await spotify.playlists.me.all(1).then((playlists) {
     var lists = playlists.map((playlist) => playlist.name).join(', ');
     debugPrint('Playlists: $lists');
-  }).catchError(_prettyPrintError);
+  }).catchError((ex) => _prettyPrintError(ex as Object));
 }
 
 Future<void> _savedTracks(SpotifyApi spotify) async {
@@ -237,12 +237,12 @@ Future<void> _saveAndRemoveEpisode(spotify) async {
   await spotify.me.saveShows(['4Bje2xtE4VxqO2HO1PQdsG']);
   var saved = await spotify.me.containsSavedShows(['4Bje2xtE4VxqO2HO1PQdsG']);
   debugPrint('Checking is 4Bje2xtE4VxqO2HO1PQdsG is in saved shows...');
-  debugPrint(saved);
+  debugPrint(saved.toString());
   debugPrint('Removing show wish id 4Bje2xtE4VxqO2HO1PQdsG');
   await spotify.me.removeShows(['4Bje2xtE4VxqO2HO1PQdsG']);
   debugPrint('Checking is 4Bje2xtE4VxqO2HO1PQdsG is in saved shows...');
   saved = await spotify.me.containsSavedShows(['4Bje2xtE4VxqO2HO1PQdsG']);
-  debugPrint(saved);
+  debugPrint(saved.toString());
 }
 
 Future<Playlist> _createPrivatePlaylist(SpotifyApi spotify) async {

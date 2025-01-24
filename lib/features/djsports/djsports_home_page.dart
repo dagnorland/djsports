@@ -135,7 +135,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                               ? Colors.green.shade700
                               : Colors.red.shade700),
                       child: Text(
-                        'Connect',
+                        ref.read(spotifyRemoteRepositoryProvider).isConnected
+                            ? 'Connected'
+                            : 'Connect',
                         style: Theme.of(context)
                             .textTheme
                             .titleLarge!

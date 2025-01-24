@@ -8,13 +8,13 @@ class BaseResponse {
 
   void from({required dynamic json, required int code}) {
     this.code = code;
-    error = json['error'];
+    error = json['error'] as String? ?? '';
   }
 
   Map<String, dynamic> toJson() {
     var data = <String, dynamic>{};
-    data["code"] = code;
-    data["error"] = error;
+    data['code'] = code;
+    data['error'] = error;
     return data;
   }
 }
@@ -28,7 +28,7 @@ class BaseResponseWithMessages extends BaseResponse {
 
     if (json['messages'] != null) {
       json['messages'].forEach((v) {
-        messages.add(ResponseMessage.from(json: v));
+        messages.add(ResponseMessage.from(json: v as Map<String, dynamic>));
       });
     }
   }
@@ -52,8 +52,9 @@ class ResponseMessage {
   ResponseMessage(
       {required this.message, required this.status, required this.reason});
 
-  ResponseMessage.from({required dynamic json}) {
-    var data = json["message"] is Map ? json["message"] : json;
+  ResponseMessage.from({required Map<String, dynamic> json}) {
+    final data =
+        json['message'] is Map ? json['message'] as Map<String, dynamic> : json;
     message = Parser.getString(data, 'message');
     status = Parser.getString(data, 'status');
     reason = Parser.getString(data, 'reason');

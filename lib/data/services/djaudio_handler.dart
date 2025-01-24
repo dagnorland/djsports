@@ -159,7 +159,7 @@ class DJAudioHandler extends BaseAudioHandler {
 
   UriAudioSource _createAudioSource(MediaItem mediaItem) {
     return AudioSource.uri(
-      Uri.file(mediaItem.extras!['path']),
+      Uri.file(mediaItem.extras!['path'] as String),
       tag: mediaItem,
     );
   }
@@ -217,12 +217,13 @@ class DJAudioHandler extends BaseAudioHandler {
   }
 
   @override
-  Future customAction(String name, [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'start':
         {
-          final source = await extras!['queue']
-              .map(_createAudioSource)
+          List<AudioSource> source = (extras!['queue'] as List<dynamic>)
+              .map((item) => _createAudioSource(item as MediaItem))
               .toList()
               .cast<AudioSource>();
           //queue.add(extras['queue']);
@@ -230,9 +231,9 @@ class DJAudioHandler extends BaseAudioHandler {
           _playList = ConcatenatingAudioSource(children: source);
           await _player.setAudioSource(
             _playList,
-            initialIndex: extras['index'],
+            initialIndex: extras['index'] as int?,
           );
-          play();
+          await play();
         }
         break;
       case 'reorder':

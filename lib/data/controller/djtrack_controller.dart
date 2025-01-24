@@ -13,7 +13,7 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     fetchDJTrack();
   }
   late DJTrackRepo? repo;
-  final StateNotifierProviderRef ref;
+  final Ref ref;
 
   ///fetch all todo from to local Storage
 

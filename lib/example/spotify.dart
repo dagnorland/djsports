@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:djsports/example/spotify_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart' as dotenv;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart' as spotify;
 import 'package:spotify_sdk/enums/image_dimension_enum.dart';
@@ -17,7 +17,7 @@ import 'package:spotify_sdk/models/player_state.dart';
 import 'package:logger/logger.dart';
 
 Future<void> main() async {
-  await dotenv.dotenv.load(fileName: '.env');
+  await dotenv.load(fileName: '.env');
 
   runApp(const ProviderScope(child: Home()));
 }
@@ -36,8 +36,8 @@ class HomeState extends State<Home> {
   bool _loading = false;
   bool _connected = false;
   spotify.SpotifyApiCredentials credentials = spotify.SpotifyApiCredentials(
-    dotenv.dotenv.env['SPOTIFY_CLIENTID'],
-    dotenv.dotenv.env['SPOTIFY_SECRET'],
+    dotenv.env['SPOTIFY_CLIENTID'],
+    dotenv.env['SPOTIFY_SECRET'],
   );
 
   String spotifyRedirectUrl = 'djsports://spotify-login-callback';
@@ -476,17 +476,19 @@ class HomeState extends State<Home> {
     }
   }
 
-  Future getPlayerState() async {
+  Future<PlayerState?> getPlayerState() async {
     try {
       return await spotifysdk.SpotifySdk.getPlayerState();
     } on PlatformException catch (e) {
       setStatus(e.code, message: e.message);
     } on MissingPluginException {
       setStatus('not implemented');
+      return null;
     }
+    return null;
   }
 
-  Future getCrossfadeState() async {
+  Future<CrossfadeState?> getCrossfadeState() async {
     try {
       var crossfadeStateValue = await spotifysdk.SpotifySdk.getCrossFadeState();
       setState(() {
@@ -497,6 +499,7 @@ class HomeState extends State<Home> {
     } on MissingPluginException {
       setStatus('not implemented');
     }
+    return null;
   }
 
   Future<void> queue() async {
@@ -639,7 +642,9 @@ class HomeState extends State<Home> {
 
   Future<void> checkIfAppIsActive(BuildContext context) async {
     try {
-      var isActive = await spotifysdk.SpotifySdk.isSpotifyAppActive;
+      var isActive = await spotifysdk.SpotifySdk.connectToSpotifyRemote(
+          clientId: dotenv.env['SPOTIFY_CLIENTID'].toString(),
+          redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'].toString());
       final snackBar = SnackBar(
           content: Text(isActive
               ? 'Spotify app connection is active (currently playing)'

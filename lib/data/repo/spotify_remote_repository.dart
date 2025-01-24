@@ -156,21 +156,21 @@ class SpotifyRemoteRepository {
       return '[Success] Playing track ${track.spotifyUri}';
     } on PlatformException catch (platformException) {
       if (platformException.details != null) {
-        if (platformException.details
+        if ((platformException.details as String)
             .contains('SpotifyDisconnectedException')) {
           isConnected = false;
           SpotifyConnectionLog().addSimpleEntry(
               SpotifyConnectionStatus.notConnected,
               'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
           // lets reconnect
-          connectAccessToken();
+          await connectAccessToken();
           if (isConnected) {
-            connectToSpotifyRemote();
+            await connectToSpotifyRemote();
             if (isConnectedRemote) {
               SpotifyConnectionLog().addSimpleEntry(
                   SpotifyConnectionStatus.connectedSpotifyRemoteApp,
                   'Reconnected. trying replay. spotifyUri');
-              playTrack(track.spotifyUri);
+              await playTrack(track.spotifyUri);
             }
           }
         }
@@ -247,7 +247,7 @@ class SpotifyRemoteRepository {
       return '[Success] Playing track $spotifyUri';
     } on PlatformException catch (platformException) {
       if (platformException.details != null) {
-        if (platformException.details
+        if ((platformException.details as String)
             .contains('SpotifyDisconnectedException')) {
           isConnected = false;
           SpotifyConnectionLog().addSimpleEntry(
@@ -285,7 +285,7 @@ class SpotifyRemoteRepository {
       return '[Success] Playing track $spotifyUri';
     } on PlatformException catch (platformException) {
       if (platformException.details != null) {
-        if (platformException.details
+        if ((platformException.details as String)
             .contains('SpotifyDisconnectedException')) {
           isConnected = false;
           SpotifyConnectionLog().addSimpleEntry(

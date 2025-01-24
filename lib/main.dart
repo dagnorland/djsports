@@ -48,7 +48,7 @@ Future<void> main() async {
   await Hive.openBox<DJTrack>('djtrack');
 
   final audioHandler = await AudioService.init(
-    builder: () => DJAudioHandler(), // Bruk DJAudioHandler her
+    builder: () => DJAudioHandler(), 
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.djsports.audio',
       androidNotificationChannelName: 'djSports Audio Service',

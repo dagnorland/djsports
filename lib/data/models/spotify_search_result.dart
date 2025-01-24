@@ -13,8 +13,7 @@ extension SpotifyAPIErrorMessage on SpotifyAPIError {
       case SpotifyAPIError.parseError:
         return 'Error reading data from the API';
       case SpotifyAPIError.unknownError:
-      default:
-        return 'Unknown error';
+      return 'Unknown error';
     }
   }
 }
