@@ -1,12 +1,11 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/djmatch_center/widgets/djmatch_center_playlist_tracks_carousel.dart';
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:volume_controller/volume_controller.dart';
+import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
 
 class DJMatchCenterViewPage extends StatefulHookConsumerWidget {
   const DJMatchCenterViewPage({super.key, this.refreshCallback});
@@ -51,15 +50,15 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
     }
   }
 
-  List<Widget> getSliversByType(
+  List<Widget> getPlaylistWidgetByPlaylistType(
       List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
     List<DJPlaylist> filteredPlaylists = playlistList
         .where((playlist) => playlist.type == playlistType.name.toString())
         .toList();
-    return getSlivers(filteredPlaylists, playlistType);
+    return getPlaylistWidget(filteredPlaylists, playlistType);
   }
 
-  List<Widget> getSlivers(
+  List<Widget> getPlaylistWidget(
       List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
     const constGridItemWidth = 290;
     return <Widget>[
@@ -109,60 +108,6 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
         : Image.network(networkImageUri, width: width, height: height);
   }
 
-  Widget soundControlWidget() {
-    return SliverToBoxAdapter(
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.pause, color: Colors.white, size: 70),
-            onPressed: () {
-              setState(() {
-                pausePlayer();
-              });
-            },
-          ),
-          const Gap(20),
-          IconButton(
-            icon: const Icon(Icons.volume_down, color: Colors.white, size: 50),
-            onPressed: () {
-              setState(() {
-                ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.1);
-              });
-            },
-          ),
-          const Gap(10),
-          const CurrentVolumeWidget(),
-          const Gap(20),
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: Colors.white, size: 70),
-            onPressed: () {
-              setState(() {
-                ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.1);
-              });
-            },
-          ),
-          const Gap(20),
-          getImageWidget(
-              ref.read(spotifyRemoteRepositoryProvider).latestImageUri, 50, 50),
-          const Gap(20),
-          InkWell(
-            onTap: () {
-              ref.read(spotifyRemoteRepositoryProvider).playTrack(ref
-                  .read(spotifyRemoteRepositoryProvider)
-                  .latestTrack
-                  .spotifyUri);
-            },
-            child: Chip(
-                avatar: const Icon(Icons.play_arrow, color: Colors.black),
-                label: Text(ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .getLastPlayedInfo())),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final playlists = ref.watch(typeFilteredAllDataProvider);
@@ -171,62 +116,55 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
         debugShowCheckedModeBanner: false,
         home: Scaffold(
             backgroundColor: Colors.black,
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.backspace),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  widget.refreshCallback ?? widget.refreshCallback;
-                },
-              ),
-              title: const Text(
-                'djMatchCenter',
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-              ),
-              actions: [
-                ref.read(spotifyRemoteRepositoryProvider).isConnected
-                    ? IconButton(
-                        onPressed: () {
-                          setState(() {
-                            resumePlayer();
-                          });
-                        },
-                        icon: Icon(Icons.play_arrow,
-                            color: isPlaying ? Colors.grey : Colors.green),
-                      )
-                    : Container(),
-                ref.read(spotifyRemoteRepositoryProvider).isConnected
-                    ? IconButton(
-                        onPressed: () {
-                          setState(() {
-                            pausePlayer();
-                          });
-                        },
-                        icon: Icon(Icons.pause,
-                            color: isPlaying ? Colors.green : Colors.grey),
-                      )
-                    : Container(),
-              ],
-            ),
-            body: Column(
+            body: Row(
               children: [
                 Expanded(
-                    flex: 15,
-                    child: CustomScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        slivers: getSliversByType(
-                                playlists, DJPlaylistType.hotspot) +
-                            [soundControlWidget()])),
+                  flex: 93,
+                  child: Column(
+                    children: [
+                      Expanded(
+                          flex: 17,
+                          child: CustomScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              slivers: getPlaylistWidgetByPlaylistType(
+                                  playlists, DJPlaylistType.hotspot))),
+                      const Divider(
+                        color: Colors.green,
+                        height: 1,
+                        thickness: 2,
+                      ),
+                      Expanded(
+                          flex: 40,
+                          child: CustomScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            slivers: getPlaylistWidgetByPlaylistType(
+                                    playlists, DJPlaylistType.match) +
+                                getPlaylistWidgetByPlaylistType(
+                                    playlists, DJPlaylistType.funStuff) +
+                                getPlaylistWidgetByPlaylistType(
+                                    playlists, DJPlaylistType.preMatch),
+                          ))
+                    ],
+                  ),
+                ),
                 Expanded(
-                    flex: 20,
-                    child: CustomScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      slivers: getSliversByType(
-                              playlists, DJPlaylistType.match) +
-                          getSliversByType(playlists, DJPlaylistType.funStuff) +
-                          getSliversByType(playlists, DJPlaylistType.preMatch),
-                    ))
+                  flex: 7,
+                  child: Container(
+                    color: Colors.red,
+                    child: CenterControlWidget(
+                      onResume: () => setState(() => resumePlayer()),
+                      onPause: () => setState(() => pausePlayer()),
+                      onBack: () {
+                        Navigator.of(context).pop();
+                        widget.refreshCallback ?? widget.refreshCallback;
+                      },
+                      refreshCallback: widget.refreshCallback,
+                      latestImageUri: ref
+                          .read(spotifyRemoteRepositoryProvider)
+                          .latestImageUri,
+                    ),
+                  ),
+                ),
               ],
             )));
   }

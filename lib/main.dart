@@ -9,6 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' as dotenv;
 import 'package:audio_service/audio_service.dart';
 import 'package:djsports/data/services/djaudio_handler.dart'; // Legg til denne importen
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -21,6 +22,7 @@ final audioHandlerProvider =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: WidgetsBinding.instance);
   await dotenv.dotenv.load(fileName: '.env');
 
   // print all elements in dotenv
@@ -48,7 +50,7 @@ Future<void> main() async {
   await Hive.openBox<DJTrack>('djtrack');
 
   final audioHandler = await AudioService.init(
-    builder: () => DJAudioHandler(), 
+    builder: () => DJAudioHandler(),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.djsports.audio',
       androidNotificationChannelName: 'djSports Audio Service',
