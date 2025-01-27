@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
@@ -118,8 +119,11 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                       onTap: () {
                         ref
                             .read(spotifyRemoteRepositoryProvider)
-                            .playTrackAndJumpStart(track,
-                                track.startTime + track.startTimeMS, '', '');
+                            .playTrackAndJumpStart(
+                                track,
+                                track.startTime + track.startTimeMS,
+                                DJPlaylistType.hotspot,
+                                '');
                       },
                       child: leadingImage)),
               Padding(
@@ -128,8 +132,11 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                       onTap: () {
                         ref
                             .read(spotifyRemoteRepositoryProvider)
-                            .playTrackAndJumpStart(track,
-                                track.startTime + track.startTimeMS, '', '');
+                            .playTrackAndJumpStart(
+                                track,
+                                track.startTime + track.startTimeMS,
+                                DJPlaylistType.hotspot,
+                                '');
                       },
                       child: musicSourceImage)),
               ElevatedButton(

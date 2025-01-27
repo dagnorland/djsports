@@ -62,17 +62,6 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
       List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
     const constGridItemWidth = 290;
     return <Widget>[
-      SliverAppBar(
-        toolbarHeight: 20,
-        backgroundColor: playlistType.color,
-        pinned: playlistType.name == DJPlaylistType.hotspot.name ? true : false,
-        expandedHeight: 20.0,
-        leading: Text(playlistType.name.toString(),
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14.0)),
-      ),
       SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           /// Calculate the number of items in the horizontal axis based on screen width
@@ -88,7 +77,8 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
               margin: const EdgeInsets.all(0.0),
               child: DJCenterPlaylistTracksCarousel(
                 playlistName: playlistList[index].name,
-                playlistType: playlistList[index].type,
+                playlistType: DJPlaylistType.values.firstWhere(
+                    (type) => type.name == playlistList[index].type),
                 spotifyUri: playlistList[index].spotifyUri,
                 trackIds: playlistList[index].trackIds,
                 currentTrack: playlistList[index].currentTrack,
@@ -97,6 +87,13 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
             );
           },
           childCount: playlistList.length,
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: Divider(
+          color: playlistType.color,
+          height: 5,
+          thickness: 5,
         ),
       ),
     ];
@@ -122,14 +119,17 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
                   flex: 93,
                   child: Column(
                     children: [
+                      const SafeArea(
+                        child: SizedBox(),
+                      ),
                       Expanded(
-                          flex: 17,
+                          flex: 13,
                           child: CustomScrollView(
                               physics: const BouncingScrollPhysics(),
                               slivers: getPlaylistWidgetByPlaylistType(
                                   playlists, DJPlaylistType.hotspot))),
-                      const Divider(
-                        color: Colors.green,
+                      Divider(
+                        color: DJPlaylistType.hotspot.color,
                         height: 1,
                         thickness: 2,
                       ),

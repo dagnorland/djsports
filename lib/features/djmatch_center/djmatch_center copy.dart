@@ -89,7 +89,8 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
               margin: const EdgeInsets.all(0.0),
               child: DJCenterPlaylistTracksCarousel(
                 playlistName: playlistList[index].name,
-                playlistType: playlistList[index].type,
+                playlistType: DJPlaylistType.values.firstWhere(
+                    (type) => type.name == playlistList[index].type),
                 spotifyUri: playlistList[index].spotifyUri,
                 trackIds: playlistList[index].trackIds,
                 currentTrack: playlistList[index].currentTrack,

@@ -1,4 +1,7 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'dart:async';
+
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
@@ -7,7 +10,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   final String playlistName;
-  final String playlistType;
+  final DJPlaylistType playlistType;
   final String spotifyUri;
   final int currentTrack;
   final List<String> trackIds;
@@ -33,16 +36,16 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
 
   String printDuration(Duration duration) {
     String twoDigits(int n) {
-      if (n >= 10) return "$n";
-      return "0$n";
+      if (n >= 10) return '$n';
+      return '0$n';
     }
 
     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
     if (duration.inHours > 0) {
-      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+      return '${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds';
     } else {
-      return "$twoDigitMinutes:$twoDigitSeconds";
+      return '$twoDigitMinutes:$twoDigitSeconds';
     }
   }
 
@@ -53,8 +56,8 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
     return text;
   }
 
-  Widget playButtonWidget(
-      BuildContext context, WidgetRef ref, DJTrack djTrack, int trackIdIndex) {
+  Widget playButtonWidget(BuildContext context, WidgetRef ref, DJTrack djTrack,
+      int trackIdIndex, DJPlaylistType playlistType) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -81,10 +84,10 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                   printDurationWithMS(Duration(milliseconds: djTrack.startTime),
                       djTrack.startTimeMS),
                   textAlign: TextAlign.start,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 12,
-                      color: Colors.black),
+                      color: playlistType.color),
                 )),
           Positioned(
             top: djTrack.startTime + djTrack.startTimeMS > 0 ? 16 : 23,
@@ -92,7 +95,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
             right: 0,
             child: IconButton(
               icon: const Icon(Icons.play_circle_fill, size: 60),
-              color: Colors.black,
+              color: playlistType.color,
               onPressed: () {
                 //ref.read(hiveTrackData.notifier).resumePlayer();
               },
@@ -112,114 +115,111 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     CarouselController carouselController = CarouselController();
-    String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
-        ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
-        : '';
 
     return CarouselView(
+        scrollDirection: Axis.horizontal,
+        itemExtent: double.infinity,
         controller: carouselController,
-        itemExtent: 330,
+        //itemExtent: 305,
         shrinkExtent: 200,
         backgroundColor: Colors.white,
         onTap: (value) {
           DJTrack track =
               ref.read(hiveTrackData.notifier).getDJTracks(trackIds)[value];
-          ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(track,
-              track.startTime + track.startTimeMS, playlistType, playlistName);
+          unawaited(ref
+              .read(spotifyRemoteRepositoryProvider)
+              .playTrackAndJumpStart(track, track.startTime + track.startTimeMS,
+                  playlistType, playlistName));
 
-          double newPosition = (value * 315) + 315;
+          double newPosition = (value * 294) + 294;
           if (value == trackIds.length - 1) {
             newPosition = 0;
           }
+
+          //final newPositionBy =
+          //    carouselController. / carouselController.positions.length;
+          //debugPrint('newPositionBy: $newPositionBy');
+
           carouselController.position.animateTo(newPosition,
-              duration: const Duration(milliseconds: 450),
+              duration: const Duration(milliseconds: 3250),
               curve: Curves.easeInOutCubicEmphasized);
         },
         children: List<Widget>.generate(trackIds.length, (int trackIdIndex) {
           DJTrack djTrack = ref
               .read(hiveTrackData.notifier)
               .getDJTracks(trackIds)[trackIdIndex];
-          if (djTrack.networkImageUri.isNotEmpty) {
-            networkImageUri = djTrack.networkImageUri;
-          }
-          return Stack(children: [
-            Positioned(
-              top: 20,
-              left: 130, //parentWidthSize / 2 - 150,
-              right: 0,
-              child: getImageWidget(networkImageUri, 125, 125),
-            ),
-            Positioned(
-              top: 20,
-              left: 0, //parentWidthSize / 2 - 150,
-              right: 0,
-              child: playButtonWidget(context, ref, djTrack, trackIdIndex),
-            ),
-            Container(
-                padding: const EdgeInsets.only(left: 20, right: 10),
-                decoration: BoxDecoration(
-                  backgroundBlendMode: BlendMode.darken,
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(2),
+          return LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  top: 25,
+                  left: constraints.maxWidth * 0.47, // Relativ posisjonering
+                  child: getImageWidget(djTrack.networkImageUri, 135, 135),
                 ),
-                child: RichText(
-                  maxLines: 1,
-                  text: TextSpan(
-                    style: DefaultTextStyle.of(context).style,
-                    children: [
-                      TextSpan(
-                        text: playlistName.toUpperCase(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                            color: Colors.black),
-                      ),
-                    ],
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  child: SizedBox(
+                    width: constraints.maxWidth * 0.4, // Begrens bredden
+                    child: playButtonWidget(
+                        context, ref, djTrack, trackIdIndex, playlistType),
                   ),
-                )),
-            const SizedBox(height: 20),
-            Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.only(left: 10, right: 10),
-                    decoration: const BoxDecoration(
-                      backgroundBlendMode: BlendMode.darken,
-                      color: Colors.white,
-                    ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    width: constraints.maxWidth - 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
-                      djTrack.artist,
+                      playlistName.toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          color: Colors.black),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.only(left: 10, right: 10),
-                    decoration: const BoxDecoration(
-                        //backgroundBlendMode: BlendMode.darken,
-                        //color: Colors.white,
+                ),
+                Positioned(
+                  bottom: 5,
+                  left: 20,
+                  right: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        djTrack.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          color: Colors.black,
                         ),
-                    child: Row(children: [
-                      const SizedBox(width: 10),
+                      ),
+                      const SizedBox(height: 1),
                       Text(
                         textConstraintSize(djTrack.name, 25),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                            backgroundColor: Colors.white.withOpacity(0.4),
-                            color: Colors.black),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          backgroundColor: Colors.white70,
+                          color: Colors.black,
+                        ),
                       ),
-                    ]),
+                    ],
                   ),
-                ]),
-          ]);
+                ),
+              ],
+            ),
+          );
         }));
   }
 }

@@ -50,10 +50,10 @@ extension TypeColor on DJPlaylistType {
         color = Colors.green;
         break;
       case DJPlaylistType.funStuff:
-        color = Colors.yellow;
+        color = Colors.blue;
         break;
       case DJPlaylistType.preMatch:
-        color = Colors.blue;
+        color = Colors.black;
         break;
       case DJPlaylistType.archived:
         color = Colors.greenAccent;

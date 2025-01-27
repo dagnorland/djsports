@@ -1,3 +1,4 @@
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:flutter/material.dart';
@@ -90,7 +91,7 @@ class SpotifyRemoteRepository {
   }
 
   Future<String> playTrackAndJumpStart(DJTrack track, int jumpStart,
-      String playlistName, String playlistType) async {
+      DJPlaylistType playlistType, String playlistName) async {
     if (!isConnected || !lastValidAccessToken.isNotEmpty) {
       return '[Error] Not connected to Spotify';
     }
@@ -112,7 +113,7 @@ class SpotifyRemoteRepository {
       }
       debugPrint('before play: ${DateTime.now().difference(startTime)}');
       await SpotifySdk.play(spotifyUri: track.spotifyUri);
-      setLastPlayedTrack(playlistName, playlistType, track);
+      setLastPlayedTrack(playlistName, playlistType.name, track);
       debugPrint('after play: ${DateTime.now().difference(startTime)}');
       if (jumpStart > 0) {
         try {
