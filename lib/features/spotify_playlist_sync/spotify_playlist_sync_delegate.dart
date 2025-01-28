@@ -46,7 +46,6 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
       return Text('Waiting for result is still empty ${DateTime.now()}');
     }
     // always search if submitted
-    debugPrint('buildResults get playlist by id: $query ${DateTime.now()}');
     playlistService.getPlaylistByUri(query);
     return buildMatchingSuggestions(context);
   }

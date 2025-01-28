@@ -17,7 +17,9 @@
         android:label="djsports"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:fullBackupContent="false">
+        android:fullBackupContent="false"
+        android:enableOnBackInvokedCallback="true"
+        android:hardwareAccelerated="true">
         <activity
             android:name="com.ryanheise.audioservice.AudioServiceActivity"
             android:exported="true"

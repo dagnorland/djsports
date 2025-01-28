@@ -90,11 +90,11 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                       color: playlistType.color),
                 )),
           Positioned(
-            top: djTrack.startTime + djTrack.startTimeMS > 0 ? 16 : 23,
+            top: djTrack.startTime + djTrack.startTimeMS > 0 ? 15 : 15,
             left: -20,
             right: 0,
             child: IconButton(
-              icon: const Icon(Icons.play_circle_fill, size: 60),
+              icon: const Icon(Icons.play_circle_fill, size: 65),
               color: playlistType.color,
               onPressed: () {
                 //ref.read(hiveTrackData.notifier).resumePlayer();
@@ -135,11 +135,6 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
           if (value == trackIds.length - 1) {
             newPosition = 0;
           }
-
-          //final newPositionBy =
-          //    carouselController. / carouselController.positions.length;
-          //debugPrint('newPositionBy: $newPositionBy');
-
           carouselController.position.animateTo(newPosition,
               duration: const Duration(milliseconds: 3250),
               curve: Curves.easeInOutCubicEmphasized);
@@ -186,7 +181,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                   ),
                 ),
                 Positioned(
-                  bottom: 5,
+                  bottom: 4,
                   left: 20,
                   right: 20,
                   child: Column(
@@ -198,13 +193,12 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          fontSize: 14,
+                          fontSize: 15,
                           color: Colors.black,
                         ),
                       ),
-                      const SizedBox(height: 1),
                       Text(
-                        textConstraintSize(djTrack.name, 25),
+                        textConstraintSize(djTrack.name, 29),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

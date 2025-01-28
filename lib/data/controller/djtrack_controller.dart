@@ -1,6 +1,7 @@
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/repo/djtrack_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -55,6 +56,10 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
   void addDJTrack(DJTrack djTrack) {
     if (djTrack.id.isEmpty) {
       djTrack.id = const Uuid().v4();
+    }
+    final existingTracks = repo!.getDJTracks();
+    if (existingTracks.any((track) => track.id == djTrack.id)) {
+      return;
     }
     state = repo!.addDJTrack(djTrack);
   }

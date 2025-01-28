@@ -29,8 +29,8 @@ class _ConnectScreenState extends ConsumerState<SpotifyConnectScreen> {
     clientIdController.text = '';
     redirectUrlController.text = '';
     scopeController.text =
-        "app-remote-control,user-modify-playback-state,playlist-read-private";
-    responseController.text = "";
+        'app-remote-control,user-modify-playback-state,playlist-read-private';
+    responseController.text = '';
     super.initState();
   }
 
@@ -44,13 +44,13 @@ class _ConnectScreenState extends ConsumerState<SpotifyConnectScreen> {
         await spotifyRemoteService.connectToSpotifyRemote();
     debugPrint('connectedToSpotifyRemote: $connectedToSpotifyRemote');
     final accessToken = await spotifyRemoteService.getSpotifyAccessToken();
-    responseController.text = "Connected : $connected $accessToken";
+    responseController.text = 'Connected : $connected $accessToken';
     if (connected) {
-      responseController.text = "..trying to play...";
+      responseController.text = '..trying to play...';
       final result = await spotifyRemoteService
-          .playTrack("spotify:track:3n3Ppam7vgaVa1iaRUc9Lp");
+          .playTrack('spotify:track:3n3Ppam7vgaVa1iaRUc9Lp');
       responseController.text =
-          "Result: $result, Connected : $connected $accessToken";
+          'Result: $result, Connected : $connected $accessToken';
     }
   }
 
@@ -77,7 +77,7 @@ class _ConnectScreenState extends ConsumerState<SpotifyConnectScreen> {
                 _spotifyConnectRemoteService(context, ref);
               },
               child: const Text(
-                "Connect RS",
+                'Connect RS',
                 style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -85,7 +85,7 @@ class _ConnectScreenState extends ConsumerState<SpotifyConnectScreen> {
               )),
         ],
         title: Text(
-          "Connect to Spotify",
+          'Connect to Spotify',
           style: TextStyle(
               color: Theme.of(context).primaryColor,
               fontWeight: FontWeight.bold),

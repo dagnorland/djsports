@@ -333,8 +333,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                           setState(() {
                             editStartTimeMS =
                                 _millisecondsbythehundreds[selectedItem];
-                            debugPrint(_millisecondsbythehundreds[selectedItem]
-                                .toString());
                           });
                         },
                         children: List<Widget>.generate(
