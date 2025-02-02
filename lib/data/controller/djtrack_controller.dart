@@ -3,6 +3,7 @@ import 'package:djsports/data/repo/djtrack_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:djsports/data/models/track_time_model.dart';
 
 final djtrackRepositoryProvider = Provider<DJTrackRepo>((ref) => DJTrackRepo());
 
@@ -96,5 +97,22 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
 
   void updateDJTrack(DJTrack djTrack) {
     state = repo!.updateDJTrack(djTrack);
+  }
+
+  List<TrackTime> getStartTimes() {
+    List<TrackTime> trackTimes = [];
+    if (state != null) {
+      for (var track in state!) {
+        if (track.spotifyUri.isNotEmpty && track.startTime > 0) {
+          trackTimes.add(
+            TrackTime(
+              id: track.spotifyUri,
+              startTime: track.startTime.toString(),
+            ),
+          );
+        }
+      }
+    }
+    return trackTimes;
   }
 }

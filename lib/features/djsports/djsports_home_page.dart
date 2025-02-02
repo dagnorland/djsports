@@ -110,6 +110,25 @@ class _HomePageState extends ConsumerState<HomePage> {
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).primaryColor),
                       child: Text(
+                        'Copy start times',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge!
+                            .copyWith(color: Colors.white),
+                      ),
+                      onPressed: () {
+                        final response =
+                            ref.read(hiveTrackData.notifier).getStartTimes();
+                        debugPrint(response.toString());
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 5.0),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor),
+                      child: Text(
                         'New playlist',
                         style: Theme.of(context)
                             .textTheme

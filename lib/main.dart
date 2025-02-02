@@ -1,5 +1,6 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
+import 'package:djsports/data/models/track_time_model.dart';
 import 'package:djsports/example/auth.dart';
 import 'package:djsports/features/djsports/djsports_home_page.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +37,7 @@ Future<void> main() async {
   /// Register Adapater Which we have generated Class Name Like Model Class name+Adapter
   Hive.registerAdapter(DJPlaylistAdapter());
   Hive.registerAdapter(DJTrackAdapter());
+  Hive.registerAdapter(TrackTimeAdapter());
 
   // parameter to delete all data from database
   const deleteAllData =
@@ -43,11 +45,13 @@ Future<void> main() async {
   if (deleteAllData) {
     await Hive.deleteBoxFromDisk('djplaylist');
     await Hive.deleteBoxFromDisk('djtrack');
+    await Hive.deleteBoxFromDisk('trackTime');
   }
 
   /// Give  Database Name anything you want, here todos is My database Name
   await Hive.openBox<DJPlaylist>('djplaylist');
   await Hive.openBox<DJTrack>('djtrack');
+  await Hive.openBox<TrackTime>('trackTime');
 
   final audioHandler = await AudioService.init(
     builder: () => DJAudioHandler(),
