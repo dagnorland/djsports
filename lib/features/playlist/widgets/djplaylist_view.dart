@@ -75,7 +75,7 @@ class DJPlaylistView extends HookConsumerWidget {
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
-        tileColor: Colors.black12.withOpacity(0.04),
+        tileColor: Colors.black12,
         leading: imageWidget,
         title: Row(
           mainAxisSize: MainAxisSize.min,

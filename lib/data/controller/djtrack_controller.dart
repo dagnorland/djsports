@@ -1,7 +1,6 @@
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/repo/djtrack_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -38,10 +37,19 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     return [];
   }
 
+  bool existsDJTrack(String trackId) {
+    final allTracks = repo!.getDJTracks();
+    return allTracks.any((track) => track.id == trackId);
+  }
+
   List<DJTrack> getDJTracks(List<String> trackIds) {
-    return repo!
-        .getDJTracks()
-        .where((element) => trackIds.contains(element.id))
+    final allTracks = repo!.getDJTracks();
+    return trackIds
+        .map((id) => allTracks.firstWhere(
+              (track) => track.id == id,
+              orElse: () => DJTrack.empty(),
+            ))
+        .where((track) => track.id.isNotEmpty)
         .toList();
   }
 

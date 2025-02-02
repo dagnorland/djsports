@@ -21,7 +21,7 @@ class SpotifyTrackSearchResultTile extends StatelessWidget {
         children: [
           if (track.album!.images!.first.url != null)
             SizedBox(
-                height: 130,
+                height: 125,
                 width: 130,
                 child: ClipPath(
                   clipper: const ShapeBorderClipper(

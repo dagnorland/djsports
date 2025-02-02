@@ -371,11 +371,11 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         centerTitle: false,
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         leading: IconButton(
             onPressed: () {
               Navigator.of(context).pop();
@@ -537,7 +537,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             const SizedBox(height: 10),
 
             Container(
-                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                color: Theme.of(context).primaryColorLight,
                 child: Row(
                   children: [
                     Expanded(
@@ -611,11 +611,43 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColorLight),
                   child: Text(
+                    'Shuffle',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge!
+                        .copyWith(color: Theme.of(context).primaryColor),
+                  ),
+                  onPressed: () {
+                    DJPlaylist playlist = ref
+                        .read(hivePlaylistData.notifier)
+                        .shuffleTracksInPlaylist(widget.id);
+                    playlist = ref
+                        .read(hivePlaylistData.notifier)
+                        .repo!
+                        .getDJPlaylists()
+                        .firstWhere((element) => element.id == widget.id);
+
+                    setState(() {
+                      trackIds = playlist.trackIds;
+                      playlistTrackList = ref
+                          .read(hiveTrackData.notifier)
+                          .getDJTracks(trackIds);
+                      debugPrint(playlistTrackList[0].id);
+                    });
+                  },
+                ),
+                const SizedBox(
+                  width: 30,
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColorLight),
+                  child: Text(
                     'Add MP3',
                     style: Theme.of(context)
                         .textTheme
                         .titleLarge!
-                        .copyWith(color: Colors.white),
+                        .copyWith(color: Theme.of(context).primaryColor),
                   ),
                   onPressed: () {
                     ref.invalidate(dataTrackProvider);

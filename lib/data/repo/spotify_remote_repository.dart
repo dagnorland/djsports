@@ -102,38 +102,27 @@ class SpotifyRemoteRepository {
 
     try {
       // turn volume down
-      debugPrint('before volume: ${DateTime.now().difference(startTime)}');
       double volume = await VolumeController().getVolume();
-      debugPrint('after volume: ${DateTime.now().difference(startTime)}');
       if (volume == 0) {
         volume = 0.5;
       }
       if (jumpStart > 0) {
         VolumeController().setVolume(0);
       }
-      debugPrint('before play: ${DateTime.now().difference(startTime)}');
       await SpotifySdk.play(spotifyUri: track.spotifyUri);
       setLastPlayedTrack(playlistName, playlistType.name, track);
-      debugPrint('after play: ${DateTime.now().difference(startTime)}');
       if (jumpStart > 0) {
         try {
           await Future.delayed(const Duration(milliseconds: 150));
-          debugPrint('after delay: ${DateTime.now().difference(startTime)}');
           int retryCount = 0;
           bool success = false;
 
           while (retryCount < numberOfRetries && !success) {
             try {
               await SpotifySdk.seekTo(positionedMilliseconds: jumpStart);
-              debugPrint(
-                  'success $retryCount : ${DateTime.now().difference(startTime)}');
               success = true;
-              debugPrint('SUCCESS after $retryCount retries');
             } catch (e) {
               retryCount++;
-              debugPrint(
-                  'retry $retryCount : ${DateTime.now().difference(startTime)}');
-              debugPrint('Retry jump start $retryCount');
               if (retryCount >= numberOfRetries) {
                 debugPrint(
                     'Failed to jump start after $numberOfRetries attempts. $e');
@@ -145,7 +134,6 @@ class SpotifyRemoteRepository {
         }
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
-        debugPrint('Duration to jump start: $duration');
         latestDurationStartupMS = duration.inMilliseconds;
       }
 
@@ -255,14 +243,14 @@ class SpotifyRemoteRepository {
               SpotifyConnectionStatus.notConnected,
               'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
           // lets reconnect
-          connectAccessToken();
+          await connectAccessToken();
           if (isConnected) {
-            connectToSpotifyRemote();
+            await connectToSpotifyRemote();
             if (isConnectedRemote) {
               SpotifyConnectionLog().addSimpleEntry(
                   SpotifyConnectionStatus.connectedSpotifyRemoteApp,
                   'Reconnected. trying replay. spotifyUri');
-              playTrack(spotifyUri);
+              await playTrack(spotifyUri);
             }
           }
         }
@@ -293,14 +281,14 @@ class SpotifyRemoteRepository {
               SpotifyConnectionStatus.notConnected,
               'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
           // lets reconnect
-          connectAccessToken();
+          await connectAccessToken();
           if (isConnected) {
-            connectToSpotifyRemote();
+            await connectToSpotifyRemote();
             if (isConnectedRemote) {
               SpotifyConnectionLog().addSimpleEntry(
                   SpotifyConnectionStatus.connectedSpotifyRemoteApp,
                   'Reconnected. trying replay. spotifyUri');
-              playTrack(spotifyUri);
+              await playTrack(spotifyUri);
             }
           }
         }
@@ -384,10 +372,10 @@ class SpotifyRemoteRepository {
               'playlist-modify-public, '
               'user-read-currently-playing');
 
-      debugPrint("getSpotifyAccessToken accessToken: $accessToken");
+      debugPrint('getSpotifyAccessToken accessToken: $accessToken');
       return accessToken;
     } catch (e) {
-      debugPrint("getSpotifyAccessToken error: ${e.toString()}");
+      debugPrint('getSpotifyAccessToken error: ${e.toString()}');
       rethrow;
     }
   }

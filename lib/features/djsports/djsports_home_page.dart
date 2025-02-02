@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify_sdk/models/connection_status.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 class HomePage extends StatefulHookConsumerWidget {
   const HomePage({super.key});
@@ -52,7 +51,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     final playlistList = ref.watch(typeFilteredAllDataProvider);
 
-    FlutterNativeSplash.remove();
+    // FlutterNativeSplash.remove();
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -192,7 +191,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   playlistList.isEmpty
                       ? const Center(
-                          child: Text("No data"),
+                          child: Text(
+                              'Make some playlists, and let the game begin!'),
                         )
                       : Expanded(
                           flex: 10,

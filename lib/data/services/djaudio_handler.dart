@@ -186,15 +186,15 @@ class DJAudioHandler extends BaseAudioHandler {
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
     switch (repeatMode) {
       case AudioServiceRepeatMode.none:
-        _player.setLoopMode(LoopMode.off);
+        await _player.setLoopMode(LoopMode.off);
         break;
       case AudioServiceRepeatMode.one:
-        _player.setLoopMode(LoopMode.one);
+        await _player.setLoopMode(LoopMode.one);
         break;
       case AudioServiceRepeatMode.group:
         break;
       case AudioServiceRepeatMode.all:
-        _player.setLoopMode(LoopMode.all);
+        await _player.setLoopMode(LoopMode.all);
         break;
     }
   }
@@ -202,9 +202,9 @@ class DJAudioHandler extends BaseAudioHandler {
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     if (shuffleMode == AudioServiceShuffleMode.none) {
-      _player.setShuffleModeEnabled(false);
+      await _player.setShuffleModeEnabled(false);
     } else {
-      _player.setShuffleModeEnabled(true);
+      await _player.setShuffleModeEnabled(true);
       await _player.shuffle();
     }
   }

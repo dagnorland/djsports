@@ -6,7 +6,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'djtrack_model.g.dart';
 
-const String djtrackBoxName = "djtrack";
+const String djtrackBoxName = 'djtrack';
 
 @HiveType(typeId: 1)
 @JsonSerializable()
@@ -52,9 +52,9 @@ class DJTrack extends HiveObject {
 
   factory DJTrack.empty() => DJTrack(
       id: '',
-      name: "",
-      album: "",
-      artist: "",
+      name: '',
+      album: '',
+      artist: '',
       startTime: 0,
       startTimeMS: 0,
       duration: 0,

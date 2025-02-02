@@ -77,7 +77,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   int editStartTime = 0;
   int editStartTimeMS = 0;
   String trackDurationFormatted = 'hh:mm:ss';
-
+  bool autoPreview = false;
   @override
   void initState() {
     if (!widget.isNew) {
@@ -128,8 +128,8 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   String printDuration(Duration duration) {
     String twoDigits(int n) {
-      if (n >= 10) return "$n";
-      return "0$n";
+      if (n >= 10) return '$n';
+      return '0$n';
     }
 
     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
@@ -165,6 +165,44 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     }
   }
 
+  void _updateTrack() {
+    if (widget.id.isEmpty) {
+      ref.read(hiveTrackData.notifier).addDJTrack(
+            DJTrack(
+              id: '',
+              name: nameController.text,
+              album: albumController.text,
+              artist: artistController.text,
+              spotifyUri: spotifyUriController.text,
+              mp3Uri: mp3UriController.text,
+              duration: 0,
+              startTime: 0,
+              startTimeMS: editStartTimeMS,
+              playCount: 0,
+              networkImageUri: networkImageUriController.text,
+            ),
+          );
+    } else {
+      ref.read(hiveTrackData.notifier).updateDJTrack(
+            DJTrack(
+              id: widget.id,
+              name: nameController.text,
+              album: albumController.text,
+              artist: artistController.text,
+              spotifyUri: spotifyUriController.text,
+              mp3Uri: mp3UriController.text,
+              duration: widget.duration,
+              startTime: editStartTime,
+              startTimeMS: editStartTimeMS,
+              playCount: widget.playCount,
+              networkImageUri: widget.networkImageUri,
+            ),
+          );
+    }
+    ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,8 +222,8 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
             )),
         title: Text(
           widget.id.isEmpty
-              ? "Create Track for $playlistName"
-              : "Edit Track for $playlistName",
+              ? 'Create Track for $playlistName'
+              : 'Edit Track for $playlistName',
           style: TextStyle(
               color: Theme.of(context).primaryColor,
               fontWeight: FontWeight.bold),
@@ -266,54 +304,69 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                             ))),
                   ])),
               Container(
+                  constraints: const BoxConstraints(maxWidth: 1200),
                   color: Theme.of(context).primaryColor.withOpacity(0.05),
                   child: Row(children: [
                     Expanded(
-                      flex: 13,
+                      flex: 22,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: TextField(
-                          readOnly: true,
-                          controller: startTimeController,
-                          decoration: InputDecoration(
-                            labelText: 'Start time (mm:ss)',
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).primaryColor,
-                                  width: 2),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: autoPreview,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  autoPreview = value ?? false;
+                                });
+                              },
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).primaryColor,
-                                  width: 2),
+                            Text(
+                              'Auto Preview',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                              ),
                             ),
-                            hintText: 'Start time',
-                          ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(
-                      width: 10,
                     ),
                     Expanded(
                       flex: 30,
                       child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: CupertinoTimerPicker(
-                            mode: CupertinoTimerPickerMode.ms,
-                            initialTimerDuration:
-                                Duration(milliseconds: widget.startTime),
-                            // This is called when the user changes the timer's
-                            // duration.
-                            onTimerDurationChanged: (Duration newStartTime) {
-                              setState(() {
-                                editStartTime = newStartTime.inMilliseconds;
-                                startTimeController.text = printDuration(
-                                    Duration(
-                                        milliseconds:
-                                            newStartTime.inMilliseconds));
-                              });
-                            },
+                          child: SizedBox(
+                            height: 220,
+                            child: CupertinoTimerPicker(
+                              mode: CupertinoTimerPickerMode.ms,
+                              initialTimerDuration:
+                                  Duration(milliseconds: widget.startTime),
+                              // This is called when the user changes the timer's
+                              // duration.
+                              onTimerDurationChanged: (Duration newStartTime) {
+                                setState(() {
+                                  editStartTime = newStartTime.inMilliseconds;
+                                  startTimeController.text = printDuration(
+                                      Duration(
+                                          milliseconds:
+                                              newStartTime.inMilliseconds));
+                                  debugPrint('newStartTime: $newStartTime');
+                                  if (autoPreview) {
+                                    Future.delayed(
+                                      const Duration(milliseconds: 200),
+                                      () => ref
+                                          .read(spotifyRemoteRepositoryProvider)
+                                          .playSpotiyfyUriAndJumpStart(
+                                            spotifyUriController.text.isEmpty
+                                                ? mp3UriController.text
+                                                : spotifyUriController.text,
+                                            getStartTime(),
+                                          ),
+                                    );
+                                  }
+                                });
+                              },
+                            ),
                           )),
                     ),
                     Expanded(
@@ -343,6 +396,18 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                         }),
                       ),
                     ),
+                    Expanded(
+                        flex: 20,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                          ),
+                          onPressed: _updateTrack,
+                          child: Text(
+                            widget.id.isEmpty ? 'Create' : 'Update',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        )),
                     // add play and resume buttons
                     Expanded(
                       flex: 20,
@@ -360,10 +425,11 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                                 ref
                                     .read(spotifyRemoteRepositoryProvider)
                                     .playSpotiyfyUriAndJumpStart(
-                                        spotifyUriController.text.isEmpty
-                                            ? mp3UriController.text
-                                            : spotifyUriController.text,
-                                        getStartTime());
+                                      spotifyUriController.text.isEmpty
+                                          ? mp3UriController.text
+                                          : spotifyUriController.text,
+                                      getStartTime(),
+                                    );
                               },
                             ),
                             IconButton(
@@ -381,7 +447,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                         ),
                       ),
                     ),
-
                     Expanded(
                       flex: 20,
                       child: Padding(
@@ -405,7 +470,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                         ),
                       ),
                     ),
-                    const Expanded(flex: 80, child: SizedBox()),
                   ])),
               const SizedBox(
                 height: 10,
@@ -485,42 +549,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                     ),
-                    onPressed: () {
-                      if (widget.id.isEmpty) {
-                        ref.read(hiveTrackData.notifier).addDJTrack(
-                              DJTrack(
-                                id: '',
-                                name: nameController.text,
-                                album: albumController.text,
-                                artist: artistController.text,
-                                spotifyUri: spotifyUriController.text,
-                                mp3Uri: mp3UriController.text,
-                                duration: 0,
-                                startTime: 0,
-                                startTimeMS: editStartTimeMS,
-                                playCount: 0,
-                                networkImageUri: networkImageUriController.text,
-                              ),
-                            );
-                      } else {
-                        ref.read(hiveTrackData.notifier).updateDJTrack(
-                              DJTrack(
-                                id: widget.id,
-                                name: nameController.text,
-                                album: albumController.text,
-                                artist: artistController.text,
-                                spotifyUri: spotifyUriController.text,
-                                mp3Uri: mp3UriController.text,
-                                duration: widget.duration,
-                                startTime: editStartTime,
-                                startTimeMS: editStartTimeMS,
-                                playCount: widget.playCount,
-                                networkImageUri: widget.networkImageUri,
-                              ),
-                            );
-                      }
-                      Navigator.pop(context);
-                    },
+                    onPressed: _updateTrack,
                     child: Text(
                       widget.id.isEmpty ? 'Create' : 'Update',
                       style: const TextStyle(color: Colors.white),

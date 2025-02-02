@@ -33,7 +33,7 @@ class SpotifyConnectExampleState extends State<SpotifyConnectExample> {
       lineLength: 120, // width of the output
       colors: true, // Colorful log messages
       printEmojis: true, // Print an emoji for each log message
-      printTime: true,
+      dateTimeFormat: DateTimeFormat.dateAndTime,
     ),
   );
 
@@ -458,7 +458,7 @@ class SpotifyConnectExampleState extends State<SpotifyConnectExample> {
     }
   }
 
-  Future getPlayerState() async {
+  Future<PlayerState?> getPlayerState() async {
     try {
       return await SpotifySdk.getPlayerState();
     } on PlatformException catch (e) {
@@ -466,19 +466,22 @@ class SpotifyConnectExampleState extends State<SpotifyConnectExample> {
     } on MissingPluginException {
       setStatus('not implemented');
     }
+    return null;
   }
 
-  Future getCrossfadeState() async {
+  Future<CrossfadeState?> getCrossfadeState() async {
     try {
       var crossfadeStateValue = await SpotifySdk.getCrossFadeState();
       setState(() {
         crossfadeState = crossfadeStateValue;
       });
+      return crossfadeStateValue;
     } on PlatformException catch (e) {
       setStatus(e.code, message: e.message);
     } on MissingPluginException {
       setStatus('not implemented');
     }
+    return null;
   }
 
   Future<void> queue() async {
@@ -619,7 +622,9 @@ class SpotifyConnectExampleState extends State<SpotifyConnectExample> {
 
   Future<void> checkIfAppIsActive(BuildContext context) async {
     try {
-      var isActive = await SpotifySdk.connectToSpotifyRemote(clientId: dotenv.env['SPOTIFY_CLIENTID'].toString(), redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'].toString());
+      var isActive = await SpotifySdk.connectToSpotifyRemote(
+          clientId: dotenv.env['SPOTIFY_CLIENTID'].toString(),
+          redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'].toString());
       final snackBar = SnackBar(
           content: Text(isActive
               ? 'Spotify app connection is active (currently playing)'

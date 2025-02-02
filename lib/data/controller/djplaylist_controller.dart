@@ -15,8 +15,7 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     fetchDJPlaylist();
   }
   late DJPlaylistRepo? repo;
-  final StateNotifierProviderRef<StateNotifier<List<DJPlaylist>?>,
-      List<DJPlaylist>?> ref;
+  final Ref ref;
   void fetchDJPlaylist() {
     state = repo!.getDJPlaylists();
   }
@@ -31,33 +30,64 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     return '';
   }
 
-  ///remove todo from local Storage
   void removeDJPlaylist(DJTrackHive trackHive, String id) {
     List<String> trackIds =
         state!.firstWhere((element) => element.id == id).trackIds.toList();
     for (var element in trackIds) {
       debugPrint('remove track id $element');
-      trackHive.removeDJTrack(element);
+      if (trackHive.existsDJTrack(element)) {
+        trackHive.removeDJTrack(element);
+      }
     }
     debugPrint('remove playlist $id');
     state = repo!.removeDJPlaylist(id);
   }
 
+  DJPlaylist shuffleTracksInPlaylist(String playlistId) {
+    DJPlaylist playlist =
+        state!.firstWhere((element) => element.id == playlistId);
+    if (!playlist.shuffleAtEnd) {
+      return playlist;
+    }
+    final shuffledTracks = [...playlist.trackIds]..shuffle();
+    final updatedPlaylist = playlist.copyWith(trackIds: shuffledTracks);
+    fetchDJPlaylist();
+    return repo!.updateDJPlaylist(updatedPlaylist);
+  }
+
   DJPlaylist removeDJTrackFromPlaylist(
       DJTrackHive trackHive, String playlistId, String trackId) {
-    state = repo!.removeDJTrackFromPlaylist(playlistId, trackId);
+    DJPlaylist playlist = repo!.removeDJTrackFromPlaylist(playlistId, trackId);
+
     trackHive.removeDJTrack(trackId);
-    return state!.firstWhere((element) => element.id == playlistId);
+    fetchDJPlaylist();
+    return playlist;
   }
 
   ///Update  current todo from local Storage
 
-  void updateDJPlaylist(DJPlaylist djPlaylist) {
-    state = repo!.updateDJPlaylist(djPlaylist);
+  DJPlaylist updateDJPlaylist(DJPlaylist djPlaylist) {
+    final updatedPlaylist = repo!.updateDJPlaylist(djPlaylist);
+    fetchDJPlaylist();
+    return updatedPlaylist;
   }
 
-  void addTrackToDJPlaylist(DJPlaylist djPlaylist, DJTrack djTrack) {
+  DJPlaylist addTrackToDJPlaylist(DJPlaylist djPlaylist, DJTrack djTrack) {
     djPlaylist.addTrack(djTrack.id);
-    state = repo!.updateDJPlaylist(djPlaylist);
+    return repo!.updateDJPlaylist(djPlaylist);
+  }
+}
+
+extension on DJPlaylist {
+  DJPlaylist copyWith({required List<String> trackIds}) {
+    return DJPlaylist(
+      id: id,
+      name: name,
+      trackIds: trackIds,
+      shuffleAtEnd: shuffleAtEnd,
+      type: type,
+      spotifyUri: spotifyUri,
+      autoNext: autoNext,
+    );
   }
 }

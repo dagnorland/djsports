@@ -284,7 +284,7 @@ class HomeState extends State<Home> {
                       TextButton(
                         child: const SizedBox(
                           width: 50,
-                          child: Text("x0.5"),
+                          child: Text('x0.5'),
                         ),
                         onPressed: () => setPlaybackSpeed(
                             PodcastPlaybackSpeed.playbackSpeed_50),
@@ -292,7 +292,7 @@ class HomeState extends State<Home> {
                       TextButton(
                         child: const SizedBox(
                           width: 50,
-                          child: Text("x1"),
+                          child: Text('x1'),
                         ),
                         onPressed: () => setPlaybackSpeed(
                             PodcastPlaybackSpeed.playbackSpeed_100),
@@ -300,7 +300,7 @@ class HomeState extends State<Home> {
                       TextButton(
                         child: const SizedBox(
                           width: 50,
-                          child: Text("x1.5"),
+                          child: Text('x1.5'),
                         ),
                         onPressed: () => setPlaybackSpeed(
                             PodcastPlaybackSpeed.playbackSpeed_150),
@@ -308,7 +308,7 @@ class HomeState extends State<Home> {
                       TextButton(
                         child: const SizedBox(
                           width: 50,
-                          child: Text("x3.0"),
+                          child: Text('x3.0'),
                         ),
                         onPressed: () => setPlaybackSpeed(
                             PodcastPlaybackSpeed.playbackSpeed_300),

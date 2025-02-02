@@ -3,26 +3,27 @@ import 'dart:async';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
+import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
+  final String playlistId;
   final String playlistName;
   final DJPlaylistType playlistType;
   final String spotifyUri;
   final int currentTrack;
-  final List<String> trackIds;
   final int parentWidthSize;
 
   const DJCenterPlaylistTracksCarousel({
     super.key,
+    required this.playlistId,
     required this.playlistName,
     required this.playlistType,
     required this.spotifyUri,
     required this.currentTrack,
-    required this.trackIds,
     required this.parentWidthSize,
   });
 
@@ -57,7 +58,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   }
 
   Widget playButtonWidget(BuildContext context, WidgetRef ref, DJTrack djTrack,
-      int trackIdIndex, DJPlaylistType playlistType) {
+      int trackIdIndex, int trackCount, DJPlaylistType playlistType) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -69,7 +70,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
             right: 0,
             child: Text(
               maxLines: 1,
-              '  #${trackIdIndex + 1}/${trackIds.length}',
+              '  #${trackIdIndex + 1}/$trackCount',
               style: const TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 16,
@@ -114,6 +115,12 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    DJPlaylist playlist = ref.read(djPlaylistByIdProvider(playlistId));
+    //playlist =
+    //    ref.read(hivePlaylistData.notifier).shuffleTracksInPlaylist(playlistId);
+    List<DJTrack> tracks =
+        ref.watch(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
+
     CarouselController carouselController = CarouselController();
 
     return CarouselView(
@@ -124,25 +131,30 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
         shrinkExtent: 200,
         backgroundColor: Colors.white,
         onTap: (value) {
-          DJTrack track =
-              ref.read(hiveTrackData.notifier).getDJTracks(trackIds)[value];
+          DJTrack track = tracks[value];
           unawaited(ref
               .read(spotifyRemoteRepositoryProvider)
               .playTrackAndJumpStart(track, track.startTime + track.startTimeMS,
                   playlistType, playlistName));
 
           double newPosition = (value * 294) + 294;
-          if (value == trackIds.length - 1) {
+          if (value == playlist.trackIds.length - 1) {
             newPosition = 0;
+            if (playlist.shuffleAtEnd) {
+              playlist = ref
+                  .read(hivePlaylistData.notifier)
+                  .shuffleTracksInPlaylist(playlistId);
+              tracks = ref
+                  .watch(hiveTrackData.notifier)
+                  .getDJTracks(playlist.trackIds);
+            }
           }
           carouselController.position.animateTo(newPosition,
-              duration: const Duration(milliseconds: 3250),
+              duration: const Duration(milliseconds: 250),
               curve: Curves.easeInOutCubicEmphasized);
         },
-        children: List<Widget>.generate(trackIds.length, (int trackIdIndex) {
-          DJTrack djTrack = ref
-              .read(hiveTrackData.notifier)
-              .getDJTracks(trackIds)[trackIdIndex];
+        children: List<Widget>.generate(tracks.length, (int trackIdIndex) {
+          DJTrack djTrack = tracks[trackIdIndex];
           return LayoutBuilder(
             builder: (context, constraints) => Stack(
               clipBehavior: Clip.none,
@@ -157,8 +169,8 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                   left: 20,
                   child: SizedBox(
                     width: constraints.maxWidth * 0.4, // Begrens bredden
-                    child: playButtonWidget(
-                        context, ref, djTrack, trackIdIndex, playlistType),
+                    child: playButtonWidget(context, ref, djTrack, trackIdIndex,
+                        playlist.trackIds.length, playlistType),
                   ),
                 ),
                 Positioned(

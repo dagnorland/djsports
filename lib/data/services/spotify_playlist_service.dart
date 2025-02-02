@@ -13,11 +13,10 @@ class SpotifyPlaylistService {
     // Implementation based on: https://youtu.be/7O1UO5rEpRc
     // ReactiveConf 2018 - Brian Egan & Filip Hracek: Practical Rx with Flutter
     _results = _getTerms
-        .debounce((_) => TimerStream(true, const Duration(milliseconds: 10)))
-        .switchMap((query) async* {
-      debugPrint('query _getTerms: $query ${DateTime.now()}');
-      yield await searchRepository.getTracksByUri(query);
-    }); // discard previous events
+        .debounce((_) => TimerStream(null, const Duration(milliseconds: 500)))
+        .switchMap((query) => Stream.fromFuture(
+              searchRepository.getTracksByUri(query),
+            ));
   }
   final SpotifySearchRepository searchRepository;
 

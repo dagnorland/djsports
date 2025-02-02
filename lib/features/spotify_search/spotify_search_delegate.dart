@@ -22,8 +22,12 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    if (query.isEmpty) {
-      return Container();
+    if (query.isEmpty || query.length < 5) {
+      return const Center(
+          child: Text(
+        'Text min 5 characters to search',
+        style: TextStyle(fontSize: 20),
+      ));
     }
     // search-as-you-type if enabled
     searchService.searchTrack(query);
@@ -32,8 +36,12 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
 
   @override
   Widget buildResults(BuildContext context) {
-    if (query.isEmpty) {
-      return Container();
+    if (query.isEmpty || query.length < 5) {
+      return const Center(
+          child: Text(
+        'Text min 5 characters to search',
+        style: TextStyle(fontSize: 20),
+      ));
     }
     // always search if submitted
     searchService.searchTrack(query);

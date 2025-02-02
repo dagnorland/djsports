@@ -30,7 +30,22 @@ final selectedRadioProvider = StateProvider<int>((ref) => 0);
 final providerHive = Provider<DJPlaylistRepo>((ref) => DJPlaylistRepo());
 
 ///Hive data
-
 final hivePlaylistData =
     StateNotifierProvider<DJPlaylistHive, List<DJPlaylist>?>(
         (ref) => DJPlaylistHive(ref));
+
+/// Returns a specific DJPlaylist by ID
+/// Throws [StateError] if playlist is not found
+final djPlaylistByIdProvider = Provider.family<DJPlaylist, String>(
+  (ref, id) {
+    final playlists = ref.watch(hivePlaylistData);
+    if (playlists == null) {
+      throw StateError('Playlist database is not initialized');
+    }
+
+    return playlists.firstWhere(
+      (playlist) => playlist.id == id,
+      orElse: () => throw StateError('Playlist not found: $id'),
+    );
+  },
+);

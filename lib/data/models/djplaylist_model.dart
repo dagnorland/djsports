@@ -5,9 +5,9 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'djplaylist_model.g.dart';
 
-const String djplaylistBoxName = "djplaylist";
-const String djplaylistTracksBoxName = "djplaylisttracks";
-const String musicCenterBoxName = "musiccenterbox";
+const String djplaylistBoxName = 'djplaylist';
+const String djplaylistTracksBoxName = 'djplaylisttracks';
+const String musicCenterBoxName = 'musiccenterbox';
 
 // Make a DJPlaylisttype with enums hotspot, match, fun_stuff, pre_match, archived
 enum DJPlaylistType { all, hotspot, match, funStuff, preMatch, archived }
@@ -32,7 +32,7 @@ extension TypeExtension on DJPlaylistType {
         type = 'archived';
         break;
       case DJPlaylistType.all:
-        type = "all";
+        type = 'all';
         break;
     }
     return type;
@@ -142,13 +142,3 @@ class DJPlaylist extends HiveObject {
     currentTrack = trackIds.indexOf(trackId);
   }
 }
-
-/*
-
-final djPlaylist = await Hive.box<DJPlaylistWithTracks>(‘dj_playlists_with_tracks’).get(KEY_OF_PLAYLIST);
-  final track1 = DJTrack(‘…’);
-  final track2 = DJTrack(‘…’);
-  final track3 = DJTrack(‘…’);
- djPlaylist.tracks = HiveList([track1, track2, track3])
-
-*/

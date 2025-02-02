@@ -7,6 +7,10 @@ class DJPlaylistRepo {
   late List<DJPlaylist> _box;
   DJPlaylistRepo();
 
+  DJPlaylist getDJPlaylist(String id) {
+    return _hive.values.toList().firstWhere((element) => element.id == id);
+  }
+
   List<DJPlaylist> getDJPlaylists() {
     _hive = Hive.box<DJPlaylist>(djplaylistBoxName);
     _box = _hive.values.toList();
@@ -27,22 +31,22 @@ class DJPlaylistRepo {
     return _hive.values.toList();
   }
 
-  List<DJPlaylist> removeDJTrackFromPlaylist(
-      String playlistId, String trackId) {
+  DJPlaylist removeDJTrackFromPlaylist(String playlistId, String trackId) {
     DJPlaylist playlist =
         _hive.values.toList().firstWhere((element) => element.id == playlistId);
 
     playlist.trackIds.removeWhere((element) => element == trackId);
-    updateDJPlaylist(playlist);
-    return _hive.values.toList();
+    return updateDJPlaylist(playlist);
   }
 
-  List<DJPlaylist> updateDJPlaylist(DJPlaylist playlist) {
+  DJPlaylist updateDJPlaylist(DJPlaylist playlist) {
     final index = _hive.values
         .toList()
         .indexWhere((element) => element.id == playlist.id);
     _hive.putAt(index, playlist);
-    return _hive.values.toList();
+    return _hive.values
+        .toList()
+        .firstWhere((element) => element.id == playlist.id);
   }
 
   void deleteAll() {

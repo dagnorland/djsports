@@ -12,10 +12,10 @@ extension StatusExtension on Status {
         status = 'pending';
         break;
       case Status.completed:
-        status = "completed";
+        status = 'completed';
         break;
       case Status.all:
-        status = "all";
+        status = 'all';
         break;
     }
     return status;

@@ -33,7 +33,7 @@ Widget djPlaylistTypeDropdownButton<String>(
   return DropdownButton<String>(
     value: value,
     hint: const Text(
-      "Playlist type",
+      'Playlist type',
       style: TextStyle(
           color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
     ),
