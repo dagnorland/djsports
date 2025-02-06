@@ -59,6 +59,8 @@ dependencies:
   flutter_dotenv: ^5.0.0
   gap: ^3.0.1
   web: ^1.0.0
+  dio: ^5.0.0
+
 
 dev_dependencies:
   flutter_test:
