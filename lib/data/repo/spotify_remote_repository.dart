@@ -21,9 +21,6 @@ class SpotifyRemoteRepository {
   bool isPlaying = false;
   static const numberOfRetries = 8;
   double volume = 0.5;
-  String latestType = '';
-  DJTrack latestTrack = DJTrack.empty();
-  String latestImageUri = '';
   int latestDurationStartupMS = 0;
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
 
@@ -90,6 +87,22 @@ class SpotifyRemoteRepository {
     }
   }
 
+  Future<String> playTrackByUriAndJumpStart(String spotifyUri, int jumpStart) {
+    DJTrack track = DJTrack(
+        id: '',
+        name: '',
+        artist: '',
+        spotifyUri: spotifyUri,
+        networkImageUri: '',
+        album: '',
+        startTime: jumpStart,
+        startTimeMS: 0,
+        duration: 0,
+        playCount: 0,
+        mp3Uri: '');
+    return playTrackAndJumpStart(track, jumpStart, DJPlaylistType.hotspot, '');
+  }
+
   Future<String> playTrackAndJumpStart(DJTrack track, int jumpStart,
       DJPlaylistType playlistType, String playlistName) async {
     if (!isConnected || !lastValidAccessToken.isNotEmpty) {
@@ -98,8 +111,6 @@ class SpotifyRemoteRepository {
 
     // make a timer to find duration between two timestamps
     final startTime = DateTime.now();
-    debugPrint('Start time: $startTime');
-
     try {
       // turn volume down
       double volume = await VolumeController().getVolume();
@@ -110,7 +121,6 @@ class SpotifyRemoteRepository {
         VolumeController().setVolume(0);
       }
       await SpotifySdk.play(spotifyUri: track.spotifyUri);
-      setLastPlayedTrack(playlistName, playlistType.name, track);
       if (jumpStart > 0) {
         try {
           await Future.delayed(const Duration(milliseconds: 150));
@@ -417,20 +427,6 @@ class SpotifyRemoteRepository {
       debugPrint('Failed to connect to Spotify Remote. $e');
       return false;
     }
-  }
-
-  void setLastPlayedTrack(
-      String playlistName, String playlistTypeName, DJTrack track) {
-    latestType = playlistTypeName;
-    latestTrack = track;
-    latestImageUri = track.networkImageUri;
-  }
-
-  String getLastPlayedInfo() {
-    if (latestType.isEmpty && latestTrack.name.isEmpty) {
-      return 'Let the game begin!';
-    }
-    return '$latestType - ${latestTrack.name} - $latestDurationStartupMS ms';
   }
 }
 

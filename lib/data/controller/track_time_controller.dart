@@ -46,7 +46,7 @@ class TrackTimeHive extends StateNotifier<List<TrackTime>?> {
     return trackIds
         .map((id) => allTrackTimes.firstWhere(
               (track) => track.id == id,
-              orElse: () => TrackTime(id: '', startTime: ''),
+              orElse: () => TrackTime(id: '', startTime: 0, startTimeMS: 0),
             ))
         .where((track) => track.id.isNotEmpty)
         .toList();
@@ -77,12 +77,7 @@ class TrackTimeHive extends StateNotifier<List<TrackTime>?> {
     List<TrackTime> trackTimes = [];
     if (state != null) {
       for (var track in state!) {
-        trackTimes.add(
-          TrackTime(
-            id: track.id,
-            startTime: track.startTime.toString(),
-          ),
-        );
+        trackTimes.add(track);
       }
     }
     return trackTimes;

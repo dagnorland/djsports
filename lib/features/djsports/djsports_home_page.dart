@@ -7,6 +7,7 @@ import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.d
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
+import 'package:djsports/features/track_time/track_time_center_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify_sdk/models/connection_status.dart';
@@ -105,21 +106,27 @@ class _HomePageState extends ConsumerState<HomePage> {
                         )
                       : Container(),
                   Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
+                    padding: const EdgeInsets.only(left: 5.0, right: 5.0),
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor),
+                          backgroundColor: Theme.of(context).primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          )),
                       child: Text(
-                        'Copy start times',
+                        'Start times',
                         style: Theme.of(context)
                             .textTheme
                             .titleLarge!
                             .copyWith(color: Colors.white),
                       ),
                       onPressed: () {
-                        final response =
-                            ref.read(hiveTrackData.notifier).getStartTimes();
-                        debugPrint(response.toString());
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TrackTimeCenterScreen(),
+                          ),
+                        );
                       },
                     ),
                   ),

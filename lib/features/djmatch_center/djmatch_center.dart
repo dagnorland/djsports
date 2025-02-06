@@ -152,16 +152,13 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
                   child: Container(
                     color: Colors.red,
                     child: CenterControlWidget(
-                      onResume: () => setState(() => resumePlayer()),
-                      onPause: () => setState(() => pausePlayer()),
-                      onBack: () {
+                      onResume: () async => resumePlayer(),
+                      onPause: () async => pausePlayer(),
+                      onBack: () async {
                         Navigator.of(context).pop();
-                        widget.refreshCallback ?? widget.refreshCallback;
+                        widget.refreshCallback?.call();
                       },
                       refreshCallback: widget.refreshCallback,
-                      latestImageUri: ref
-                          .read(spotifyRemoteRepositoryProvider)
-                          .latestImageUri,
                     ),
                   ),
                 ),

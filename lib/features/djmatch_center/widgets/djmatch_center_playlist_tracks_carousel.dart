@@ -5,8 +5,11 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
@@ -122,110 +125,142 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
         ref.watch(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
 
     CarouselController carouselController = CarouselController();
+    final isShowingPLAYFlame = useState(false);
 
-    return CarouselView(
-        scrollDirection: Axis.horizontal,
-        itemExtent: double.infinity,
-        controller: carouselController,
-        //itemExtent: 305,
-        shrinkExtent: 200,
-        backgroundColor: Colors.white,
-        onTap: (value) {
-          DJTrack track = tracks[value];
-          unawaited(ref
-              .read(spotifyRemoteRepositoryProvider)
-              .playTrackAndJumpStart(track, track.startTime + track.startTimeMS,
-                  playlistType, playlistName));
+    return Stack(children: [
+      CarouselView(
+          scrollDirection: Axis.horizontal,
+          itemExtent: double.infinity,
+          controller: carouselController,
+          //itemExtent: 305,
+          shrinkExtent: 200,
+          backgroundColor: Colors.white,
+          onTap: (value) async {
+            DJTrack track = tracks[value];
+            await ref
+                .read(spotifyRemoteRepositoryProvider)
+                .playTrackAndJumpStart(
+                    track,
+                    track.startTime + track.startTimeMS,
+                    playlistType,
+                    playlistName);
 
-          double newPosition = (value * 294) + 294;
-          if (value == playlist.trackIds.length - 1) {
-            newPosition = 0;
-            if (playlist.shuffleAtEnd) {
-              playlist = ref
-                  .read(hivePlaylistData.notifier)
-                  .shuffleTracksInPlaylist(playlistId);
-              tracks = ref
-                  .watch(hiveTrackData.notifier)
-                  .getDJTracks(playlist.trackIds);
+            double newPosition = (value * 294) + 294;
+            isShowingPLAYFlame.value = true;
+            if (value == playlist.trackIds.length - 1) {
+              if (playlist.shuffleAtEnd) {
+                playlist = ref
+                    .read(hivePlaylistData.notifier)
+                    .shuffleTracksInPlaylist(playlistId);
+                tracks = ref
+                    .watch(hiveTrackData.notifier)
+                    .getDJTracks(playlist.trackIds);
+                newPosition = 0;
+                isShowingPLAYFlame.value = false;
+                await carouselController.position.animateTo(newPosition,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOutCubicEmphasized);
+              }
+            } else {
+              await carouselController.position.animateTo(newPosition,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOutCubicEmphasized);
+              Future.delayed(const Duration(milliseconds: 800), () {
+                isShowingPLAYFlame.value = false;
+              });
+              await ref
+                  .read(lastDjTrackPlayedProvider.notifier)
+                  .updateLastPlayedTrack(track);
             }
-          }
-          carouselController.position.animateTo(newPosition,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOutCubicEmphasized);
-        },
-        children: List<Widget>.generate(tracks.length, (int trackIdIndex) {
-          DJTrack djTrack = tracks[trackIdIndex];
-          return LayoutBuilder(
-            builder: (context, constraints) => Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned(
-                  top: 25,
-                  left: constraints.maxWidth * 0.47, // Relativ posisjonering
-                  child: getImageWidget(djTrack.networkImageUri, 135, 135),
-                ),
-                Positioned(
-                  top: 20,
-                  left: 20,
-                  child: SizedBox(
-                    width: constraints.maxWidth * 0.4, // Begrens bredden
-                    child: playButtonWidget(context, ref, djTrack, trackIdIndex,
-                        playlist.trackIds.length, playlistType),
+          },
+          children: List<Widget>.generate(tracks.length, (int trackIdIndex) {
+            DJTrack djTrack = tracks[trackIdIndex];
+            return LayoutBuilder(
+              builder: (context, constraints) => Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    top: 25,
+                    left: constraints.maxWidth * 0.47, // Relativ posisjonering
+                    child: getImageWidget(djTrack.networkImageUri, 135, 135),
                   ),
-                ),
-                Positioned(
-                  top: 0,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    width: constraints.maxWidth - 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      playlistName.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        color: Colors.black,
-                      ),
+                  Positioned(
+                    top: 20,
+                    left: 20,
+                    child: SizedBox(
+                      width: constraints.maxWidth * 0.4, // Begrens bredden
+                      child: playButtonWidget(context, ref, djTrack,
+                          trackIdIndex, playlist.trackIds.length, playlistType),
                     ),
                   ),
-                ),
-                Positioned(
-                  bottom: 4,
-                  left: 20,
-                  right: 20,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        djTrack.artist,
+                  Positioned(
+                    top: 0,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      width: constraints.maxWidth - 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        playlistName.toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                          color: Colors.black,
-                        ),
-                      ),
-                      Text(
-                        textConstraintSize(djTrack.name, 29),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
                           fontSize: 18,
-                          backgroundColor: Colors.white70,
                           color: Colors.black,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }));
+                  Positioned(
+                    bottom: 4,
+                    left: 20,
+                    right: 20,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          djTrack.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          textConstraintSize(djTrack.name, 29),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            backgroundColor: Colors.white70,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          })),
+      if (isShowingPLAYFlame.value)
+        Positioned.fill(
+          child: Center(
+            child: Animate(
+                effects: [
+                  RotateEffect(),
+                ],
+                child: Image.asset(
+                  'assets/images/djsports/djsports_v12_round.png',
+                  width: 120,
+                  height: 120,
+                )),
+          ),
+        ),
+    ]);
   }
 }

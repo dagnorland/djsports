@@ -22,6 +22,11 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     state = repo!.getDJTracks();
   }
 
+  List<DJTrack> getDJTracksWithStartTime() {
+    final allTracks = repo!.getDJTracks();
+    return allTracks.where((track) => track.startTime > 0).toList();
+  }
+
   List<String> getDJTracksSpotifyUri(List<String> trackIds) {
     if (repo == null) {
       return [];
@@ -104,12 +109,7 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     if (state != null) {
       for (var track in state!) {
         if (track.spotifyUri.isNotEmpty && track.startTime > 0) {
-          trackTimes.add(
-            TrackTime(
-              id: track.spotifyUri,
-              startTime: track.startTime.toString(),
-            ),
-          );
+          trackTimes.add(TrackTime.fromDJTrack(track));
         }
       }
     }

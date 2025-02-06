@@ -12,6 +12,13 @@ final dataTrackProvider = Provider<List<DJTrack>>(
   },
 );
 
+final dataTrackWithStartTimeProvider = Provider<List<DJTrack>>(
+  (ref) {
+    final hiveDatas = ref.watch(hiveTrackData);
+    return hiveDatas!.toList().where((track) => track.startTime > 0).toList();
+  },
+);
+
 ///Todo RepoProvider
 final providerTrackHive = Provider<DJTrackRepo>((ref) => DJTrackRepo());
 

@@ -2,7 +2,6 @@ import 'package:djsports/data/controller/djtrack_controller.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/repo/djplaylist_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final djplaylistRepositoryProvider =
@@ -34,12 +33,10 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     List<String> trackIds =
         state!.firstWhere((element) => element.id == id).trackIds.toList();
     for (var element in trackIds) {
-      debugPrint('remove track id $element');
       if (trackHive.existsDJTrack(element)) {
         trackHive.removeDJTrack(element);
       }
     }
-    debugPrint('remove playlist $id');
     state = repo!.removeDJPlaylist(id);
   }
 

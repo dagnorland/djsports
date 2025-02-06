@@ -350,7 +350,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                                       Duration(
                                           milliseconds:
                                               newStartTime.inMilliseconds));
-                                  debugPrint('newStartTime: $newStartTime');
                                   if (autoPreview) {
                                     Future.delayed(
                                       const Duration(milliseconds: 200),

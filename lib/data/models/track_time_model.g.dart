@@ -18,18 +18,21 @@ class TrackTimeAdapter extends TypeAdapter<TrackTime> {
     };
     return TrackTime(
       id: fields[0] as String,
-      startTime: fields[1] as String,
+      startTime: fields[1] as int,
+      startTimeMS: fields[2] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TrackTime obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.startTime);
+      ..write(obj.startTime)
+      ..writeByte(2)
+      ..write(obj.startTimeMS);
   }
 
   @override

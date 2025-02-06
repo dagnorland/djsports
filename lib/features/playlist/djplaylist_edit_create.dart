@@ -4,17 +4,20 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/provider/track_time_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_playlist_service.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
 import 'package:djsports/features/playlist/djtrack_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_tracks_view.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_type_dropdown.dart';
+import 'package:djsports/features/playlist/widgets/playlist_examples_dropdown.dart';
 import 'package:djsports/features/spotify_playlist_sync/spotify_playlist_sync_delegate.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gap/gap.dart';
 
 // Localization
 //models
@@ -537,6 +540,36 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             const SizedBox(height: 10),
 
             Container(
+                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 70,
+                      child: PlaylistSpotifyUriExampleDropdown(
+                        existingUris: ref
+                            .read(hivePlaylistData.notifier)
+                            .repo!
+                            .getDJPlaylists()
+                            .map((e) => e.spotifyUri)
+                            .toList(),
+                        initialValue: '',
+                        onChanged: (value) {
+                          setState(() {
+                            spotifyUriController.text = value ?? '';
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 30,
+                      child: Text('Use an example playlist'),
+                    )
+                  ],
+                )),
+            const SizedBox(height: 10),
+
+            Container(
                 color: Theme.of(context).primaryColorLight,
                 child: Row(
                   children: [
@@ -607,6 +640,22 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const Gap(10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColorLight),
+                  child: Text(
+                    'Sync missing start times',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge!
+                        .copyWith(color: Theme.of(context).primaryColor),
+                  ),
+                  onPressed: () {
+                    syncMissingStartTimes(playlistTrackList);
+                  },
+                ),
+                const Gap(10),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColorLight),
@@ -632,7 +681,6 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                       playlistTrackList = ref
                           .read(hiveTrackData.notifier)
                           .getDJTracks(trackIds);
-                      debugPrint(playlistTrackList[0].id);
                     });
                   },
                 ),
@@ -848,5 +896,29 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       return value.substring('https://open.spotify.com/'.length);
     }
     return value;
+  }
+
+  void syncMissingStartTimes(List<DJTrack> tracks) {
+    final trackTimeList = ref.watch(dataTrackTimeProvider);
+    int updatedCount = 0;
+    for (var track in tracks) {
+      if (track.startTime == 0) {
+        if (trackTimeList.any((element) => element.id.contains(track.id))) {
+          track.startTime = trackTimeList
+              .firstWhere((element) => element.id.contains(track.id))
+              .startTime;
+          ref.read(hiveTrackData.notifier).updateDJTrack(track);
+          updatedCount++;
+        }
+      }
+    }
+    ref.invalidate(dataTrackProvider);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Updated $updatedCount tracks'),
+    ));
+    setState(() {
+      playlistTrackList =
+          ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+    });
   }
 }

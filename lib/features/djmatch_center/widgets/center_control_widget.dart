@@ -1,39 +1,33 @@
+import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 
-class CenterControlWidget extends ConsumerWidget {
+class CenterControlWidget extends StatefulHookConsumerWidget {
   const CenterControlWidget({
     super.key,
     required this.onResume,
     required this.onPause,
     required this.onBack,
     required this.refreshCallback,
-    required this.latestImageUri,
   });
 
   final VoidCallback onResume;
-  final VoidCallback onPause;
+  final Future<void> Function() onPause;
   final VoidCallback onBack;
   final VoidCallback? refreshCallback;
-  final String latestImageUri;
-
-  Widget _getImageWidget(String networkImageUri, double width, double height) {
-    return networkImageUri.isEmpty
-        ? const Icon(Icons.featured_play_list_outlined, size: 10)
-        : Image.network(
-            networkImageUri,
-            width: width,
-            height: height,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.error_outline),
-          );
-  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CenterControlWidget> createState() =>
+      _CenterControlWidgetState();
+}
+
+class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
+  @override
+  Widget build(BuildContext context) {
+    final lastTrack = ref.watch(lastDjTrackPlayedProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -41,14 +35,14 @@ class CenterControlWidget extends ConsumerWidget {
         const Gap(40),
         IconButton(
           icon: const Icon(Icons.play_arrow, color: Colors.white, size: 35),
-          onPressed: onResume,
+          onPressed: widget.onResume,
         ),
         const Gap(30),
         IconButton(
           icon: const Icon(Icons.pause, color: Colors.white, size: 70),
           splashColor: Colors.blue,
           highlightColor: Colors.black,
-          onPressed: onPause,
+          onPressed: () async => await widget.onPause(),
         ),
         const Gap(30),
         IconButton(
@@ -57,7 +51,8 @@ class CenterControlWidget extends ConsumerWidget {
               ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.1),
         ),
         const Gap(10),
-        const CurrentVolumeWidget(),
+        const CurrentVolumeWidget(
+            key: Key('currentVolumeWidgetInCenterControlWidget')),
         const Gap(20),
         IconButton(
           icon: const Icon(Icons.volume_up, color: Colors.white, size: 70),
@@ -66,11 +61,31 @@ class CenterControlWidget extends ConsumerWidget {
         ),
         const Gap(20),
         Expanded(
-          child: _getImageWidget(latestImageUri, 50, 50),
+          child: lastTrack.when(
+            data: (track) => ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 70,
+                  height: 70,
+                  child: Image.network(
+                    track?.networkImageUri ?? '',
+                    errorBuilder: (context, error, stackTrace) =>
+                        const SizedBox.shrink(),
+                  ),
+                )),
+            loading: () => const CircularProgressIndicator(),
+            error: (error, stack) => const SizedBox.shrink(),
+          ),
         ),
+        Expanded(
+            child: Image.asset(
+          'assets/images/djsports/djsports_v12_round.png',
+          width: 80,
+          height: 80,
+        )),
         IconButton(
           icon: const Icon(Icons.backspace),
-          onPressed: onBack,
+          onPressed: widget.onBack,
         ),
         const Gap(20),
       ],

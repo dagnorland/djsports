@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:djsports/data/models/spotify_playlist_result.dart';
 import 'package:djsports/data/repo/spotify_search_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -23,7 +22,6 @@ class SpotifyPlaylistService {
   // Input stream (search terms)
   final _getTerms = BehaviorSubject<String>();
   void getPlaylistByUri(String query) {
-    debugPrint('query getPlaylistByUri: $query ${DateTime.now()}');
     _getTerms.add(query);
   }
 

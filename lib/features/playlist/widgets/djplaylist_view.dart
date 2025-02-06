@@ -101,7 +101,9 @@ class DJPlaylistView extends HookConsumerWidget {
                         ? ''
                         : isLandscape
                             ? spotifyUri
-                            : spotifyUri.substring(0, 40),
+                            : spotifyUri.length > 40
+                                ? spotifyUri.substring(0, 40)
+                                : spotifyUri,
                     maxLines: 1,
                   )),
             ],
