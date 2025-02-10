@@ -42,7 +42,6 @@ class PlaylistSpotifyUriExampleDropdown extends StatelessWidget {
     final dropdownItems = PlaylistSpotifyUriExample.values
         .where((item) => !existingUris.contains(item['uri']))
         .map<DropdownMenuItem<String>>((Map<String, String> item) {
-      debugPrint(item['uri']);
       return DropdownMenuItem<String>(
         value: item['uri'],
         child: Text('${item['type']} - ${item['uri']}'),

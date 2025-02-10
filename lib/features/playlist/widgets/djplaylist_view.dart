@@ -69,7 +69,18 @@ class DJPlaylistView extends HookConsumerWidget {
             height: 50,
             child: Icon(Icons.featured_play_list_outlined, size: 50))
         : Image.network(networkImageUri,
-            width: 50, height: 50, fit: BoxFit.cover);
+            width: 50,
+            height: 50,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: Icon(
+                    Icons.cloud_off_outlined,
+                    size: 50,
+                    color: Colors.black38,
+                  ),
+                ));
 
     return Card(
       elevation: 3,

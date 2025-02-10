@@ -65,14 +65,19 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
             data: (track) => ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
-                  width: 70,
-                  height: 70,
-                  child: Image.network(
-                    track?.networkImageUri ?? '',
-                    errorBuilder: (context, error, stackTrace) =>
-                        const SizedBox.shrink(),
-                  ),
-                )),
+                    width: 70,
+                    height: 70,
+                    child: Image.network(track?.networkImageUri ?? '',
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox(
+                              width: 50,
+                              height: 50,
+                              child: Icon(
+                                Icons.cloud_off_outlined,
+                                size: 50,
+                                color: Colors.black38,
+                              ),
+                            )))),
             loading: () => const CircularProgressIndicator(),
             error: (error, stack) => const SizedBox.shrink(),
           ),

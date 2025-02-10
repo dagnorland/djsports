@@ -18,6 +18,15 @@ class DJPlaylistRepo {
   }
 
   List<DJPlaylist> addDJPlaylist(DJPlaylist playlist) {
+    // do we have any listlist with same spotify uri
+    if (_hive.values
+        .any((element) => element.spotifyUri == playlist.spotifyUri)) {
+      DJPlaylist existingPlaylist = _hive.values
+          .firstWhere((element) => element.spotifyUri == playlist.spotifyUri);
+      throw Exception(
+          'Playlist ${existingPlaylist.name} has same spotify uri ');
+    }
+
     if (playlist.id.isEmpty) {
       playlist.id = const Uuid().v4();
     }

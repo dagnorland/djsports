@@ -102,7 +102,18 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
   Widget getImageWidget(String networkImageUri, double width, double height) {
     return networkImageUri.isEmpty
         ? const Icon(Icons.featured_play_list_outlined, size: 10)
-        : Image.network(networkImageUri, width: width, height: height);
+        : Image.network(networkImageUri,
+            width: width,
+            height: height,
+            errorBuilder: (context, error, stackTrace) => const SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: Icon(
+                    Icons.cloud_off_outlined,
+                    size: 50,
+                    color: Colors.black38,
+                  ),
+                ));
   }
 
   @override

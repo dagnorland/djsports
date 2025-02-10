@@ -55,7 +55,13 @@ class DJPlaylistTrackView extends HookConsumerWidget {
         : ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Image.network(track.networkImageUri,
-                width: 50, height: 50, fit: BoxFit.cover),
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const SizedBox(
+                      width: 50,
+                      height: 50,
+                    )),
           );
     Widget musicSourceImage = track.networkImageUri.isEmpty
         ? const SizedBox(

@@ -12,10 +12,10 @@
             "deviceId": "macos"
         },
         {
-            "name": "djsports iPhone15 Spotify Three test",
+            "name": "djsports iPhone15",
             "request": "launch",
             "type": "dart",
-            "program": "lib/example/spotify_three.dart",
+            "program": "lib/main.dart",
             "deviceId": "00008130-00015D2C3E78001C"
         },
         {

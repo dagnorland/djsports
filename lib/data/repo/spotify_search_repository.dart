@@ -35,8 +35,6 @@ class SpotifySearchRepository {
   }
 
   Future<String> getSpotifyNameUri(String queryUri) async {
-    debugPrint('tracksPage: $queryUri');
-
     // does queryUri start with playlist or album
     if (queryUri.startsWith('album/')) {
       try {
