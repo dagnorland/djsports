@@ -108,6 +108,9 @@ class SpotifyRemoteRepository {
     if (!isConnected || !lastValidAccessToken.isNotEmpty) {
       return '[Error] Not connected to Spotify';
     }
+    String errorMessage = '';
+    bool success = false;
+    int retryCount = 0;
 
     // make a timer to find duration between two timestamps
     final startTime = DateTime.now();
@@ -123,24 +126,28 @@ class SpotifyRemoteRepository {
       await SpotifySdk.play(spotifyUri: track.spotifyUri);
       if (jumpStart > 0) {
         try {
-          await Future.delayed(const Duration(milliseconds: 150));
-          int retryCount = 0;
-          bool success = false;
+          await Future.delayed(const Duration(milliseconds: 120));
+          retryCount = 0;
+          success = false;
 
           while (retryCount < numberOfRetries && !success) {
             try {
               await SpotifySdk.seekTo(positionedMilliseconds: jumpStart);
+              VolumeController().setVolume(volume);
               success = true;
             } catch (e) {
               retryCount++;
               if (retryCount >= numberOfRetries) {
                 debugPrint(
                     'Failed to jump start after $numberOfRetries attempts. $e');
+                errorMessage =
+                    'Failed to jump start after $numberOfRetries attempts. $e';
               }
             }
           }
         } catch (e) {
           debugPrint('Failed to jump start. $e');
+          errorMessage = 'Failed to jump start. $e';
         }
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
@@ -152,7 +159,20 @@ class SpotifyRemoteRepository {
       SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.connectedSpotifyRemoteApp,
           'play track ${track.spotifyUri}');
-      return '[Success] Playing track ${track.spotifyUri}';
+      String retryMessage = '';
+      if (retryCount > 0) {
+        retryMessage = ' - used $retryCount retries';
+      } else {
+        retryMessage = '';
+      }
+      String startupTimeMessage = '';
+      if (jumpStart > 0 && latestDurationStartupMS > 0) {
+        startupTimeMessage = ' - startup time: $latestDurationStartupMS';
+      } else {
+        startupTimeMessage = '';
+      }
+
+      return '${track.name} - $startupTimeMessage $retryMessage $errorMessage';
     } on PlatformException catch (platformException) {
       if (platformException.details != null) {
         if ((platformException.details as String)
@@ -189,7 +209,9 @@ class SpotifyRemoteRepository {
     // make a timer to find duration between two timestamps
     final startTime = DateTime.now();
     debugPrint('Start time: $startTime');
-
+    bool success = false;
+    int retryCount = 0;
+    String errorMessage = '';
     try {
       // turn volume down
       debugPrint('before volume: ${DateTime.now().difference(startTime)}');
@@ -208,8 +230,8 @@ class SpotifyRemoteRepository {
         try {
           await Future.delayed(const Duration(milliseconds: 80));
           debugPrint('after delay: ${DateTime.now().difference(startTime)}');
-          int retryCount = 0;
-          bool success = false;
+          retryCount = 0;
+          success = false;
 
           while (retryCount < numberOfRetries && !success) {
             try {
@@ -226,16 +248,24 @@ class SpotifyRemoteRepository {
               if (retryCount >= numberOfRetries) {
                 debugPrint(
                     'Failed to jump start after $numberOfRetries attempts. $e');
+                errorMessage =
+                    'Failed to jump start after $numberOfRetries attempts. $e';
               }
             }
           }
         } catch (e) {
           debugPrint('Failed to jump start. $e');
+          errorMessage = 'Failed to jump start. $e';
         }
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
         debugPrint('Duration to jump start: $duration');
         latestDurationStartupMS = duration.inMilliseconds;
+        if (success) {
+          return '[Success] Playing track $spotifyUri - used $retryCount retries startup time: $duration';
+        } else {
+          return '[Error] Failed to jump start after $numberOfRetries attempts. $errorMessage';
+        }
       }
 
       VolumeController().setVolume(volume);

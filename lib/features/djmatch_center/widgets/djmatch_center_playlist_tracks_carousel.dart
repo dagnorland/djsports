@@ -10,6 +10,7 @@ import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
@@ -148,13 +149,21 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
           backgroundColor: Colors.white,
           onTap: (value) async {
             DJTrack track = tracks[value];
-            await ref
+            String response = await ref
                 .read(spotifyRemoteRepositoryProvider)
                 .playTrackAndJumpStart(
                     track,
                     track.startTime + track.startTimeMS,
                     playlistType,
                     playlistName);
+
+            if (response.contains('[ErrorMessage]')) {
+              showMessageToast(response);
+            } else {
+              track.playCount = track.playCount + 1;
+              ref.read(hiveTrackData.notifier).updateDJTrack(track);
+              showMessageToast(response);
+            }
 
             double newPosition = (value * 294) + 294;
             isShowingPLAYFlame.value = true;
@@ -274,4 +283,11 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
         ),
     ]);
   }
+}
+
+void showMessageToast(String message) {
+  Fluttertoast.showToast(
+    msg: message,
+    toastLength: Toast.LENGTH_LONG,
+  );
 }
