@@ -30,7 +30,13 @@
             "request": "launch",
             "type": "dart",
             "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
-        },             
+        },                     
+        {
+            "name": "djsports Lenovo Pro",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "HA25HWGM",            
+        },
         {
             "name": "djsports Samsung X200",
             "request": "launch",

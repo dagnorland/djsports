@@ -34,6 +34,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
     required this.name,
     required this.type,
     required this.spotifyUri,
+    required this.spotifyUriSecond,
     required this.trackIds,
     required this.shuffleAtEnd,
     required this.autoNext,
@@ -52,6 +53,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
       name: playlist.name,
       type: playlist.type,
       spotifyUri: playlist.spotifyUri,
+      spotifyUriSecond: playlist.spotifyUriSecond,
       trackIds: [...playlist.trackIds],
       shuffleAtEnd: playlist.shuffleAtEnd,
       autoNext: playlist.autoNext,
@@ -66,6 +68,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
       name: '',
       type: DJPlaylistType.hotspot.name,
       spotifyUri: '',
+      spotifyUriSecond: '',
       trackIds: const [],
       shuffleAtEnd: true,
       autoNext: true,
@@ -79,6 +82,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
   final String name;
   final String type;
   final String spotifyUri;
+  final String spotifyUriSecond;
   final bool shuffleAtEnd;
   final bool autoNext;
   final int currentTrack;
@@ -96,6 +100,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
 class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
+  final spotifyUriControllerSecond = TextEditingController();
   final positionController = TextEditingController();
   DJPlaylistType selectedType = DJPlaylistType.funStuff;
   List<String> trackIds = [];
@@ -113,6 +118,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     if (!widget.isNew) {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
+      spotifyUriControllerSecond.text = widget.spotifyUriSecond;
       shuffleAtEnd = widget.shuffleAtEnd;
       autoNext = widget.autoNext;
       position = widget.position;
@@ -121,6 +127,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     } else {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
+      spotifyUriControllerSecond.text = widget.spotifyUriSecond;
       positionController.text = position.toString();
     }
     selectedType =
@@ -369,6 +376,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             name: nameController.text,
             type: selectedType.name,
             spotifyUri: spotifyUriController.text,
+            spotifyUriSecond: spotifyUriControllerSecond.text,
             shuffleAtEnd: shuffleAtEnd,
             trackIds: [],
             currentTrack: currentTrack,
@@ -376,6 +384,24 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             autoNext: autoNext,
           ),
         );
+  }
+
+  List<String> getExistingUris() {
+    final existingUris = ref
+        .read(hivePlaylistData.notifier)
+        .repo!
+        .getDJPlaylists()
+        .map((e) => e.spotifyUri)
+        .where((uri) => uri.isNotEmpty)
+        .toList();
+    final existingUrisSecond = ref
+        .read(hivePlaylistData.notifier)
+        .repo!
+        .getDJPlaylists()
+        .map((e) => e.spotifyUriSecond)
+        .where((uri) => uri.isNotEmpty)
+        .toList();
+    return [...existingUris, ...existingUrisSecond];
   }
 
   @override
@@ -545,7 +571,72 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   ],
                 )),
             const SizedBox(height: 10),
-
+            const SizedBox(height: 10),
+            Container(
+                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 70,
+                      child: TextField(
+                        controller: spotifyUriControllerSecond,
+                        onChanged: (value) => setState(() {
+                          spotifyUriControllerSecond.text =
+                              spotifyUriValidate(value);
+                        }),
+                        decoration: InputDecoration(
+                          labelText: 'Spotify uri 2',
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
+                          ),
+                          hintText: ' Paste spotify uri 2',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 30,
+                      child: Row(children: [
+                        IconButton(
+                          icon: const Icon(Icons.sync),
+                          onPressed: () {
+                            setState(() {
+                              _spotifyPlaylistSync(context, ref,
+                                  spotifyUriControllerSecond.text);
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () {
+                            setState(() {
+                              _showSearch(context, ref);
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.playlist_add_circle_outlined),
+                          onPressed: () {
+                            setState(() {
+                              _spotifyTrackSync(context, ref,
+                                  spotifyUriControllerSecond.text);
+                            });
+                          },
+                        )
+                      ]),
+                    )
+                  ],
+                )),
+            const SizedBox(height: 10),
             Container(
                 color: Theme.of(context).primaryColor.withOpacity(0.05),
                 child: Row(
@@ -553,16 +644,16 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     Expanded(
                       flex: 70,
                       child: PlaylistSpotifyUriExampleDropdown(
-                        existingUris: ref
-                            .read(hivePlaylistData.notifier)
-                            .repo!
-                            .getDJPlaylists()
-                            .map((e) => e.spotifyUri)
-                            .toList(),
+                        existingUris: getExistingUris(),
                         initialValue: '',
                         onChanged: (value) {
                           setState(() {
-                            spotifyUriController.text = value ?? '';
+                            if (spotifyUriController.text.isEmpty) {
+                              spotifyUriController.text = value ?? '';
+                            } else if (spotifyUriControllerSecond
+                                .text.isEmpty) {
+                              spotifyUriControllerSecond.text = value ?? '';
+                            }
                           });
                         },
                       ),
@@ -772,6 +863,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                                       name: nameController.text,
                                       type: selectedType.name,
                                       spotifyUri: spotifyUriController.text,
+                                      spotifyUriSecond:
+                                          spotifyUriControllerSecond.text,
                                       shuffleAtEnd: shuffleAtEnd,
                                       trackIds: trackIds,
                                       currentTrack: currentTrack,
@@ -791,6 +884,8 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                                     name: nameController.text,
                                     type: selectedType.name,
                                     spotifyUri: spotifyUriController.text,
+                                    spotifyUriSecond:
+                                        spotifyUriControllerSecond.text,
                                     trackIds: const [],
                                     isNew: false,
                                     id: newPlayListId,

@@ -54,7 +54,9 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
       List<DJPlaylist> playlistList, DJPlaylistType playlistType) {
     List<DJPlaylist> filteredPlaylists = playlistList
         .where((playlist) => playlist.type == playlistType.name.toString())
-        .toList();
+        .toList()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
     return getPlaylistWidget(filteredPlaylists, playlistType);
   }
 

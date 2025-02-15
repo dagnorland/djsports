@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - UNRELEASED 2025-01-24
+## [1.5.0] - Release 2025-02-15
+
+### Added
+- Second spotify uri, for more tracks
+- dj Center playlistsorting by position
+
+
+## [1.1.0] - Release 2025-01-24
 
 ### Added
 - Playlist fields, position, shuffle and autoNext
