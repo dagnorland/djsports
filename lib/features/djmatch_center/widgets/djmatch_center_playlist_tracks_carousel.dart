@@ -165,7 +165,9 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
               showMessageToast(response);
             }
 
-            double newPosition = (value * 294) + 294;
+            double newPosition =
+                (value * carouselController.position.viewportDimension) +
+                    carouselController.position.viewportDimension;
             isShowingPLAYFlame.value = true;
             if (value == playlist.trackIds.length - 1) {
               if (playlist.shuffleAtEnd) {
