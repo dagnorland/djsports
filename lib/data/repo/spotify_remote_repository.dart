@@ -211,14 +211,15 @@ class SpotifyRemoteRepository {
     debugPrint('Start time: $startTime');
     bool success = false;
     int retryCount = 0;
-    String errorMessage = '';
     try {
       // turn volume down
       debugPrint('before volume: ${DateTime.now().difference(startTime)}');
       double volume = await VolumeController().getVolume();
       debugPrint('after volume: ${DateTime.now().difference(startTime)}');
+      volume = await VolumeController().getVolume();
       if (volume == 0) {
         volume = 0.5;
+        debugPrint('volume set to 0.5');
       }
       if (jumpStart > 0) {
         VolumeController().setVolume(0);
@@ -248,24 +249,16 @@ class SpotifyRemoteRepository {
               if (retryCount >= numberOfRetries) {
                 debugPrint(
                     'Failed to jump start after $numberOfRetries attempts. $e');
-                errorMessage =
-                    'Failed to jump start after $numberOfRetries attempts. $e';
               }
             }
           }
         } catch (e) {
           debugPrint('Failed to jump start. $e');
-          errorMessage = 'Failed to jump start. $e';
         }
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
         debugPrint('Duration to jump start: $duration');
         latestDurationStartupMS = duration.inMilliseconds;
-        if (success) {
-          return '[Success] Playing track $spotifyUri - used $retryCount retries startup time: $duration';
-        } else {
-          return '[Error] Failed to jump start after $numberOfRetries attempts. $errorMessage';
-        }
       }
 
       VolumeController().setVolume(volume);
@@ -333,12 +326,6 @@ class SpotifyRemoteRepository {
           }
         }
       }
-      /*
-        I/flutter (14291): Failed to play. details: com.spotify.android.appremote.api.error.SpotifyDisconnectedException
-        I/flutter (14291): Failed to play. code: playError
-        I/flutter (14291): Failed to play. message: error when playing uri: spotify:track:0cqRj7pUJDkTCEsJkx8snD
-        I/flutter (14291): Failed to play. platformException.code:  playError      
-      */
       debugPrint('Failed to play. details: ${platformException.details}');
       debugPrint('Failed to play. code: ${platformException.code}');
       debugPrint('Failed to play. message: ${platformException.message}');
