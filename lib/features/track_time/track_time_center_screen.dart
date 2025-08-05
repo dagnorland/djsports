@@ -209,19 +209,29 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     return jsonString.length;
   }
 
-  void importTrackTimeJsonData(String jsonString) {
+  void importTrackTimeJsonData(String jsonData) async {
     try {
-      // Parse JSON string til List<dynamic>
+      final dynamic decoded = json.decode(jsonData);
+      if (decoded is! List) {
+        throw const FormatException('JSON-data må være en liste.');
+      }
+      final List<TrackTime> importedTracks = [];
 
-      List<dynamic> tempDecoded = json.decode(jsonString) as List<dynamic>;
+      for (final jsonItem in decoded) {
+        if (jsonItem is! Map<String, dynamic>) {
+          throw const FormatException('Hvert element må være et objekt.');
+        }
+        final trackTime = TrackTime.fromJson(jsonItem);
+        importedTracks.add(trackTime);
+      }
 
-      List<TrackTime> importedTracks = tempDecoded
-          .map((jsonTrack) =>
-              TrackTime.fromJson(jsonTrack as Map<String, dynamic>))
-          .toList();
       for (final trackTime in importedTracks) {
-        if (trackTime.startTime == 0) {
-          // skip if start time is 0
+        // Sjekk om track time allerede eksisterer
+        final existingTrackTime = ref
+            .watch(hiveTrackTimeData)
+            ?.where((element) => element.id == trackTime.id)
+            .isNotEmpty;
+        if (existingTrackTime ?? false) {
           continue;
         }
         ref.read(hiveTrackTimeData.notifier).addTrackTime(trackTime);
@@ -415,12 +425,14 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                   : () {
                       final bytes =
                           exportTrackTimeListToClipboard(trackTimeList);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Track time list copied to clipboard ${bytes.toString()} bytes'),
-                        ),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Track time list copied to clipboard ${bytes.toString()} bytes'),
+                          ),
+                        );
+                      }
                     },
               child: Text(
                 'Copy track time list in JSON format to clipboard',

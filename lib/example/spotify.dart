@@ -645,13 +645,15 @@ class HomeState extends State<Home> {
       var isActive = await spotifysdk.SpotifySdk.connectToSpotifyRemote(
           clientId: dotenv.env['SPOTIFY_CLIENTID'].toString(),
           redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'].toString());
-      final snackBar = SnackBar(
-          content: Text(isActive
-              ? 'Spotify app connection is active (currently playing)'
-              : 'Spotify app connection is not active (currently not playing)'));
 
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      if (mounted) {
+        final snackBar = SnackBar(
+            content: Text(isActive
+                ? 'Spotify app connection is active (currently playing)'
+                : 'Spotify app connection is not active (currently not playing)'));
+
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      }
     } on PlatformException catch (e) {
       setStatus(e.code, message: e.message);
     } on MissingPluginException {
