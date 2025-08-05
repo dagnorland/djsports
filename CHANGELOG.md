@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Spotify preview play volume setting
+- Track starttime added input text field edit
 
 ## [1.6.0] - Release 2025-02-15
 

@@ -167,33 +167,39 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       try {
         playlistId = newPlaylistFromFormData();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()),
-        ));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString()),
+          ));
+        }
         return;
       }
     }
 
     if (widget.isNew && playlistId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Playlist must be saved before syncing'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Playlist must be saved before syncing'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Close',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ));
+      }
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Syncronising playlist tracks...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Syncronising playlist tracks...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
 
     DJPlaylist? playlist = ref
         .read(hivePlaylistData.notifier)
@@ -245,34 +251,38 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ));
     }
 
-    Navigator.of(context).pop();
-    widget.refreshCallback ?? widget.refreshCallback;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DJPlaylistEditScreen.fromDJPlaylist(
-          playlist,
-          refreshCallback: () {
-            setState(() {});
-          },
+    if (mounted) {
+      Navigator.of(context).pop();
+      widget.refreshCallback ?? widget.refreshCallback;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DJPlaylistEditScreen.fromDJPlaylist(
+            playlist,
+            refreshCallback: () {
+              setState(() {});
+            },
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _spotifyTrackSync(
       BuildContext context, WidgetRef ref, String playlistId) async {
     if (widget.isNew) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Playlist must be saved before syncing'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Playlist must be saved before syncing'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Close',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ));
+      }
       return;
     }
 
@@ -290,23 +300,23 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     final searchDelegate =
         SpotifyPlaylistTrackDelegate(playlistId, service, trackIds);
 
-    //final result = service.searchRepository.getPlaylistTracks(playlistId);
     final track = await showSearch<Track?>(
       context: context,
       delegate: searchDelegate,
     );
     if (track != null) {
-      // make an snackbar showing track name
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('adding track: ${track.name}'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('adding track: ${track.name}'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Close',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ));
+      }
       DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
 
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
@@ -319,11 +329,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           .read(hivePlaylistData.notifier)
           .addTrackToDJPlaylist(playlist, addTrack);
       ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
-      setState(() {
-        trackIds = playlist.trackIds;
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-      });
+      if (mounted) {
+        setState(() {
+          trackIds = playlist.trackIds;
+          playlistTrackList =
+              ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        });
+      }
     } else {
       debugPrint('result: ingenting valgt');
     }
@@ -336,19 +348,19 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       context: context,
       delegate: searchDelegate,
     );
-    //service.dispose();
     if (track != null) {
-      // make an snackbar showing track name
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('adding track: ${track.name}'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Close',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('adding track: ${track.name}'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Close',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ));
+      }
       DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
 
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
@@ -361,11 +373,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           .read(hivePlaylistData.notifier)
           .addTrackToDJPlaylist(playlist, addTrack);
       ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
-      setState(() {
-        trackIds = playlist.trackIds;
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-      });
+      if (mounted) {
+        setState(() {
+          trackIds = playlist.trackIds;
+          playlistTrackList =
+              ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        });
+      }
     }
   }
 
@@ -994,7 +1008,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     }
     if (value.contains('https://open.spotify.com/playlist/')) {
       // remove the https://open.spotify.com/playlist/ from the uri
-      return value.substring('https://open.spotify.com/'.length);
+      return value.substring('https://open.spotify.com/playlist/'.length);
     }
 
     if (value.contains('https://open.spotify.com/album/')) {
@@ -1019,12 +1033,16 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       }
     }
     ref.invalidate(dataTrackProvider);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Updated $updatedCount tracks'),
-    ));
-    setState(() {
-      playlistTrackList =
-          ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Updated $updatedCount tracks'),
+      ));
+    }
+    if (mounted) {
+      setState(() {
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+      });
+    }
   }
 }

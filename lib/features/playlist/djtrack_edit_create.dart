@@ -71,6 +71,8 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   final networkImageUriController = TextEditingController();
   final durationController = TextEditingController();
   final startTimeController = TextEditingController();
+  final startTextFieldTimeController = TextEditingController();
+  final startTextFieldTimeFocusNode = FocusNode();
 
   String playlistId = '';
   String playlistName = '';
@@ -78,6 +80,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   int editStartTimeMS = 0;
   String trackDurationFormatted = 'hh:mm:ss';
   bool autoPreview = false;
+
   @override
   void initState() {
     if (!widget.isNew) {
@@ -88,9 +91,11 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
       mp3UriController.text = widget.mp3Uri;
       networkImageUriController.text = widget.networkImageUri;
       durationController.text =
-          printDuration((Duration(milliseconds: widget.duration)));
+          printDuration(Duration(milliseconds: widget.duration));
       startTimeController.text =
-          printDuration((Duration(milliseconds: widget.startTime)));
+          printDuration(Duration(milliseconds: widget.startTime));
+      startTextFieldTimeController.text =
+          printDuration(Duration(milliseconds: widget.startTime));
       editStartTime = widget.startTime;
       trackDurationFormatted =
           printDuration((Duration(milliseconds: widget.duration)));
@@ -100,30 +105,19 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     playlistName = widget.playlistName;
 
     super.initState();
+
+    // Sett fokus til startTextFieldTimeFocusNode etter at widget er bygget
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        FocusScope.of(context).requestFocus(startTextFieldTimeFocusNode);
+      }
+    });
   }
 
-  // This shows a CupertinoModalPopup with a reasonable fixed height which hosts
-  // a CupertinoTimerPicker.
-  void showDialog(Widget child) {
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (BuildContext context) => Container(
-        height: 216,
-        padding: const EdgeInsets.only(top: 6.0),
-        // The bottom margin is provided to align the popup above the system
-        // navigation bar.
-        margin: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        // Provide a background color for the popup.
-        color: CupertinoColors.systemBackground.resolveFrom(context),
-        // Use a SafeArea widget to avoid system overlaps.
-        child: SafeArea(
-          top: false,
-          child: child,
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    startTextFieldTimeFocusNode.dispose();
+    super.dispose();
   }
 
   String printDuration(Duration duration) {
@@ -141,7 +135,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     }
   }
 
-  int getStartTime() {
+  int parseStartTime() {
     try {
       final startTimeParts = startTimeController.text.split(':');
       final minutes = int.parse(startTimeParts[0]);
@@ -150,22 +144,24 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           (minutes * 60 + seconds) * 1000 + editStartTimeMS;
       return totalMilliseconds;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: SelectableText.rich(
-            TextSpan(
-              text: 'Feil ved konvertering av starttid: $e',
-              style: const TextStyle(color: Colors.red),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: SelectableText.rich(
+              TextSpan(
+                text: 'Feil ved konvertering av starttid: $e',
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
+            backgroundColor: Colors.white,
           ),
-          backgroundColor: Colors.white,
-        ),
-      );
+        );
+      }
       return 0;
     }
   }
 
-  void _updateTrack() {
+  void updateTrack() {
     if (widget.id.isEmpty) {
       ref.read(hiveTrackData.notifier).addDJTrack(
             DJTrack(
@@ -359,7 +355,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                                             spotifyUriController.text.isEmpty
                                                 ? mp3UriController.text
                                                 : spotifyUriController.text,
-                                            getStartTime(),
+                                            parseStartTime(),
                                           ),
                                     );
                                   }
@@ -401,7 +397,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).primaryColor,
                           ),
-                          onPressed: _updateTrack,
+                          onPressed: updateTrack,
                           child: Text(
                             widget.id.isEmpty ? 'Create' : 'Update',
                             style: const TextStyle(color: Colors.white),
@@ -427,7 +423,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                                       spotifyUriController.text.isEmpty
                                           ? mp3UriController.text
                                           : spotifyUriController.text,
-                                      getStartTime(),
+                                      parseStartTime(),
                                     );
                               },
                             ),
@@ -446,6 +442,43 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                         ),
                       ),
                     ),
+                    Expanded(
+                      flex: 20,
+                      child: TextField(
+                        controller: startTextFieldTimeController,
+                        focusNode: startTextFieldTimeFocusNode,
+                        onChanged: (value) {
+                          setState(() {
+                            try {
+                              final startTimeParts = value.split(':');
+                              if (startTimeParts.length == 2) {
+                                final minutes = int.parse(startTimeParts[0]);
+                                final seconds = int.parse(startTimeParts[1]);
+                                editStartTime = (minutes * 60 + seconds) * 1000;
+                              }
+                            } catch (e) {
+                              // Håndter feil hvis formatet ikke er korrekt
+                              // editStartTime forblir uendret
+                            }
+                          });
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Start time (mm:ss)',
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
+                          ),
+                          hintText: 'start time',
+                        ),
+                      ),
+                    ),
+                    const Gap(20),
                     Expanded(
                       flex: 20,
                       child: Padding(
@@ -548,7 +581,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                     ),
-                    onPressed: _updateTrack,
+                    onPressed: updateTrack,
                     child: Text(
                       widget.id.isEmpty ? 'Create' : 'Update',
                       style: const TextStyle(color: Colors.white),

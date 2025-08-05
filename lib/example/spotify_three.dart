@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:spotify_sdk/models/connection_status.dart';
 import 'package:spotify_sdk/models/crossfade_state.dart';
@@ -15,7 +16,7 @@ import 'spotify_widget.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: '.env');
-  runApp(const Home());
+  runApp(const ProviderScope(child: Home()));
 }
 
 /// A [StatefulWidget] which uses:
