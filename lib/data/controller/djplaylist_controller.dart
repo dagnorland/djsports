@@ -29,15 +29,22 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     return '';
   }
 
-  void removeDJPlaylist(DJTrackHive trackHive, String id) {
-    List<String> trackIds =
-        state!.firstWhere((element) => element.id == id).trackIds.toList();
-    for (var element in trackIds) {
-      if (trackHive.existsDJTrack(element)) {
-        trackHive.removeDJTrack(element);
+  void removeDJPlaylist(DJTrackHive trackHive, String playlistId) {
+    List<String> trackIds = state!
+        .firstWhere((element) => element.id == playlistId)
+        .trackIds
+        .toList();
+    for (var trackId in trackIds) {
+      if (trackHive.existsDJTrack(trackId)) {
+        if (state!.any((element) =>
+            element.id != playlistId && element.trackIds.contains(trackId))) {
+          continue;
+        } else {
+          trackHive.removeDJTrack(trackId);
+        }
       }
     }
-    state = repo!.removeDJPlaylist(id);
+    state = repo!.removeDJPlaylist(playlistId);
   }
 
   DJPlaylist shuffleTracksInPlaylist(String playlistId) {
