@@ -957,33 +957,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               DJTrack track = tracks[index];
               // get result from pop
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DJTrackEditScreen(
-                    playlistId: widget.id,
-                    playlistName: track.name,
-                    isNew: false,
-                    id: track.id,
-                    name: track.name,
-                    album: track.album,
-                    artist: track.artist,
-                    startTime: track.startTime,
-                    startTimeMS: track.startTimeMS,
-                    duration: track.duration,
-                    playCount: track.playCount,
-                    spotifyUri: track.spotifyUri,
-                    mp3Uri: track.mp3Uri,
-                    networkImageUri: track.networkImageUri,
-                    index: index,
-                  ),
-                ),
-              ).then((value) {
-                setState(() {
-                  playlistTrackList =
-                      ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-                });
-              });
+              handleTrackEdit(id: widget.id, track: track, index: index);
             },
             onDelete: () {
               DJPlaylist playlist = ref
@@ -1000,6 +974,41 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         },
       ),
     );
+  }
+
+  Future<dynamic> handleTrackEdit({
+    required String id,
+    required DJTrack track,
+    required int index,
+  }) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DJTrackEditScreen(
+          playlistId: widget.id,
+          playlistName: track.name,
+          isNew: false,
+          id: track.id,
+          name: track.name,
+          album: track.album,
+          artist: track.artist,
+          startTime: track.startTime,
+          startTimeMS: track.startTimeMS,
+          duration: track.duration,
+          playCount: track.playCount,
+          spotifyUri: track.spotifyUri,
+          mp3Uri: track.mp3Uri,
+          networkImageUri: track.networkImageUri,
+          index: index,
+        ),
+      ),
+    ).then((value) {
+      if (value != null && value is int) {
+        int gotoTrackIndex = value;
+        DJTrack track = playlistTrackList[gotoTrackIndex];
+        handleTrackEdit(id: widget.id, track: track, index: gotoTrackIndex);
+      }
+    });
   }
 
   String spotifyUriValidate(String value) {

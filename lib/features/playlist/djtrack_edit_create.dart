@@ -161,7 +161,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     }
   }
 
-  void updateTrack() {
+  void updateTrack({bool goToNextTrack = false}) {
     if (widget.id.isEmpty) {
       ref.read(hiveTrackData.notifier).addDJTrack(
             DJTrack(
@@ -196,7 +196,13 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           );
     }
     ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
-    Navigator.pop(context);
+
+    if (goToNextTrack && widget.index >= 0) {
+      // Return the next track index to the parent
+      Navigator.pop(context, widget.index + 1);
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -219,7 +225,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
         title: Text(
           widget.id.isEmpty
               ? 'Create Track for $playlistName'
-              : 'Edit Track for $playlistName',
+              : '#${widget.index} Edit Track for $playlistName',
           style: TextStyle(
               color: Theme.of(context).primaryColor,
               fontWeight: FontWeight.bold),
@@ -397,12 +403,27 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).primaryColor,
                           ),
-                          onPressed: updateTrack,
+                          onPressed: () => updateTrack(goToNextTrack: false),
                           child: Text(
                             widget.id.isEmpty ? 'Create' : 'Update',
                             style: const TextStyle(color: Colors.white),
                           ),
                         )),
+                    if (widget.id.isNotEmpty) ...[
+                      const Gap(20),
+                      Expanded(
+                          flex: 35,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                            ),
+                            onPressed: () => updateTrack(goToNextTrack: true),
+                            child: Text(
+                              'Update & next track',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          )),
+                    ],
                     // add play and resume buttons
                     Expanded(
                       flex: 20,
@@ -581,7 +602,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                     ),
-                    onPressed: updateTrack,
+                    onPressed: () => updateTrack(goToNextTrack: false),
                     child: Text(
                       widget.id.isEmpty ? 'Create' : 'Update',
                       style: const TextStyle(color: Colors.white),
