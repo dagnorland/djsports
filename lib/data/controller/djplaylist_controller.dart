@@ -59,11 +59,19 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     return repo!.updateDJPlaylist(updatedPlaylist);
   }
 
-  DJPlaylist removeDJTrackFromPlaylist(
-      DJTrackHive trackHive, String playlistId, String trackId) {
-    DJPlaylist playlist = repo!.removeDJTrackFromPlaylist(playlistId, trackId);
+  DJPlaylist removeDJTrackFromPlaylist(DJTrackHive trackHive, String playlistId,
+      String trackId, int playlistIndex) {
+    DJPlaylist playlist =
+        repo!.removeDJTrackFromPlaylist(playlistId, trackId, playlistIndex);
 
-    trackHive.removeDJTrack(trackId);
+    final isUsedInAnotherPlaylist = state!.any(
+      (playlist) =>
+          playlist.id != playlistId && playlist.trackIds.contains(trackId),
+    );
+
+    if (!isUsedInAnotherPlaylist) {
+      trackHive.removeDJTrack(trackId);
+    }
     fetchDJPlaylist();
     return playlist;
   }

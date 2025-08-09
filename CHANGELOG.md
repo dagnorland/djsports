@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Deleting playlist do not delete tracks that are on other playlists
+- Delete a track from playlist. Dont delete if still used.
 
 ## [1.6.0] - Release 2025-02-15
 
