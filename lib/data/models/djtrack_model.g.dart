@@ -28,13 +28,14 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
       spotifyUri: fields[8] as String,
       mp3Uri: fields[9] as String,
       networkImageUri: fields[10] == null ? '' : fields[10] as String,
+      shortcut: fields[11] == null ? '' : fields[11] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, DJTrack obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
       ..writeByte(9)
       ..write(obj.mp3Uri)
       ..writeByte(10)
-      ..write(obj.networkImageUri);
+      ..write(obj.networkImageUri)
+      ..writeByte(11)
+      ..write(obj.shortcut);
   }
 
   @override
@@ -86,6 +89,7 @@ DJTrack _$DJTrackFromJson(Map<String, dynamic> json) => DJTrack(
       spotifyUri: json['spotifyUri'] as String,
       mp3Uri: json['mp3Uri'] as String,
       networkImageUri: json['networkImageUri'] as String,
+      shortcut: json['shortcut'] as String? ?? '',
     );
 
 Map<String, dynamic> _$DJTrackToJson(DJTrack instance) => <String, dynamic>{
@@ -100,4 +104,5 @@ Map<String, dynamic> _$DJTrackToJson(DJTrack instance) => <String, dynamic>{
       'spotifyUri': instance.spotifyUri,
       'mp3Uri': instance.mp3Uri,
       'networkImageUri': instance.networkImageUri,
+      'shortcut': instance.shortcut,
     };

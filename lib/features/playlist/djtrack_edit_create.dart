@@ -9,6 +9,7 @@ import 'package:gap/gap.dart';
 
 // Riverpod
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter/services.dart'; // + ADD
 
 //Providers
 const List<int> _millisecondsbythehundreds = <int>[
@@ -42,6 +43,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
     required this.index,
     required this.isNew,
     required this.id,
+    required this.shortcut, // + ADD
   });
   final String playlistName;
   final String playlistId;
@@ -58,6 +60,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
   final String id;
   final bool isNew;
   final int index;
+  final String shortcut; // + ADD
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _EditScreenState();
 }
@@ -73,6 +76,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   final startTimeController = TextEditingController();
   final startTextFieldTimeController = TextEditingController();
   final startTextFieldTimeFocusNode = FocusNode();
+  final shortcutController = TextEditingController(); // + ADD
 
   String playlistId = '';
   String playlistName = '';
@@ -100,6 +104,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
       trackDurationFormatted =
           printDuration((Duration(milliseconds: widget.duration)));
       editStartTimeMS = widget.startTimeMS;
+      shortcutController.text = widget.shortcut; // + ADD
     }
     playlistId = widget.playlistId;
     playlistName = widget.playlistName;
@@ -176,6 +181,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               startTimeMS: editStartTimeMS,
               playCount: 0,
               networkImageUri: networkImageUriController.text,
+              shortcut: shortcutController.text.trim(), // + ADD
             ),
           );
     } else {
@@ -192,6 +198,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               startTimeMS: editStartTimeMS,
               playCount: widget.playCount,
               networkImageUri: widget.networkImageUri,
+              shortcut: shortcutController.text.trim(), // + ADD
             ),
           );
     }
@@ -542,6 +549,34 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                           color: Theme.of(context).primaryColor, width: 2),
                     ),
                     hintText: ' Paste spotify uri',
+                  ),
+                ),
+              ),
+              // + ADD shortcut field
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: TextField(
+                  controller: shortcutController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(2),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Shortcut (nummer)',
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    hintText: ' f.eks. 1',
                   ),
                 ),
               ),

@@ -12,6 +12,26 @@ final dataTrackProvider = Provider<List<DJTrack>>(
   },
 );
 
+final dataTrackWithShortcutProvider = Provider<List<DJTrack>>(
+  (ref) {
+    final hiveDatas = ref.watch(hiveTrackData) ?? [];
+    final tracks =
+        hiveDatas.where((t) => t.shortcut.trim().isNotEmpty).toList();
+
+    int compareShortcut(DJTrack a, DJTrack b) {
+      final as = a.shortcut.trim();
+      final bs = b.shortcut.trim();
+      final ai = int.tryParse(as);
+      final bi = int.tryParse(bs);
+      if (ai != null && bi != null) return ai.compareTo(bi);
+      return as.toLowerCase().compareTo(bs.toLowerCase());
+    }
+
+    tracks.sort(compareShortcut);
+    return tracks;
+  },
+);
+
 final dataTrackWithStartTimeProvider = Provider<List<DJTrack>>(
   (ref) {
     final hiveDatas = ref.watch(hiveTrackData);

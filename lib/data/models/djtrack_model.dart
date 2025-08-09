@@ -11,18 +11,20 @@ const String djtrackBoxName = 'djtrack';
 @HiveType(typeId: 1)
 @JsonSerializable()
 class DJTrack extends HiveObject {
-  DJTrack(
-      {required this.id,
-      required this.name,
-      required this.album,
-      required this.artist,
-      required this.startTime,
-      required this.startTimeMS,
-      required this.duration,
-      required this.playCount,
-      required this.spotifyUri,
-      required this.mp3Uri,
-      required this.networkImageUri});
+  DJTrack({
+    required this.id,
+    required this.name,
+    required this.album,
+    required this.artist,
+    required this.startTime,
+    required this.startTimeMS,
+    required this.duration,
+    required this.playCount,
+    required this.spotifyUri,
+    required this.mp3Uri,
+    required this.networkImageUri,
+    this.shortcut = '',
+  });
 
   @HiveField(0)
   String id;
@@ -47,39 +49,47 @@ class DJTrack extends HiveObject {
   @HiveField(10, defaultValue: '')
   String networkImageUri;
 
+  @HiveField(11, defaultValue: '')
+  String shortcut;
+
   factory DJTrack.fromJson(Map<String, dynamic> json) =>
       _$DJTrackFromJson(json);
 
   factory DJTrack.empty() => DJTrack(
-      id: '',
-      name: '',
-      album: '',
-      artist: '',
-      startTime: 0,
-      startTimeMS: 0,
-      duration: 0,
-      playCount: 0,
-      spotifyUri: '',
-      mp3Uri: '',
-      networkImageUri: '');
+        id: '',
+        name: '',
+        album: '',
+        artist: '',
+        startTime: 0,
+        startTimeMS: 0,
+        duration: 0,
+        playCount: 0,
+        spotifyUri: '',
+        mp3Uri: '',
+        networkImageUri: '',
+        shortcut: '',
+      );
 
-  factory DJTrack.simple(
-          {required String name,
-          required String album,
-          required String artist,
-          String spotifyUri = 'spotify:track:2USlegnFJLrVLpoVfPimKB'}) =>
+  factory DJTrack.simple({
+    required String name,
+    required String album,
+    required String artist,
+    String spotifyUri = 'spotify:track:2USlegnFJLrVLpoVfPimKB',
+  }) =>
       DJTrack(
-          id: const Uuid().v4(),
-          name: name,
-          album: album,
-          artist: artist,
-          startTime: 0,
-          startTimeMS: 0,
-          duration: 0,
-          playCount: 0,
-          spotifyUri: spotifyUri,
-          mp3Uri: '',
-          networkImageUri: '');
+        id: const Uuid().v4(),
+        name: name,
+        album: album,
+        artist: artist,
+        startTime: 0,
+        startTimeMS: 0,
+        duration: 0,
+        playCount: 0,
+        spotifyUri: spotifyUri,
+        mp3Uri: '',
+        networkImageUri: '',
+        shortcut: '',
+      );
 
   Map<String, dynamic> toJson() => _$DJTrackToJson(this);
 
@@ -124,6 +134,7 @@ class DJTrack extends HiveObject {
       spotifyUri: track.uri!,
       mp3Uri: '',
       networkImageUri: networkImageUri,
+      shortcut: '',
     );
   }
 }
