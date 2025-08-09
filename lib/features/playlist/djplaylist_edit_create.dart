@@ -831,6 +831,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                             spotifyUri: '',
                             mp3Uri: '',
                             networkImageUri: '',
+                            shortcut: '',
                             index: 0,
                           ),
                         ),
@@ -946,32 +947,40 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   Widget getTrackList(List<DJTrack> tracks) {
     return Expanded(
       flex: 10,
-      child: ListView.builder(
-        itemCount: tracks.length,
-        itemBuilder: (context, index) {
-          return DJPlaylistTrackView(
-            counter: index + 1,
-            track: tracks[index],
-            onEdit: () {
-              ref.invalidate(dataTrackProvider);
-              DJTrack track = tracks[index];
-              // get result from pop
-
-              handleTrackEdit(id: widget.id, track: track, index: index);
-            },
-            onDelete: () {
-              DJPlaylist playlist = ref
-                  .read(hivePlaylistData.notifier)
-                  .removeDJTrackFromPlaylist(ref.read(hiveTrackData.notifier),
-                      widget.id, tracks[index].id, index);
-              setState(() {
-                trackIds = playlist.trackIds;
-                playlistTrackList =
-                    ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-              });
-            },
-          );
+      child: RefreshIndicator(
+        onRefresh: () async {
+          ref.read(hiveTrackData.notifier).fetchDJTrack();
+          setState(() {
+            playlistTrackList =
+                ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+          });
         },
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: tracks.length,
+          itemBuilder: (context, index) {
+            return DJPlaylistTrackView(
+              counter: index + 1,
+              track: tracks[index],
+              onEdit: () {
+                ref.invalidate(dataTrackProvider);
+                final track = tracks[index];
+                handleTrackEdit(id: widget.id, track: track, index: index);
+              },
+              onDelete: () {
+                final playlist = ref
+                    .read(hivePlaylistData.notifier)
+                    .removeDJTrackFromPlaylist(ref.read(hiveTrackData.notifier),
+                        widget.id, tracks[index].id, index);
+                setState(() {
+                  trackIds = playlist.trackIds;
+                  playlistTrackList =
+                      ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+                });
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -999,14 +1008,20 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           spotifyUri: track.spotifyUri,
           mp3Uri: track.mp3Uri,
           networkImageUri: track.networkImageUri,
+          shortcut: track.shortcut,
           index: index,
         ),
       ),
     ).then((value) {
       if (value != null && value is int) {
-        int gotoTrackIndex = value;
-        DJTrack track = playlistTrackList[gotoTrackIndex];
+        final gotoTrackIndex = value;
+        final track = playlistTrackList[gotoTrackIndex];
         handleTrackEdit(id: widget.id, track: track, index: gotoTrackIndex);
+      } else {
+        setState(() {
+          playlistTrackList =
+              ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        });
       }
     });
   }
