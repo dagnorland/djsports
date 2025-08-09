@@ -40,11 +40,12 @@ class DJPlaylistRepo {
     return _hive.values.toList();
   }
 
-  DJPlaylist removeDJTrackFromPlaylist(String playlistId, String trackId) {
+  DJPlaylist removeDJTrackFromPlaylist(
+      String playlistId, String trackId, int index) {
     DJPlaylist playlist =
         _hive.values.toList().firstWhere((element) => element.id == playlistId);
 
-    playlist.trackIds.removeWhere((element) => element == trackId);
+    playlist.trackIds.removeAt(index);
     return updateDJPlaylist(playlist);
   }
 

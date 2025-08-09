@@ -963,7 +963,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               DJPlaylist playlist = ref
                   .read(hivePlaylistData.notifier)
                   .removeDJTrackFromPlaylist(ref.read(hiveTrackData.notifier),
-                      widget.id, tracks[index].id);
+                      widget.id, tracks[index].id, index);
               setState(() {
                 trackIds = playlist.trackIds;
                 playlistTrackList =
