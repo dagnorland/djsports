@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Track starttime added input text field edit
 - Edit track with update & goto next track
 - Added shortcut for tracks
+- Show Shortcut Tracks in MatchCenter
 
 ### Fixed
 - Deleting playlist do not delete tracks that are on other playlists

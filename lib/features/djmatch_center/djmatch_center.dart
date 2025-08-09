@@ -1,11 +1,13 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
+import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/djmatch_center/widgets/djmatch_center_playlist_tracks_carousel.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
+import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 
 class DJMatchCenterViewPage extends StatefulHookConsumerWidget {
   const DJMatchCenterViewPage({super.key, this.refreshCallback});
@@ -121,6 +123,7 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
   @override
   Widget build(BuildContext context) {
     final playlists = ref.watch(typeFilteredAllDataProvider);
+    final tracksWithShortcut = ref.watch(dataTrackWithShortcutProvider);
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -146,6 +149,71 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
                         height: 1,
                         thickness: 2,
                       ),
+                      Expanded(
+                          flex: 5,
+                          child: Container(
+                            color: Colors.yellow,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              itemCount: tracksWithShortcut.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final track = tracksWithShortcut[index];
+                                final label = track.shortcut
+                                    .padLeft(2, '0')
+                                    .substring(
+                                      track.shortcut.padLeft(2, '0').length - 2,
+                                    );
+
+                                return SizedBox(
+                                  width: 56,
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      shape: const CircleBorder(),
+                                      padding: EdgeInsets.zero,
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      final response = await ref
+                                          .read(spotifyRemoteRepositoryProvider)
+                                          .playTrackAndJumpStart(
+                                            track,
+                                            track.startTime + track.startTimeMS,
+                                            DJPlaylistType.hotspot,
+                                            'Shortcuts',
+                                          );
+
+                                      if (response.contains('[ErrorMessage]')) {
+                                        showMessageToast(response);
+                                      } else {
+                                        track.playCount = track.playCount + 1;
+                                        ref
+                                            .read(hiveTrackData.notifier)
+                                            .updateDJTrack(track);
+                                        showMessageToast(response);
+                                        await ref
+                                            .read(lastDjTrackPlayedProvider
+                                                .notifier)
+                                            .updateLastPlayedTrack(track);
+                                      }
+                                    },
+                                    child: Text(
+                                      label,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          )),
                       Expanded(
                           flex: 40,
                           child: CustomScrollView(
