@@ -4,6 +4,7 @@ import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/djmatch_center/widgets/djmatch_center_playlist_tracks_carousel.dart';
 import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
@@ -139,16 +140,18 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
                         child: SizedBox(),
                       ),
                       Expanded(
-                          flex: 13,
+                          flex: 14,
                           child: CustomScrollView(
                               physics: const BouncingScrollPhysics(),
                               slivers: getPlaylistWidgetByPlaylistType(
                                   playlists, DJPlaylistType.hotspot))),
+                      const Gap(3),
                       Divider(
                         color: DJPlaylistType.hotspot.color,
                         height: 1,
                         thickness: 2,
                       ),
+                      const Gap(3),
                       Expanded(
                           flex: 5,
                           child: Container(

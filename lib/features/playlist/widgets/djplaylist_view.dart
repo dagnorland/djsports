@@ -29,13 +29,6 @@ class DJPlaylistView extends HookConsumerWidget {
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(children: [playlistWidget(context, ref)]),
-    );
-  }
-
-  Widget playlistWidget(BuildContext context, WidgetRef ref) {
     bool isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
@@ -126,7 +119,7 @@ class DJPlaylistView extends HookConsumerWidget {
             Row(
               children: [
                 SizedBox(
-                    width: isLandscape ? 270 : 140,
+                    width: isLandscape ? 300 : 140,
                     child: Row(children: [
                       if (isLandscape)
                         Expanded(flex: 33, child: musicSourceImage),
@@ -144,7 +137,13 @@ class DJPlaylistView extends HookConsumerWidget {
                               ? 'Empty'
                               : '#${trackIds.length.toString()}'),
                         ),
-                      )
+                      ),
+                      // Legg til chip
+                      //
+                      Expanded(
+                        flex: 25,
+                        child: _buildShortcutChip(ref),
+                      ),
                     ])),
               ],
             ),
@@ -153,29 +152,59 @@ class DJPlaylistView extends HookConsumerWidget {
               style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor),
               onPressed: onEdit,
-              child: Text(
-                'Edit',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall!
-                    .copyWith(color: Colors.white),
-              ),
+              child: isLandscape
+                  ? Text(
+                      'Edit',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall!
+                          .copyWith(color: Colors.white),
+                    )
+                  : const Icon(Icons.edit, color: Colors.white),
             ),
             const SizedBox(width: 5),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor),
               onPressed: onDelete,
-              child: Text(
-                'Delete',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall!
-                    .copyWith(color: Colors.white),
-              ),
+              child: isLandscape
+                  ? Text(
+                      'Delete',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall!
+                          .copyWith(color: Colors.white),
+                    )
+                  : const Icon(Icons.delete, color: Colors.white),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildShortcutChip(WidgetRef ref) {
+    if (trackIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final tracks = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+    final tracksWithShortcuts =
+        tracks.where((track) => track.shortcut.trim().isNotEmpty).toList();
+
+    if (tracksWithShortcuts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Vis bare antall tracks med shortcuts
+    return Chip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.shortcut_rounded, size: 14),
+          const SizedBox(width: 2),
+          Text('${tracksWithShortcuts.length}'),
+        ],
       ),
     );
   }

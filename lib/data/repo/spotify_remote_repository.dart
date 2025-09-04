@@ -17,7 +17,7 @@ class SpotifyRemoteRepository {
   String lastValidAccessToken = '';
   Object lastAccessTokenError = Object();
   bool isConnectedRemote = false;
-  bool isConnected = false;
+  bool hasSpotifyAccessToken = false;
   bool isPlaying = false;
   static const numberOfRetries = 8;
   double volume = 0.5;
@@ -60,9 +60,10 @@ class SpotifyRemoteRepository {
   Future<bool> connect() async {
     await connectAccessToken();
     await connectToSpotifyRemote();
-    SpotifyConnectionLog().debugPrintLog();
+    debugPrint(
+        'SpotifyRemoteRepository: RUNNING connect ${DateTime.now().toString()} isConnected: $hasSpotifyAccessToken  isConnectedRemote: $isConnectedRemote');
 
-    return isConnected && isConnectedRemote;
+    return hasSpotifyAccessToken && isConnectedRemote;
   }
 
   Future<bool> pausePlayer() async {
@@ -105,7 +106,7 @@ class SpotifyRemoteRepository {
 
   Future<String> playTrackAndJumpStart(DJTrack track, int jumpStart,
       DJPlaylistType playlistType, String playlistName) async {
-    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
+    if (!hasSpotifyAccessToken || !lastValidAccessToken.isNotEmpty) {
       return '[Error] Not connected to Spotify';
     }
     String errorMessage = '';
@@ -177,13 +178,13 @@ class SpotifyRemoteRepository {
       if (platformException.details != null) {
         if ((platformException.details as String)
             .contains('SpotifyDisconnectedException')) {
-          isConnected = false;
+          hasSpotifyAccessToken = false;
           SpotifyConnectionLog().addSimpleEntry(
               SpotifyConnectionStatus.notConnected,
               'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
           // lets reconnect
           await connectAccessToken();
-          if (isConnected) {
+          if (hasSpotifyAccessToken) {
             await connectToSpotifyRemote();
             if (isConnectedRemote) {
               SpotifyConnectionLog().addSimpleEntry(
@@ -202,7 +203,7 @@ class SpotifyRemoteRepository {
 
   Future<String> playSpotiyfyUriAndJumpStart(
       String spotifyUri, int jumpStart) async {
-    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
+    if (!hasSpotifyAccessToken || !lastValidAccessToken.isNotEmpty) {
       return '[Error] Not connected to Spotify';
     }
 
@@ -271,13 +272,13 @@ class SpotifyRemoteRepository {
       if (platformException.details != null) {
         if ((platformException.details as String)
             .contains('SpotifyDisconnectedException')) {
-          isConnected = false;
+          hasSpotifyAccessToken = false;
           SpotifyConnectionLog().addSimpleEntry(
               SpotifyConnectionStatus.notConnected,
               'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
           // lets reconnect
           await connectAccessToken();
-          if (isConnected) {
+          if (hasSpotifyAccessToken) {
             await connectToSpotifyRemote();
             if (isConnectedRemote) {
               SpotifyConnectionLog().addSimpleEntry(
@@ -295,7 +296,7 @@ class SpotifyRemoteRepository {
   }
 
   Future<String> playTrack(String spotifyUri) async {
-    if (!isConnected || !lastValidAccessToken.isNotEmpty) {
+    if (!hasSpotifyAccessToken || !lastValidAccessToken.isNotEmpty) {
       return '[Error] Not connected to Spotify';
     }
 
@@ -309,13 +310,13 @@ class SpotifyRemoteRepository {
       if (platformException.details != null) {
         if ((platformException.details as String)
             .contains('SpotifyDisconnectedException')) {
-          isConnected = false;
+          hasSpotifyAccessToken = false;
           SpotifyConnectionLog().addSimpleEntry(
               SpotifyConnectionStatus.notConnected,
               'Error, SpotifyRemote platformexception, not connected. ${platformException.details}');
           // lets reconnect
           await connectAccessToken();
-          if (isConnected) {
+          if (hasSpotifyAccessToken) {
             await connectToSpotifyRemote();
             if (isConnectedRemote) {
               SpotifyConnectionLog().addSimpleEntry(
@@ -343,7 +344,7 @@ class SpotifyRemoteRepository {
       final accessToken = await getSpotifyAccessToken();
       _credentials.accessToken = accessToken;
       lastValidAccessToken = accessToken;
-      isConnected = accessToken.isNotEmpty;
+      hasSpotifyAccessToken = accessToken.isNotEmpty;
       lastConnectionTime = DateTime.now();
 
       SpotifyConnectionLog().addSimpleEntry(
@@ -354,11 +355,11 @@ class SpotifyRemoteRepository {
           SpotifyConnectionStatus.notConnected,
           'Failed to connect to Spotify ${e.toString()}');
 
-      isConnected = false;
+      hasSpotifyAccessToken = false;
       lastAccessTokenError = e;
     }
-    debugPrint('connect isConnected: $isConnected');
-    return isConnected;
+    debugPrint('connect isConnected: $hasSpotifyAccessToken');
+    return hasSpotifyAccessToken;
   }
 
   Future<String> getSpotifyAccessToken() async {
@@ -369,7 +370,7 @@ class SpotifyRemoteRepository {
 
     // if more than 5 five minutes since last connection, lets reconnect
     if (lastConnectionTime
-            .isAfter(DateTime.now().subtract(const Duration(minutes: 5))) &&
+            .isAfter(DateTime.now().subtract(const Duration(minutes: 15))) &&
         lastValidAccessToken.isNotEmpty) {
       debugPrint(
           'getSpotifyAccessToken ALREADY CONNECTED lastConnectionTime: $lastConnectionTime');

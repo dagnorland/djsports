@@ -46,10 +46,12 @@ class SpotifyConnectionLog {
   }
 
   void debugPrintLog() {
+    debugPrint('SpotifyConnectionLog: START SHOW LOG ********************');
     for (final entry in _log) {
       debugPrint(
           'SpotifyConnectionLog: ${entry.timestamp} ${entry.status} ${entry.message}');
     }
+    debugPrint('SpotifyConnectionLog: END SHOW LOG ********************');
   }
 
   List<SpotifyConnectionLogEntry> get log => _log;

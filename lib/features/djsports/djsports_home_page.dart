@@ -9,9 +9,12 @@ import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/playlist/widgets/type_filter.dart';
 import 'package:djsports/features/track_time/track_time_center_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:spotify_sdk/models/connection_status.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
+import 'dart:async';
 
 class HomePage extends StatefulHookConsumerWidget {
   const HomePage({super.key});
@@ -23,11 +26,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool spotifyConnect = false;
   bool spotifyRemoteConnect = false;
   bool isPlaying = false;
+  bool initStateConnectDone = false;
 
   Future<void> _spotifyConnect(BuildContext context, WidgetRef ref) async {
     final spotifyRemoteService = ref.read(spotifyRemoteRepositoryProvider);
     spotifyConnect = await spotifyRemoteService.connect();
-    SpotifyConnectionLog().debugPrintLog();
+    debugPrint('_spotifyConnect: $spotifyConnect');
   }
 
   Future<bool> pausePlayer() async {
@@ -46,11 +50,33 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (!spotifyConnect) {
-      _spotifyConnect(context, ref);
+  void initState() {
+    super.initState();
+    _initializeSpotifyConnection();
+  }
+
+  Future<void> _initializeSpotifyConnection() async {
+    try {
+      await _spotifyConnect(context, ref);
+      if (mounted) {
+        setState(() {
+          initStateConnectDone = true;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        debugPrint('Error initializing Spotify connection: $error');
+      }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    //if (!spotifyConnect) {
+    //  _spotifyConnect(context, ref);
+    //}
     final playlistList = ref.watch(typeFilteredAllDataProvider);
+    final packageInfo = useFuture(PackageInfo.fromPlatform());
 
     // FlutterNativeSplash.remove();
 
@@ -66,7 +92,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                 SpotifyConnectionLog().addSimpleEntry(
                     SpotifyConnectionStatus.notConnected,
                     'Connected to Spotify');
-                ref.read(spotifyRemoteRepositoryProvider).connect();
+                // Kjør connect asynkront uten å vente
+                ref.read(spotifyRemoteRepositoryProvider).connect().then((_) {
+                  if (mounted) {
+                    // Oppdater UI når tilkobling er ferdig
+                    debugPrint('Spotify Remote re-connected');
+                  }
+                }).catchError((error) {
+                  debugPrint('Error connecting to Spotify Remote: $error');
+                });
               }
             }
             isPlaying = ref.read(spotifyRemoteRepositoryProvider).isPlaying;
@@ -81,9 +115,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                   style: TextStyle(
                       color: Colors.black, fontWeight: FontWeight.bold),
                 ),
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text(
+                    'v${packageInfo.data?.version ?? '...'}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.black54,
+                        ),
+                  ),
+                ),
                 actions: [
                   const CurrentVolumeWidget(),
-                  ref.read(spotifyRemoteRepositoryProvider).isConnected
+                  ref
+                          .read(spotifyRemoteRepositoryProvider)
+                          .hasSpotifyAccessToken
                       ? IconButton(
                           onPressed: () {
                             setState(() {
@@ -94,7 +139,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                               color: isPlaying ? Colors.grey : Colors.green),
                         )
                       : Container(),
-                  ref.read(spotifyRemoteRepositoryProvider).isConnected
+                  ref
+                          .read(spotifyRemoteRepositoryProvider)
+                          .hasSpotifyAccessToken
                       ? IconButton(
                           onPressed: () {
                             setState(() {
@@ -159,11 +206,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                       style: ElevatedButton.styleFrom(
                           backgroundColor: ref
                                   .read(spotifyRemoteRepositoryProvider)
-                                  .isConnected
+                                  .hasSpotifyAccessToken
                               ? Colors.green.shade700
                               : Colors.red.shade700),
                       child: Text(
-                        ref.read(spotifyRemoteRepositoryProvider).isConnected
+                        ref
+                                .read(spotifyRemoteRepositoryProvider)
+                                .hasSpotifyAccessToken
                             ? 'Connected'
                             : 'Connect',
                         style: Theme.of(context)
@@ -171,13 +220,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                             .titleLarge!
                             .copyWith(color: Colors.white),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _spotifyConnect(context, ref);
-                          if (ref
-                              .read(spotifyRemoteRepositoryProvider)
-                              .isConnected) {}
-                        });
+                      onPressed: () async {
+                        await _spotifyConnect(context, ref);
+                        if (mounted) {
+                          setState(() {
+                            if (ref
+                                .read(spotifyRemoteRepositoryProvider)
+                                .hasSpotifyAccessToken) {}
+                          });
+                        }
                       },
                     ),
                   ),

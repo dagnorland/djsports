@@ -136,7 +136,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
     List<DJTrack> tracks =
         ref.watch(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
 
-    CarouselController carouselController = CarouselController();
+    final carouselController = useMemoized(() => CarouselController());
     final isShowingPLAYFlame = useState(false);
 
     return Stack(children: [
