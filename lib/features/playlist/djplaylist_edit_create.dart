@@ -437,7 +437,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               size: 30,
             )),
         actions: [
-          ref.read(spotifyRemoteRepositoryProvider).isConnected
+          ref.read(spotifyRemoteRepositoryProvider).hasSpotifyAccessToken
               ? IconButton(
                   onPressed: () {
                     setState(() {
@@ -447,7 +447,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   icon: const Icon(Icons.play_arrow, color: Colors.green),
                 )
               : Container(),
-          ref.read(spotifyRemoteRepositoryProvider).isConnected
+          ref.read(spotifyRemoteRepositoryProvider).hasSpotifyAccessToken
               ? IconButton(
                   onPressed: () {
                     setState(() {

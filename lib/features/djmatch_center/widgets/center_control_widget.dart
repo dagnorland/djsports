@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 
 class CenterControlWidget extends StatefulHookConsumerWidget {
   const CenterControlWidget({
@@ -28,6 +30,8 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
   @override
   Widget build(BuildContext context) {
     final lastTrack = ref.watch(lastDjTrackPlayedProvider);
+    final packageInfo = useFuture(PackageInfo.fromPlatform());
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -83,10 +87,20 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
           ),
         ),
         Expanded(
-            child: Image.asset(
-          'assets/images/djsports/djsports_v12_round.png',
-          width: 80,
-          height: 80,
+            child: Column(
+          children: [
+            Image.asset(
+              'assets/images/djsports/djsports_v12_round.png',
+              width: 80,
+              height: 80,
+            ),
+            Text(
+              'v${packageInfo.data?.version ?? '...'}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                  ),
+            ),
+          ],
         )),
         IconButton(
           icon: const Icon(Icons.backspace),
