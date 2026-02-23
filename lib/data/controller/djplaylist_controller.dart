@@ -7,20 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final djplaylistRepositoryProvider =
     Provider<DJPlaylistRepo>((ref) => DJPlaylistRepo());
 
-class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
-  DJPlaylistHive(this.ref) : super(null) {
-    /// Repository Todo Service Provider
+class DJPlaylistHive extends Notifier<List<DJPlaylist>?> {
+  late DJPlaylistRepo repo;
+
+  @override
+  List<DJPlaylist>? build() {
     repo = ref.read(djplaylistRepositoryProvider);
-    fetchDJPlaylist();
+    return repo.getDJPlaylists();
   }
-  late DJPlaylistRepo? repo;
-  final Ref ref;
+
   void fetchDJPlaylist() {
-    state = repo!.getDJPlaylists();
+    state = repo.getDJPlaylists();
   }
 
   String addDJplaylist(DJPlaylist djPlaylist) {
-    state = repo!.addDJPlaylist(djPlaylist);
+    state = repo.addDJPlaylist(djPlaylist);
     if (state != null) {
       if (state!.isNotEmpty) {
         return state!.last.id;
@@ -44,7 +45,7 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
         }
       }
     }
-    state = repo!.removeDJPlaylist(playlistId);
+    state = repo.removeDJPlaylist(playlistId);
   }
 
   DJPlaylist shuffleTracksInPlaylist(String playlistId) {
@@ -56,13 +57,13 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
     final shuffledTracks = [...playlist.trackIds]..shuffle();
     final updatedPlaylist = playlist.copyWith(trackIds: shuffledTracks);
     fetchDJPlaylist();
-    return repo!.updateDJPlaylist(updatedPlaylist);
+    return repo.updateDJPlaylist(updatedPlaylist);
   }
 
   DJPlaylist removeDJTrackFromPlaylist(DJTrackHive trackHive, String playlistId,
       String trackId, int playlistIndex) {
     DJPlaylist playlist =
-        repo!.removeDJTrackFromPlaylist(playlistId, trackId, playlistIndex);
+        repo.removeDJTrackFromPlaylist(playlistId, trackId, playlistIndex);
 
     final isUsedInAnotherPlaylist = state!.any(
       (playlist) =>
@@ -79,14 +80,14 @@ class DJPlaylistHive extends StateNotifier<List<DJPlaylist>?> {
   ///Update  current todo from local Storage
 
   DJPlaylist updateDJPlaylist(DJPlaylist djPlaylist) {
-    final updatedPlaylist = repo!.updateDJPlaylist(djPlaylist);
+    final updatedPlaylist = repo.updateDJPlaylist(djPlaylist);
     fetchDJPlaylist();
     return updatedPlaylist;
   }
 
   DJPlaylist addTrackToDJPlaylist(DJPlaylist djPlaylist, DJTrack djTrack) {
     djPlaylist.addTrack(djTrack.id);
-    return repo!.updateDJPlaylist(djPlaylist);
+    return repo.updateDJPlaylist(djPlaylist);
   }
 }
 

@@ -5,26 +5,23 @@ import 'package:djsports/data/models/track_time_model.dart';
 final trackTimeRepositoryProvider =
     Provider<TrackTimeRepo>((ref) => TrackTimeRepo());
 
-class TrackTimeHive extends StateNotifier<List<TrackTime>?> {
-  TrackTimeHive(this.ref) : super(null) {
-    /// Repository Todo Service Provider
+class TrackTimeHive extends Notifier<List<TrackTime>?> {
+  late TrackTimeRepo repo;
+
+  @override
+  List<TrackTime>? build() {
     repo = ref.read(trackTimeRepositoryProvider);
-    fetchTrackTimes();
+    return repo.getTrackTimes();
   }
-  late TrackTimeRepo? repo;
-  final Ref ref;
 
   ///fetch all todo from to local Storage
 
   void fetchTrackTimes() {
-    state = repo!.getTrackTimes();
+    state = repo.getTrackTimes();
   }
 
   List<String> getTrackTimesById(List<String> trackIds) {
-    if (repo == null) {
-      return [];
-    }
-    final trackTimes = repo!
+    final trackTimes = repo
         .getTrackTimes()
         .where((element) => trackIds.contains(element.id))
         .toList();
@@ -37,12 +34,12 @@ class TrackTimeHive extends StateNotifier<List<TrackTime>?> {
   }
 
   bool existsTrackTime(String trackId) {
-    final allTrackTimes = repo!.getTrackTimes();
+    final allTrackTimes = repo.getTrackTimes();
     return allTrackTimes.any((track) => track.id == trackId);
   }
 
   List<TrackTime> getTrackTimesByIds(List<String> trackIds) {
-    final allTrackTimes = repo!.getTrackTimes();
+    final allTrackTimes = repo.getTrackTimes();
     return trackIds
         .map((id) => allTrackTimes.firstWhere(
               (track) => track.id == id,
@@ -56,21 +53,21 @@ class TrackTimeHive extends StateNotifier<List<TrackTime>?> {
     if (trackTime.id.isEmpty) {
       throw Exception('Missing id');
     }
-    final existingTrackTimes = repo!.getTrackTimes();
+    final existingTrackTimes = repo.getTrackTimes();
     if (existingTrackTimes.any((track) => track.id == trackTime.id)) {
       return;
     }
-    state = repo!.addTrackTime(trackTime);
+    state = repo.addTrackTime(trackTime);
   }
 
   void removeTrackTime(String id) {
-    state = repo!.removeTrackTime(id);
+    state = repo.removeTrackTime(id);
   }
 
   ///Update  current todo from local Storage
 
   void updateTrackTime(TrackTime trackTime) {
-    state = repo!.updateTrackTime(trackTime);
+    state = repo.updateTrackTime(trackTime);
   }
 
   List<TrackTime> getAllTrackTimes() {

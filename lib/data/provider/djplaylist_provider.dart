@@ -1,4 +1,5 @@
-import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../controller/djplaylist_controller.dart';
 import '../models/djplaylist_model.dart';
 import '../repo/djplaylist_repository.dart';
@@ -31,8 +32,7 @@ final providerHive = Provider<DJPlaylistRepo>((ref) => DJPlaylistRepo());
 
 ///Hive data
 final hivePlaylistData =
-    StateNotifierProvider<DJPlaylistHive, List<DJPlaylist>?>(
-        (ref) => DJPlaylistHive(ref));
+    NotifierProvider<DJPlaylistHive, List<DJPlaylist>?>(DJPlaylistHive.new);
 
 /// Returns a specific DJPlaylist by ID
 /// Throws [StateError] if playlist is not found

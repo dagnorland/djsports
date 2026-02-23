@@ -31,7 +31,7 @@ class DJPlaylistView extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     bool isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-    String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
+    String networkImageUri = ref.read(hiveTrackData) != null
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
         : '';
 

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 - Fixed async spotify remote 
 - Bug fixes on track carousel - new flutter version useMemoized
+- Spotify subscribe connection only when Spotify plugin is available. 
 
 ## [1.6.1] - Release 2025-02-16
 

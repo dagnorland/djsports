@@ -44,5 +44,5 @@ final providerTrackHive = Provider<DJTrackRepo>((ref) => DJTrackRepo());
 
 ///Hive data
 
-final hiveTrackData = StateNotifierProvider<DJTrackHive, List<DJTrack>?>(
-    (ref) => DJTrackHive(ref));
+final hiveTrackData =
+    NotifierProvider<DJTrackHive, List<DJTrack>?>(DJTrackHive.new);

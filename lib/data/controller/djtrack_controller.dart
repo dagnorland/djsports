@@ -7,31 +7,28 @@ import 'package:djsports/data/models/track_time_model.dart';
 
 final djtrackRepositoryProvider = Provider<DJTrackRepo>((ref) => DJTrackRepo());
 
-class DJTrackHive extends StateNotifier<List<DJTrack>?> {
-  DJTrackHive(this.ref) : super(null) {
-    /// Repository Todo Service Provider
+class DJTrackHive extends Notifier<List<DJTrack>?> {
+  late DJTrackRepo repo;
+
+  @override
+  List<DJTrack>? build() {
     repo = ref.read(djtrackRepositoryProvider);
-    fetchDJTrack();
+    return repo.getDJTracks();
   }
-  late DJTrackRepo? repo;
-  final Ref ref;
 
   ///fetch all todo from to local Storage
 
   void fetchDJTrack() {
-    state = repo!.getDJTracks();
+    state = repo.getDJTracks();
   }
 
   List<DJTrack> getDJTracksWithStartTime() {
-    final allTracks = repo!.getDJTracks();
+    final allTracks = repo.getDJTracks();
     return allTracks.where((track) => track.startTime > 0).toList();
   }
 
   List<String> getDJTracksSpotifyUri(List<String> trackIds) {
-    if (repo == null) {
-      return [];
-    }
-    final djTracks = repo!
+    final djTracks = repo
         .getDJTracks()
         .where((element) => trackIds.contains(element.id))
         .toList();
@@ -44,12 +41,12 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
   }
 
   bool existsDJTrack(String trackId) {
-    final allTracks = repo!.getDJTracks();
+    final allTracks = repo.getDJTracks();
     return allTracks.any((track) => track.id == trackId);
   }
 
   List<DJTrack> getDJTracks(List<String> trackIds) {
-    final allTracks = repo!.getDJTracks();
+    final allTracks = repo.getDJTracks();
     return trackIds
         .map((id) => allTracks.firstWhere(
               (track) => track.id == id,
@@ -71,19 +68,15 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
     if (djTrack.id.isEmpty) {
       djTrack.id = const Uuid().v4();
     }
-    final existingTracks = repo!.getDJTracks();
+    final existingTracks = repo.getDJTracks();
     if (existingTracks.any((track) => track.id == djTrack.id)) {
       return;
     }
-    state = repo!.addDJTrack(djTrack);
+    state = repo.addDJTrack(djTrack);
   }
 
   String getFirstNetworkImageUri(List<String> trackIds) {
-    if (repo == null) {
-      return '';
-    }
-
-    final tracks = repo!.getDJTracks();
+    final tracks = repo.getDJTracks();
     for (var track in tracks) {
       if (trackIds.contains(track.id) && track.networkImageUri.isNotEmpty) {
         return track.networkImageUri;
@@ -95,13 +88,13 @@ class DJTrackHive extends StateNotifier<List<DJTrack>?> {
 
   ///remove todo from local Storage
   void removeDJTrack(String id) {
-    state = repo!.removeDJTrack(id);
+    state = repo.removeDJTrack(id);
   }
 
   ///Update  current todo from local Storage
 
   void updateDJTrack(DJTrack djTrack) {
-    state = repo!.updateDJTrack(djTrack);
+    state = repo.updateDJTrack(djTrack);
   }
 
   List<TrackTime> getStartTimes() {

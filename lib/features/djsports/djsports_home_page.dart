@@ -27,6 +27,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool spotifyRemoteConnect = false;
   bool isPlaying = false;
   bool initStateConnectDone = false;
+  Timer? _connectionHealthCheckTimer;
 
   Future<void> _spotifyConnect(BuildContext context, WidgetRef ref) async {
     final spotifyRemoteService = ref.read(spotifyRemoteRepositoryProvider);
@@ -49,10 +50,46 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  void _startConnectionHealthCheck() {
+    // Check connection health every 5 minutes
+    _connectionHealthCheckTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (timer) async {
+        final repo = ref.read(spotifyRemoteRepositoryProvider);
+        final timeSinceLastConnection =
+            DateTime.now().difference(repo.lastConnectionTime);
+
+        // If more than 45 minutes since last connection, proactively refresh token
+        if (timeSinceLastConnection.inMinutes > 45 &&
+            repo.hasSpotifyAccessToken) {
+          debugPrint(
+              'Proactive connection refresh after $timeSinceLastConnection');
+          try {
+            await repo.connectAccessToken();
+            if (mounted) {
+              setState(() {
+                spotifyConnect = repo.hasSpotifyAccessToken;
+              });
+            }
+          } catch (error) {
+            debugPrint('Error during health check reconnection: $error');
+          }
+        }
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _initializeSpotifyConnection();
+    _startConnectionHealthCheck();
+  }
+
+  @override
+  void dispose() {
+    _connectionHealthCheckTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _initializeSpotifyConnection() async {
@@ -83,7 +120,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: StreamBuilder<ConnectionStatus>(
-          stream: SpotifySdk.subscribeConnectionStatus(),
+          stream:
+              ref.read(spotifyRemoteRepositoryProvider).isSpotifyPluginInstalled
+                  ? SpotifySdk.subscribeConnectionStatus()
+                  : const Stream.empty(),
           builder: (context, snapshot) {
             var data = snapshot.data;
             if (data != null) {
@@ -91,15 +131,25 @@ class _HomePageState extends ConsumerState<HomePage> {
               if (!spotifyRemoteConnect) {
                 SpotifyConnectionLog().addSimpleEntry(
                     SpotifyConnectionStatus.notConnected,
-                    'Connected to Spotify');
-                // Kjør connect asynkront uten å vente
-                ref.read(spotifyRemoteRepositoryProvider).connect().then((_) {
-                  if (mounted) {
-                    // Oppdater UI når tilkobling er ferdig
-                    debugPrint('Spotify Remote re-connected');
+                    'Disconnected from Spotify');
+                // Reconnect automatically
+                ref
+                    .read(spotifyRemoteRepositoryProvider)
+                    .connect()
+                    .then((success) {
+                  if (mounted && success) {
+                    setState(() {
+                      spotifyConnect = true;
+                    });
+                    debugPrint('Spotify Remote re-connected successfully');
                   }
                 }).catchError((error) {
                   debugPrint('Error connecting to Spotify Remote: $error');
+                  if (mounted) {
+                    setState(() {
+                      spotifyConnect = false;
+                    });
+                  }
                 });
               }
             }

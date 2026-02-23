@@ -8,7 +8,7 @@ part of 'track_time_model.dart';
 
 class TrackTimeAdapter extends TypeAdapter<TrackTime> {
   @override
-  final int typeId = 2;
+  final typeId = 2;
 
   @override
   TrackTime read(BinaryReader reader) {
@@ -18,8 +18,8 @@ class TrackTimeAdapter extends TypeAdapter<TrackTime> {
     };
     return TrackTime(
       id: fields[0] as String,
-      startTime: fields[1] as int,
-      startTimeMS: fields[2] as int?,
+      startTime: (fields[1] as num).toInt(),
+      startTimeMS: (fields[2] as num?)?.toInt(),
     );
   }
 

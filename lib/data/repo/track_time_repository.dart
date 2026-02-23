@@ -1,5 +1,5 @@
 import 'package:djsports/data/models/track_time_model.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 class TrackTimeRepo {
   late Box<TrackTime> _hive;

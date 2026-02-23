@@ -18,6 +18,7 @@ class SpotifyRemoteRepository {
   Object lastAccessTokenError = Object();
   bool isConnectedRemote = false;
   bool hasSpotifyAccessToken = false;
+  bool isSpotifyPluginInstalled = false;
   bool isPlaying = false;
   static const numberOfRetries = 8;
   double volume = 0.5;
@@ -67,23 +68,79 @@ class SpotifyRemoteRepository {
   }
 
   Future<bool> pausePlayer() async {
-    {
+    try {
       await SpotifySdk.pause();
       SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.connectedSpotifyRemoteApp,
           'Pause Spotify Remote App');
       isPlaying = false;
       return isPlaying;
+    } on PlatformException catch (platformException) {
+      if (platformException.details != null) {
+        if ((platformException.details as String)
+            .contains('SpotifyDisconnectedException')) {
+          hasSpotifyAccessToken = false;
+          SpotifyConnectionLog().addSimpleEntry(
+              SpotifyConnectionStatus.notConnected,
+              'Error pausing, SpotifyRemote disconnected. ${platformException.details}');
+          // Reconnect and retry
+          await connectAccessToken();
+          if (hasSpotifyAccessToken) {
+            await connectToSpotifyRemote();
+            if (isConnectedRemote) {
+              SpotifyConnectionLog().addSimpleEntry(
+                  SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+                  'Reconnected. Retrying pause.');
+              await SpotifySdk.pause();
+              isPlaying = false;
+              return isPlaying;
+            }
+          }
+        }
+      }
+      debugPrint('Failed to pause. ${platformException.details}');
+      return isPlaying;
+    } catch (e) {
+      debugPrint('Failed to pause. $e');
+      return isPlaying;
     }
   }
 
   Future<bool> resumePlayer() async {
-    {
+    try {
       await SpotifySdk.resume();
       SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.connectedSpotifyRemoteApp,
           'Resumed Spotify Remote App');
       isPlaying = true;
+      return isPlaying;
+    } on PlatformException catch (platformException) {
+      if (platformException.details != null) {
+        if ((platformException.details as String)
+            .contains('SpotifyDisconnectedException')) {
+          hasSpotifyAccessToken = false;
+          SpotifyConnectionLog().addSimpleEntry(
+              SpotifyConnectionStatus.notConnected,
+              'Error resuming, SpotifyRemote disconnected. ${platformException.details}');
+          // Reconnect and retry
+          await connectAccessToken();
+          if (hasSpotifyAccessToken) {
+            await connectToSpotifyRemote();
+            if (isConnectedRemote) {
+              SpotifyConnectionLog().addSimpleEntry(
+                  SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+                  'Reconnected. Retrying resume.');
+              await SpotifySdk.resume();
+              isPlaying = true;
+              return isPlaying;
+            }
+          }
+        }
+      }
+      debugPrint('Failed to resume. ${platformException.details}');
+      return isPlaying;
+    } catch (e) {
+      debugPrint('Failed to resume. $e');
       return isPlaying;
     }
   }
@@ -368,9 +425,9 @@ class SpotifyRemoteRepository {
         DateTime.now().difference(lastConnectionTime);
     debugPrint('Time since last connection: $timeSinceLastConnection');
 
-    // if more than 5 five minutes since last connection, lets reconnect
+    // Spotify tokens expire after 1 hour, so refresh if more than 50 minutes old
     if (lastConnectionTime
-            .isAfter(DateTime.now().subtract(const Duration(minutes: 15))) &&
+            .isAfter(DateTime.now().subtract(const Duration(minutes: 50))) &&
         lastValidAccessToken.isNotEmpty) {
       debugPrint(
           'getSpotifyAccessToken ALREADY CONNECTED lastConnectionTime: $lastConnectionTime');
@@ -401,9 +458,17 @@ class SpotifyRemoteRepository {
               'user-read-currently-playing');
 
       debugPrint('getSpotifyAccessToken accessToken: $accessToken');
+      isSpotifyPluginInstalled = true;
       return accessToken;
     } catch (e) {
       debugPrint('getSpotifyAccessToken error: ${e.toString()}');
+      if (e.toString().contains('MissingPluginException')) {
+        hasSpotifyAccessToken = false;
+        isSpotifyPluginInstalled = false;
+        SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.notConnected,
+            'Error, SpotifyRemote exception, not connected. ${e.toString()}');
+      }
       rethrow;
     }
   }

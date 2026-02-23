@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
+import 'package:djsports/data/models/spotify_playlist_result.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
@@ -203,7 +204,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     DJPlaylist? playlist = ref
         .read(hivePlaylistData.notifier)
-        .repo!
+        .repo
         .getDJPlaylists()
         .firstWhere((element) => element.id == playlistId);
 
@@ -214,12 +215,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     Iterable<Track> result = await service.searchRepository
         .getTracksByUri(playlistUri)
-        .then((value) => value.when((tracks) {
-              return tracks;
-            }, error: (error) {
-              debugPrint('error: $error');
-              return [];
-            }));
+        .then((value) => value.when(
+              (tracks) => tracks,
+              error: (error) {
+                debugPrint('error: $error');
+                return <Track>[];
+              },
+            ));
 
     String syncName =
         await service.searchRepository.getSpotifyNameUri(playlistUri);
@@ -288,7 +290,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     DJPlaylist playlist = ref
         .read(hivePlaylistData.notifier)
-        .repo!
+        .repo
         .getDJPlaylists()
         .firstWhere((element) => element.id == widget.id);
 
@@ -322,7 +324,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
       DJPlaylist playlist = ref
           .read(hivePlaylistData.notifier)
-          .repo!
+          .repo
           .getDJPlaylists()
           .firstWhere((element) => element.id == widget.id);
       ref
@@ -366,7 +368,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
       DJPlaylist playlist = ref
           .read(hivePlaylistData.notifier)
-          .repo!
+          .repo
           .getDJPlaylists()
           .firstWhere((element) => element.id == widget.id);
       ref
@@ -403,14 +405,14 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   List<String> getExistingUris() {
     final existingUris = ref
         .read(hivePlaylistData.notifier)
-        .repo!
+        .repo
         .getDJPlaylists()
         .map((e) => e.spotifyUri)
         .where((uri) => uri.isNotEmpty)
         .toList();
     final existingUrisSecond = ref
         .read(hivePlaylistData.notifier)
-        .repo!
+        .repo
         .getDJPlaylists()
         .map((e) => e.spotifyUriSecond)
         .where((uri) => uri.isNotEmpty)
@@ -786,7 +788,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                           .shuffleTracksInPlaylist(widget.id);
                       playlist = ref
                           .read(hivePlaylistData.notifier)
-                          .repo!
+                          .repo
                           .getDJPlaylists()
                           .firstWhere((element) => element.id == widget.id);
 

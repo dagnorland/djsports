@@ -36,6 +36,12 @@
             "request": "launch",
             "type": "dart",
             "deviceId": "HA25HWGM",            
+        },        
+        {
+            "name": "djsports Lenovo TB X696F Liten",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "HA15147V",            
         },
         {
             "name": "djsports Samsung X200",

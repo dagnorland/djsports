@@ -8,7 +8,7 @@ part of 'djplaylist_model.dart';
 
 class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
   @override
-  final int typeId = 0;
+  final typeId = 0;
 
   @override
   DJPlaylist read(BinaryReader reader) {
@@ -23,10 +23,10 @@ class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
       spotifyUri: fields[3] as String,
       autoNext: fields[4] as bool,
       shuffleAtEnd: fields[5] as bool,
-      currentTrack: fields[6] as int,
-      playCount: fields[7] as int,
+      currentTrack: fields[6] == null ? 0 : (fields[6] as num).toInt(),
+      playCount: fields[7] == null ? 0 : (fields[7] as num).toInt(),
       trackIds: (fields[8] as List).cast<String>(),
-      position: fields[9] == null ? 0 : fields[9] as int,
+      position: fields[9] == null ? 0 : (fields[9] as num).toInt(),
       spotifyUriSecond: fields[10] == null ? '' : fields[10] as String,
     );
   }
@@ -75,28 +75,27 @@ class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
 // **************************************************************************
 
 StringList _$StringListFromJson(Map<String, dynamic> json) => StringList(
-      (json['items'] as List<dynamic>).map((e) => e as String).toList(),
-    );
+  (json['items'] as List<dynamic>).map((e) => e as String).toList(),
+);
 
 Map<String, dynamic> _$StringListToJson(StringList instance) =>
-    <String, dynamic>{
-      'items': instance.items,
-    };
+    <String, dynamic>{'items': instance.items};
 
 DJPlaylist _$DJPlaylistFromJson(Map<String, dynamic> json) => DJPlaylist(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      type: json['type'] as String,
-      spotifyUri: json['spotifyUri'] as String,
-      autoNext: json['autoNext'] as bool,
-      shuffleAtEnd: json['shuffleAtEnd'] as bool,
-      currentTrack: (json['currentTrack'] as num?)?.toInt() ?? 0,
-      playCount: (json['playCount'] as num?)?.toInt() ?? 0,
-      trackIds:
-          (json['trackIds'] as List<dynamic>).map((e) => e as String).toList(),
-      position: (json['position'] as num?)?.toInt() ?? 0,
-      spotifyUriSecond: json['spotifyUriSecond'] as String? ?? '',
-    );
+  id: json['id'] as String,
+  name: json['name'] as String,
+  type: json['type'] as String,
+  spotifyUri: json['spotifyUri'] as String,
+  autoNext: json['autoNext'] as bool,
+  shuffleAtEnd: json['shuffleAtEnd'] as bool,
+  currentTrack: (json['currentTrack'] as num?)?.toInt() ?? 0,
+  playCount: (json['playCount'] as num?)?.toInt() ?? 0,
+  trackIds: (json['trackIds'] as List<dynamic>)
+      .map((e) => e as String)
+      .toList(),
+  position: (json['position'] as num?)?.toInt() ?? 0,
+  spotifyUriSecond: json['spotifyUriSecond'] as String? ?? '',
+);
 
 Map<String, dynamic> _$DJPlaylistToJson(DJPlaylist instance) =>
     <String, dynamic>{

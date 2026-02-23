@@ -16,5 +16,4 @@ final providerTrackTimeHive = Provider<TrackTimeRepo>((ref) => TrackTimeRepo());
 ///Hive data
 
 final hiveTrackTimeData =
-    StateNotifierProvider<TrackTimeHive, List<TrackTime>?>(
-        (ref) => TrackTimeHive(ref));
+    NotifierProvider<TrackTimeHive, List<TrackTime>?>(TrackTimeHive.new);

@@ -143,7 +143,7 @@ Future<void> _playlists(SpotifyApi spotify) async {
 }
 
 Future<void> _savedTracks(SpotifyApi spotify) async {
-  var stream = spotify.tracks.me.saved.stream();
+  var stream = spotify.tracks.me.saved().stream();
   debugPrint('Saved Tracks:\n');
   await for (final page in stream) {
     var items = page.items?.map((e) => e.track?.name).join(', ');
