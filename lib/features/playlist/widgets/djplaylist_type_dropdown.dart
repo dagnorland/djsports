@@ -12,7 +12,7 @@ class DJPlaylistTypeDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return djPlaylistTypeDropdownButton<String>(
+    return djPlaylistTypeDropdownButton(
       value: initialValue,
       onChanged: onChanged,
       items: DJPlaylistType.values
@@ -26,7 +26,7 @@ class DJPlaylistTypeDropdown extends StatelessWidget {
   }
 }
 
-Widget djPlaylistTypeDropdownButton<String>(
+Widget djPlaylistTypeDropdownButton(
     {required String value,
     required void Function(String?) onChanged,
     required List<DropdownMenuItem<String>> items}) {
