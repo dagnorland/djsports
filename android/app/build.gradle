@@ -29,7 +29,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    compileSdk = 34
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_18
@@ -47,7 +47,7 @@ android {
     defaultConfig {
         //manifestPlaceholders = [redirectSchemeName: "spotify-sdk", redirectHostName: "auth"]
         applicationId "com.example.djsports"
-        minSdk = 21
+        minSdkVersion = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName

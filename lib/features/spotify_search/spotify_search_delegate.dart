@@ -1,3 +1,4 @@
+import 'package:djsports/data/models/spotify_search_result.dart';
 import 'package:djsports/data/services/spotify_search_service.dart';
 import 'package:djsports/features/playlist/widgets/spotify_track_widget.dart';
 import 'package:flutter/material.dart';
@@ -58,24 +59,24 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
           data: (result) {
             return result.when(
               (tracks) => GridView.builder(
-                itemCount: tracks.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  // if landscape mode set crossAxisCount to 8
-                  crossAxisCount: isLandscape ? 8 : 5,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 5,
-                  childAspectRatio: isLandscape ? 0.7 : 0.9,
+                  itemCount: tracks.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    // if landscape mode set crossAxisCount to 8
+                    crossAxisCount: isLandscape ? 8 : 5,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 5,
+                    childAspectRatio: isLandscape ? 0.7 : 0.9,
+                  ),
+                  itemBuilder: (context, index) {
+                    return SpotifyTrackSearchResultTile(
+                      track: tracks[index],
+                      existInPlaylist: false,
+                      onSelected: (track) =>
+                          addTrackToPlaylist(context, track, ref),
+                    );
+                  },
                 ),
-                itemBuilder: (context, index) {
-                  return SpotifyTrackSearchResultTile(
-                    track: tracks[index],
-                    existInPlaylist: false,
-                    onSelected: (track) =>
-                        addTrackToPlaylist(context, track, ref),
-                  );
-                },
-              ),
-              error: (error) => SearchPlaceholder(title: error.toString()),
+              error: (error) => SearchPlaceholder(title: error.message),
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),

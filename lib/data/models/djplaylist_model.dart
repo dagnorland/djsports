@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'djplaylist_model.g.dart';
@@ -90,8 +90,7 @@ class DJPlaylist extends HiveObject {
       this.currentTrack = 0,
       this.playCount = 0,
       required this.trackIds,
-      this.position = 0,
-      this.spotifyUriSecond = ''}); // = const Uuid().v4();
+      this.position = 0});
 
   @HiveField(0)
   String id;
@@ -113,8 +112,6 @@ class DJPlaylist extends HiveObject {
   List<String> trackIds;
   @HiveField(9, defaultValue: 0)
   int position;
-  @HiveField(10, defaultValue: '')
-  String spotifyUriSecond;
 
   factory DJPlaylist.simple(String id, String name, DJPlaylistType type) =>
       DJPlaylist(

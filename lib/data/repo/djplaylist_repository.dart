@@ -1,5 +1,5 @@
 import 'package:djsports/data/models/djplaylist_model.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class DJPlaylistRepo {

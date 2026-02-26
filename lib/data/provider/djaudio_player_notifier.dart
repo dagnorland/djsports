@@ -2,9 +2,17 @@ import 'package:audio_service/audio_service.dart';
 import 'package:djsports/data/controller/djplaylist_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AudioPlayerNotifier extends StateNotifier<PlayListState> {
-  AudioPlayerNotifier(this._audioHandler)
-      : super(const PlayListState(queue: [])) {
+class AudioPlayerNotifier extends Notifier<PlayListState> {
+  late AudioHandler _audioHandler;
+
+  @override
+  PlayListState build() {
+    return const PlayListState(queue: []);
+  }
+
+  void initialize(AudioHandler audioHandler) {
+    _audioHandler = audioHandler;
+
     _audioHandler.playbackState.listen(
       (PlaybackState playbackState) {
         state = state.copyWith(
@@ -31,8 +39,6 @@ class AudioPlayerNotifier extends StateNotifier<PlayListState> {
       state = state.copyWith(progress: position);
     });
   }
-
-  final AudioHandler _audioHandler;
 
   void playPause() {
     if (state.playing) {

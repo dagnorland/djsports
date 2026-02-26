@@ -1,5 +1,5 @@
 import 'package:djsports/data/models/djtrack_model.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 part 'track_time_model.g.dart';
 

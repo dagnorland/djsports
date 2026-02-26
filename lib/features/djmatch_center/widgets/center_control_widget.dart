@@ -1,6 +1,7 @@
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:toastification/toastification.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
@@ -30,7 +31,7 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
   @override
   Widget build(BuildContext context) {
     final lastTrack = ref.watch(lastDjTrackPlayedProvider);
-    final packageInfo = useFuture(PackageInfo.fromPlatform());
+    final packageInfo = useFuture(useMemoized(PackageInfo.fromPlatform));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -46,66 +47,77 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
           icon: const Icon(Icons.pause, color: Colors.white, size: 70),
           splashColor: Colors.blue,
           highlightColor: Colors.black,
-          onPressed: () async => await widget.onPause(),
+          onPressed: () async {
+            await widget.onPause();
+            toastification.show(
+              context: context,
+              title: const Text('PAUSED'),
+              autoCloseDuration: const Duration(seconds: 2),
+              style: ToastificationStyle.flat,
+              alignment: Alignment.bottomCenter,
+            );
+          },
         ),
         const Gap(30),
         IconButton(
-          icon: const Icon(Icons.volume_down, color: Colors.white, size: 50),
+          icon: const Icon(Icons.volume_up, color: Colors.white, size: 50),
           onPressed: () =>
-              ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.1),
+              ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.05),
         ),
         const Gap(10),
         const CurrentVolumeWidget(
-            key: Key('currentVolumeWidgetInCenterControlWidget')),
+          key: Key('currentVolumeWidgetInCenterControlWidget'),
+        ),
         const Gap(20),
         IconButton(
-          icon: const Icon(Icons.volume_up, color: Colors.white, size: 70),
+          icon: const Icon(Icons.volume_down, color: Colors.white, size: 50),
           onPressed: () =>
-              ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.1),
+              ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.05),
         ),
         const Gap(20),
         Expanded(
           child: lastTrack.when(
             data: (track) => ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                    width: 70,
-                    height: 70,
-                    child: Image.network(track?.networkImageUri ?? '',
-                        errorBuilder: (context, error, stackTrace) =>
-                            const SizedBox(
-                              width: 50,
-                              height: 50,
-                              child: Icon(
-                                Icons.cloud_off_outlined,
-                                size: 50,
-                                color: Colors.black38,
-                              ),
-                            )))),
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 70,
+                height: 70,
+                child: Image.network(
+                  track?.networkImageUri ?? '',
+                  errorBuilder: (context, error, stackTrace) => const SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: Icon(
+                      Icons.cloud_off_outlined,
+                      size: 50,
+                      color: Colors.black38,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             loading: () => const CircularProgressIndicator(),
             error: (error, stack) => const SizedBox.shrink(),
           ),
         ),
         Expanded(
-            child: Column(
-          children: [
-            Image.asset(
-              'assets/images/djsports/djsports_v12_round.png',
-              width: 80,
-              height: 80,
-            ),
-            Text(
-              'v${packageInfo.data?.version ?? '...'}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                  ),
-            ),
-          ],
-        )),
-        IconButton(
-          icon: const Icon(Icons.backspace),
-          onPressed: widget.onBack,
+          child: Column(
+            children: [
+              Image.asset(
+                'assets/images/djsports/djsports_v12_round.png',
+                width: 80,
+                height: 80,
+              ),
+              Text(
+                'v${packageInfo.data?.version ?? '...'}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+              ),
+            ],
+          ),
         ),
+        IconButton(icon: const Icon(Icons.backspace), onPressed: widget.onBack),
         const Gap(20),
       ],
     );

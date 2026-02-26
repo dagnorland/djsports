@@ -8,7 +8,7 @@ part of 'djtrack_model.dart';
 
 class DJTrackAdapter extends TypeAdapter<DJTrack> {
   @override
-  final int typeId = 1;
+  final typeId = 1;
 
   @override
   DJTrack read(BinaryReader reader) {
@@ -21,10 +21,10 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
       name: fields[1] as String,
       album: fields[2] as String,
       artist: fields[3] as String,
-      startTime: fields[4] as int,
-      startTimeMS: fields[5] as int,
-      duration: fields[6] as int,
-      playCount: fields[7] as int,
+      startTime: (fields[4] as num).toInt(),
+      startTimeMS: (fields[5] as num).toInt(),
+      duration: (fields[6] as num).toInt(),
+      playCount: (fields[7] as num).toInt(),
       spotifyUri: fields[8] as String,
       mp3Uri: fields[9] as String,
       networkImageUri: fields[10] == null ? '' : fields[10] as String,
@@ -78,31 +78,31 @@ class DJTrackAdapter extends TypeAdapter<DJTrack> {
 // **************************************************************************
 
 DJTrack _$DJTrackFromJson(Map<String, dynamic> json) => DJTrack(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      album: json['album'] as String,
-      artist: json['artist'] as String,
-      startTime: (json['startTime'] as num).toInt(),
-      startTimeMS: (json['startTimeMS'] as num).toInt(),
-      duration: (json['duration'] as num).toInt(),
-      playCount: (json['playCount'] as num).toInt(),
-      spotifyUri: json['spotifyUri'] as String,
-      mp3Uri: json['mp3Uri'] as String,
-      networkImageUri: json['networkImageUri'] as String,
-      shortcut: json['shortcut'] as String? ?? '',
-    );
+  id: json['id'] as String,
+  name: json['name'] as String,
+  album: json['album'] as String,
+  artist: json['artist'] as String,
+  startTime: (json['startTime'] as num).toInt(),
+  startTimeMS: (json['startTimeMS'] as num).toInt(),
+  duration: (json['duration'] as num).toInt(),
+  playCount: (json['playCount'] as num).toInt(),
+  spotifyUri: json['spotifyUri'] as String,
+  mp3Uri: json['mp3Uri'] as String,
+  networkImageUri: json['networkImageUri'] as String,
+  shortcut: json['shortcut'] as String? ?? '',
+);
 
 Map<String, dynamic> _$DJTrackToJson(DJTrack instance) => <String, dynamic>{
-      'id': instance.id,
-      'name': instance.name,
-      'album': instance.album,
-      'artist': instance.artist,
-      'startTime': instance.startTime,
-      'startTimeMS': instance.startTimeMS,
-      'duration': instance.duration,
-      'playCount': instance.playCount,
-      'spotifyUri': instance.spotifyUri,
-      'mp3Uri': instance.mp3Uri,
-      'networkImageUri': instance.networkImageUri,
-      'shortcut': instance.shortcut,
-    };
+  'id': instance.id,
+  'name': instance.name,
+  'album': instance.album,
+  'artist': instance.artist,
+  'startTime': instance.startTime,
+  'startTimeMS': instance.startTimeMS,
+  'duration': instance.duration,
+  'playCount': instance.playCount,
+  'spotifyUri': instance.spotifyUri,
+  'mp3Uri': instance.mp3Uri,
+  'networkImageUri': instance.networkImageUri,
+  'shortcut': instance.shortcut,
+};

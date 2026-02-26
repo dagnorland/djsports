@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ class DJPlaylistView extends HookConsumerWidget {
   final List<String> trackIds;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final void Function(String) onTypeChanged;
   const DJPlaylistView({
     super.key,
     required this.name,
@@ -26,12 +28,13 @@ class DJPlaylistView extends HookConsumerWidget {
     required this.currentTrack,
     required this.onEdit,
     required this.onDelete,
+    required this.onTypeChanged,
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     bool isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-    String networkImageUri = (ref.read(hiveTrackData.notifier).hasListeners)
+    String networkImageUri = ref.read(hiveTrackData) != null
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
         : '';
 
@@ -39,41 +42,45 @@ class DJPlaylistView extends HookConsumerWidget {
         ? const SizedBox(
             width: 50,
             height: 50,
-            child: Icon(
-              Icons.play_arrow,
-              size: 45,
-              color: Colors.black38,
-            ))
-        : Stack(alignment: Alignment.center, children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
+            child: Icon(Icons.play_arrow, size: 45, color: Colors.black38),
+          )
+        : Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
                   ref.read(spotifyRemoteRepositoryProvider).spotifyLogoFileName,
                   width: 50,
                   height: 50,
-                  fit: BoxFit.cover),
-            ),
-            const Icon(Icons.play_arrow, size: 45, color: Colors.black38),
-          ]);
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const Icon(Icons.play_arrow, size: 45, color: Colors.black38),
+            ],
+          );
 
     Widget imageWidget = networkImageUri.isEmpty
         ? const SizedBox(
             width: 50,
             height: 50,
-            child: Icon(Icons.featured_play_list_outlined, size: 50))
-        : Image.network(networkImageUri,
+            child: Icon(Icons.featured_play_list_outlined, size: 50),
+          )
+        : Image.network(
+            networkImageUri,
             width: 50,
             height: 50,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) => const SizedBox(
-                  width: 50,
-                  height: 50,
-                  child: Icon(
-                    Icons.cloud_off_outlined,
-                    size: 50,
-                    color: Colors.black38,
-                  ),
-                ));
+              width: 50,
+              height: 50,
+              child: Icon(
+                Icons.cloud_off_outlined,
+                size: 50,
+                color: Colors.black38,
+              ),
+            ),
+          );
 
     return Card(
       elevation: 3,
@@ -99,17 +106,18 @@ class DJPlaylistView extends HookConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               SizedBox(
-                  width: isLandscape ? 400 : 340,
-                  child: Text(
-                    spotifyUri.isEmpty
-                        ? ''
-                        : isLandscape
-                            ? spotifyUri
-                            : spotifyUri.length > 40
-                                ? spotifyUri.substring(0, 40)
-                                : spotifyUri,
-                    maxLines: 1,
-                  )),
+                width: isLandscape ? 400 : 340,
+                child: Text(
+                  spotifyUri.isEmpty
+                      ? ''
+                      : isLandscape
+                      ? spotifyUri
+                      : spotifyUri.length > 40
+                      ? spotifyUri.substring(0, 40)
+                      : spotifyUri,
+                  maxLines: 1,
+                ),
+              ),
             ],
           ),
         ),
@@ -119,92 +127,93 @@ class DJPlaylistView extends HookConsumerWidget {
             Row(
               children: [
                 SizedBox(
-                    width: isLandscape ? 300 : 140,
-                    child: Row(children: [
+                  width: isLandscape ? 340 : 180,
+                  child: Row(
+                    children: [
                       if (isLandscape)
                         Expanded(flex: 33, child: musicSourceImage),
                       Expanded(
-                          flex: 35,
-                          child: Chip(
-                              label: Text(
-                            type,
-                            maxLines: 1,
-                          ))),
+                        flex: 50,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: DropdownButton<String>(
+                            value: type,
+                            isDense: true,
+                            underline: const SizedBox(),
+                            isExpanded: true,
+                            items: DJPlaylistType.values
+                                .where((t) => t != DJPlaylistType.all)
+                                .map((t) => DropdownMenuItem(
+                                      value: t.name,
+                                      child: Text(
+                                        t.name.toUpperCase(),
+                                        style: TextStyle(
+                                          color: t.color,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) onTypeChanged(v);
+                            },
+                          ),
+                        ),
+                      ),
                       Expanded(
                         flex: 33,
                         child: Chip(
-                          label: Text(trackIds.isEmpty
-                              ? 'Empty'
-                              : '#${trackIds.length.toString()}'),
+                          label: Text(
+                            trackIds.isEmpty
+                                ? 'Empty'
+                                : '#${trackIds.length.toString()}',
+                          ),
                         ),
                       ),
                       // Legg til chip
                       //
-                      Expanded(
-                        flex: 25,
-                        child: _buildShortcutChip(ref),
-                      ),
-                    ])),
+                    ],
+                  ),
+                ),
               ],
             ),
             const SizedBox(width: 5),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor),
+                backgroundColor: Theme.of(context).primaryColor,
+              ),
               onPressed: onEdit,
               child: isLandscape
                   ? Text(
                       'Edit',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall!
-                          .copyWith(color: Colors.white),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleSmall!.copyWith(color: Colors.white),
                     )
                   : const Icon(Icons.edit, color: Colors.white),
             ),
             const SizedBox(width: 5),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor),
+                backgroundColor: Theme.of(context).primaryColor,
+              ),
               onPressed: onDelete,
               child: isLandscape
                   ? Text(
                       'Delete',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall!
-                          .copyWith(color: Colors.white),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleSmall!.copyWith(color: Colors.white),
                     )
                   : const Icon(Icons.delete, color: Colors.white),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildShortcutChip(WidgetRef ref) {
-    if (trackIds.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final tracks = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-    final tracksWithShortcuts =
-        tracks.where((track) => track.shortcut.trim().isNotEmpty).toList();
-
-    if (tracksWithShortcuts.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // Vis bare antall tracks med shortcuts
-    return Chip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.shortcut_rounded, size: 14),
-          const SizedBox(width: 2),
-          Text('${tracksWithShortcuts.length}'),
-        ],
       ),
     );
   }

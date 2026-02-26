@@ -1,6 +1,7 @@
 import 'package:djsports/data/models/todo_model.dart';
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 /// Some keys used for testing
 final addTodoKey = UniqueKey();

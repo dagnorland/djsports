@@ -1,3 +1,4 @@
+import 'package:djsports/data/models/spotify_playlist_result.dart';
 import 'package:djsports/data/services/spotify_playlist_service.dart';
 import 'package:djsports/features/playlist/widgets/spotify_track_widget.dart';
 import 'package:flutter/material.dart';
@@ -58,33 +59,33 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
           data: (result) {
             return result.when(
               (tracks) => GridView.builder(
-                itemCount: tracks.length,
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 200,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.85,
+                  itemCount: tracks.length,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 200,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemBuilder: (context, index) {
+                    final trackExist = existingSpotifyTrackUris
+                        .contains(tracks.elementAt(index).uri);
+                    return Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              width: trackExist ? 0 : 3,
+                              color: trackExist
+                                  ? Colors.green.shade100
+                                  : Colors.blueGrey.shade100),
+                        ),
+                        child: SpotifyTrackSearchResultTile(
+                          track: tracks.elementAt(index),
+                          existInPlaylist: trackExist,
+                          onSelected: (value) => close(context, value),
+                        ));
+                  },
                 ),
-                itemBuilder: (context, index) {
-                  final trackExist = existingSpotifyTrackUris
-                      .contains(tracks.elementAt(index).uri);
-                  return Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            width: trackExist ? 0 : 3,
-                            color: trackExist
-                                ? Colors.green.shade100
-                                : Colors.blueGrey.shade100),
-                      ),
-                      child: SpotifyTrackSearchResultTile(
-                        track: tracks.elementAt(index),
-                        existInPlaylist: trackExist,
-                        onSelected: (value) => close(context, value),
-                      ));
-                },
-              ),
-              error: (error) => SearchPlaceholder(title: error.toString()),
+              error: (error) => SearchPlaceholder(title: error.message),
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),

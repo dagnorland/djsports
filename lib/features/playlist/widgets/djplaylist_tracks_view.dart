@@ -119,13 +119,6 @@ class DJPlaylistTrackView extends HookConsumerWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (track.shortcut.trim().isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 20.0),
-                  child: Chip(
-                    label: Text(track.shortcut),
-                  ),
-                ),
               Padding(
                   padding: const EdgeInsets.only(right: 20.0),
                   child: InkWell(
