@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - Release 2026-02-26
+
+### Added
+- Native Spotify integration for macOS and iPad/iOS via SPTAppRemote + SPTSessionManager (iOS) and Spotify Web API + PKCE OAuth (macOS)
+- `SpotifyPlatformBridge` factory — routes iOS/macOS to native channel, Android to spotify_sdk
+- Utilities gear icon in app bar replaces "Start times" button; tooltip shows "Utilities"
+- Utilities page: new "Copy all playlist URI and type (JSON)" button — copies name, spotifyUri and playlistType for all playlists to clipboard
+- `flutter_volume_controller` replaces `volume_controller` — adds macOS and iPad volume support
+
+### Fixed
+- Simplified some pages
+- Added utility for copy playlist and track start times
+- High CPU usage: stream refactoring, refacored to use `useMemoized`
+- Refactored reconnect storm and auth  multiple concurrent
+- `SpotifyRemoteRepository.connect()` now guarded with `_isConnecting` to prevent concurrent reconnect attempts across all platforms
+
 ## [1.7.1] - Release 2025-09-04
 
 ## Added

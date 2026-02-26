@@ -59,6 +59,7 @@
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>spotify-ios-quick-start</string>
+					<string>djsports</string>
 				</array>
 			</dict>
 		</array>

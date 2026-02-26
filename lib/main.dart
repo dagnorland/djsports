@@ -12,6 +12,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart' as dotenv;
 import 'package:audio_service/audio_service.dart';
 import 'package:djsports/data/services/djaudio_handler.dart'; // Legg til denne importen
 import 'package:djsports/core/theme/app_theme.dart';
+import 'package:toastification/toastification.dart';
 
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -74,7 +75,8 @@ class DJSportsApp extends ConsumerWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
+    return ToastificationWrapper(
+      child: MaterialApp(
       title: 'djSports',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
@@ -94,7 +96,7 @@ class DJSportsApp extends ConsumerWidget {
       // useMaterial3: true,
       // ),
       home: const HomePage(),
-    );
+    ));
   }
 }
 

@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/track_time_model.dart';
+import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/track_time_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:flutter/material.dart';
@@ -92,6 +94,11 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           child: Column(
             children: [
               infoAboutImportExport(context),
+              const Gap(20),
+              globalInfoBox(
+                  context,
+                  'COPY PLAYLIST URIS AND TYPES',
+                  _playlistUriExportSection(context)),
               const Gap(20),
               globalInfoBox(
                   context,
@@ -305,6 +312,72 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _copyPlaylistUrisToClipboard(List<DJPlaylist> playlists) {
+    final data = playlists
+        .map<Map<String, String>>((p) => {
+              'playlistUri': p.spotifyUri,
+              'playlistType': p.type,
+              'name': p.name,
+            })
+        .toList();
+    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
+    Clipboard.setData(ClipboardData(text: jsonString));
+  }
+
+  Widget _playlistUriExportSection(BuildContext context) {
+    final List<DJPlaylist> playlists =
+        ref.watch(hivePlaylistData) ?? <DJPlaylist>[];
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${playlists.length} playlists in your library.',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const Gap(12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  disabledBackgroundColor:
+                      Theme.of(context).primaryColor.withOpacity(0.3),
+                ),
+                onPressed: playlists.isEmpty
+                    ? null
+                    : () {
+                        _copyPlaylistUrisToClipboard(playlists);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Copied ${playlists.length} playlists'
+                                ' (URI + type) to clipboard',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                child: Text(
+                  'Copy all playlist URI and type (JSON)',
+                  style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        color: playlists.isEmpty
+                            ? Colors.white.withOpacity(0.5)
+                            : Colors.white,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(8),
+        ],
+      ),
     );
   }
 

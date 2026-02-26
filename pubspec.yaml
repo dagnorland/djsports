@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.7.1+1
+version: 2.0.0+1
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  fluttertoast: ^8.2.11
+  toastification: ^3.0.3
   flutter_animate: ^4.5.2
   cupertino_icons: ^1.0.6
   riverpod: ^3.0.0
@@ -44,7 +44,7 @@ dependencies:
   spotify: ^0.16.0
   audio_service: ^0.18.16
   just_audio: ^0.9.41
-  volume_controller: ^2.0.8
+  flutter_volume_controller: ^1.3.4
   riverpod_annotation: ^4.0.0
   logger: ^2.4.0
   uuid: ^4.3.2
@@ -145,8 +145,8 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/djsports/ic_launcher.png"
-  adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/images/djsports/ic_launcher.png"
+  image_path: "assets/images/djsports/djsports_black.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/djsports/djsports_black.png"
   remove_alpha_ios: true
-  min_sdk_android: 21 
+  min_sdk_android: 21

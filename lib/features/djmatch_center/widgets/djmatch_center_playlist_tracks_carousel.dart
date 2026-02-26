@@ -7,10 +7,11 @@ import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:toastification/toastification.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
@@ -140,7 +141,15 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
     final isShowingPLAYFlame = useState(false);
 
     return Stack(children: [
-      CarouselView(
+      ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+          },
+        ),
+        child: CarouselView(
           scrollDirection: Axis.horizontal,
           itemExtent: double.infinity,
           controller: carouselController,
@@ -158,11 +167,11 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                     playlistName);
 
             if (response.contains('[ErrorMessage]')) {
-              showMessageToast(response);
+              showMessageToast(context, response);
             } else {
               track.playCount = track.playCount + 1;
               ref.read(hiveTrackData.notifier).updateDJTrack(track);
-              showMessageToast(response);
+              showMessageToast(context, response);
             }
 
             double newPosition =
@@ -268,7 +277,9 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                 ],
               ),
             );
-          })),
+          }),
+        ),
+      ),
       if (isShowingPLAYFlame.value)
         Positioned.fill(
           child: Center(
@@ -287,9 +298,13 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   }
 }
 
-void showMessageToast(String message) {
-  Fluttertoast.showToast(
-    msg: message,
-    toastLength: Toast.LENGTH_LONG,
+void showMessageToast(BuildContext context, String message) {
+  debugPrint('[TOAST] $message');
+  toastification.show(
+    context: context,
+    title: Text(message),
+    autoCloseDuration: const Duration(seconds: 3),
+    style: ToastificationStyle.flat,
+    alignment: Alignment.bottomCenter,
   );
 }

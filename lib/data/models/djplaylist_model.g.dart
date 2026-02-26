@@ -27,14 +27,13 @@ class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
       playCount: fields[7] == null ? 0 : (fields[7] as num).toInt(),
       trackIds: (fields[8] as List).cast<String>(),
       position: fields[9] == null ? 0 : (fields[9] as num).toInt(),
-      spotifyUriSecond: fields[10] == null ? '' : fields[10] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, DJPlaylist obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -54,9 +53,7 @@ class DJPlaylistAdapter extends TypeAdapter<DJPlaylist> {
       ..writeByte(8)
       ..write(obj.trackIds)
       ..writeByte(9)
-      ..write(obj.position)
-      ..writeByte(10)
-      ..write(obj.spotifyUriSecond);
+      ..write(obj.position);
   }
 
   @override
@@ -94,7 +91,6 @@ DJPlaylist _$DJPlaylistFromJson(Map<String, dynamic> json) => DJPlaylist(
       .map((e) => e as String)
       .toList(),
   position: (json['position'] as num?)?.toInt() ?? 0,
-  spotifyUriSecond: json['spotifyUriSecond'] as String? ?? '',
 );
 
 Map<String, dynamic> _$DJPlaylistToJson(DJPlaylist instance) =>
@@ -109,5 +105,4 @@ Map<String, dynamic> _$DJPlaylistToJson(DJPlaylist instance) =>
       'playCount': instance.playCount,
       'trackIds': instance.trackIds,
       'position': instance.position,
-      'spotifyUriSecond': instance.spotifyUriSecond,
     };
