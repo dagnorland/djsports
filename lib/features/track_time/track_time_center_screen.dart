@@ -10,13 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 
-// Localization
-//models
-
 // Riverpod
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-
-//Providers
 
 class TrackTimeCenterScreen extends StatefulHookConsumerWidget {
   const TrackTimeCenterScreen({
@@ -33,17 +28,20 @@ class TrackTimeCenterScreen extends StatefulHookConsumerWidget {
 class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   final nameController = TextEditingController();
   final importJsonDataController = TextEditingController();
+  final importPlaylistJsonDataController = TextEditingController();
   List<TrackTime> trackTimeList = [];
   List<DJTrack> trackWithStartTimeList = [];
   int trackWithZeroStartTimeListLength = 0;
-
-  //FutureOr Function(dynamic value) get result => false;
 
   @override
   void initState() {
     nameController.text = '';
     importJsonDataController.text = '';
+    importPlaylistJsonDataController.text = '';
     importJsonDataController.addListener(() {
+      setState(() {});
+    });
+    importPlaylistJsonDataController.addListener(() {
       setState(() {});
     });
     super.initState();
@@ -51,13 +49,14 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
   @override
   void dispose() {
+    nameController.dispose();
     importJsonDataController.dispose();
+    importPlaylistJsonDataController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Lytt til endringer i djTracksProvider
     final djTrackWithStartTimeList = ref.watch(dataTrackWithStartTimeProvider);
     trackWithZeroStartTimeListLength = ref
         .watch(dataTrackProvider)
@@ -73,18 +72,19 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         leading: IconButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              widget.refreshCallback ?? widget.refreshCallback;
-            },
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Colors.black,
-              size: 30,
-            )),
-        actions: [],
+          onPressed: () {
+            Navigator.of(context).pop();
+            widget.refreshCallback ?? widget.refreshCallback;
+          },
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.black,
+            size: 30,
+          ),
+        ),
+        actions: const [],
         title: const Text(
-          'Import and export track times',
+          'Track times — Import & Export',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
       ),
@@ -93,81 +93,34 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           padding: const EdgeInsets.all(10.0),
           child: Column(
             children: [
-              infoAboutImportExport(context),
+              _infoSection(context),
               const Gap(20),
               globalInfoBox(
-                  context,
-                  'COPY PLAYLIST URIS AND TYPES',
-                  _playlistUriExportSection(context)),
+                context,
+                'PLAYLISTS',
+                _playlistSection(context),
+              ),
               const Gap(20),
               globalInfoBox(
-                  context,
-                  'EXPORTING TRACK TIMES',
-                  exportingTrackTimeList(
-                      context, djTrackWithStartTimeList, trackTimeList)),
+                context,
+                'EXPORT TRACK START TIMES',
+                _exportTrackTimesSection(
+                    context, djTrackWithStartTimeList, trackTimeList),
+              ),
               const Gap(20),
               globalInfoBox(
-                  context,
-                  'IMPORTING TRACK TIMES',
-                  importingTrackTimeList(
-                      context, djTrackWithStartTimeList, trackTimeList)),
-              const Gap(60),
-              const Divider(
-                color: Colors.red,
-                height: 1,
+                context,
+                'IMPORT TRACK START TIMES',
+                _importTrackTimesSection(
+                    context, djTrackWithStartTimeList, trackTimeList),
               ),
               const Gap(20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).canvasColor,
-                      disabledBackgroundColor:
-                          Theme.of(context).primaryColor.withOpacity(0.3),
-                    ),
-                    onPressed: trackTimeList.isEmpty
-                        ? null
-                        : () {
-                            deleteAllOrZeroTimeTrackTimes(trackTimeList, false);
-                          },
-                    child: Text(
-                      'DELETE all track times. Only the import/export list',
-                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                            color: trackTimeList.isEmpty
-                                ? Colors.white.withOpacity(0.5)
-                                : Colors.red,
-                          ),
-                    ),
-                  ),
-                  const Gap(10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).canvasColor,
-                      disabledBackgroundColor:
-                          Theme.of(context).primaryColor.withOpacity(0.3),
-                    ),
-                    onPressed: trackTimeList.isEmpty
-                        ? null
-                        : () {
-                            deleteAllOrZeroTimeTrackTimes(trackTimeList, true);
-                          },
-                    child: Text(
-                      'Delete track times with no start time cleanup)',
-                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                            color: trackTimeList.isEmpty
-                                ? Colors.white.withOpacity(0.5)
-                                : Colors.red,
-                          ),
-                    ),
-                  ),
-                ],
+              globalInfoBox(
+                context,
+                'MANAGE TRACK START TIME LIST',
+                _deleteSection(context, trackTimeList),
               ),
               const Gap(20),
-              const Divider(
-                color: Colors.red,
-                height: 1,
-              ),
             ],
           ),
         ),
@@ -175,20 +128,270 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     );
   }
 
-  String spotifyUriValidate(String value) {
-    if (value.isEmpty) {
-      return '';
-    }
-    if (value.contains('https://open.spotify.com/playlist/')) {
-      // remove the https://open.spotify.com/playlist/ from the uri
-      return value.substring('https://open.spotify.com/'.length);
-    }
+  // ---------------------------------------------------------------------------
+  // Info section
+  // ---------------------------------------------------------------------------
 
-    if (value.contains('https://open.spotify.com/album/')) {
-      // remove the https://open.spotify.com/ from the uri
-      return value.substring('https://open.spotify.com/'.length);
+  Widget _infoSection(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        border: Border.all(color: Colors.blue.shade200, width: 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline, color: Colors.blue.shade600, size: 24),
+            const Gap(12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'How track start times work',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                  ),
+                  const Gap(8),
+                  Text(
+                    'Set a start time on a track (e.g. skip the intro) and export '
+                    'the list to share with others. When someone imports the list, '
+                    'their tracks will automatically start at the right position.\n\n'
+                    'You can also back up and restore your playlists using the '
+                    'Playlists section below.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.blue.shade900,
+                          height: 1.5,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Playlists section (copy + import)
+  // ---------------------------------------------------------------------------
+
+  Widget _playlistSection(BuildContext context) {
+    final List<DJPlaylist> playlists =
+        ref.watch(hivePlaylistData) ?? <DJPlaylist>[];
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'You have ${playlists.length} playlist(s) in your library.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const Gap(4),
+          Text(
+            'Copy all playlists as JSON and share with others. '
+            'They can paste it below to recreate the same playlists.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(16),
+          _sectionButton(
+            context,
+            label: 'Copy playlists as JSON  (URI + type + name)',
+            icon: Icons.copy,
+            disabled: playlists.isEmpty,
+            onPressed: () {
+              _copyPlaylistUrisToClipboard(playlists);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Copied ${playlists.length} playlist(s) to clipboard',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          const Gap(20),
+          const Divider(),
+          const Gap(12),
+          Text(
+            'Paste playlist JSON here to import playlists into your library.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(10),
+          TextField(
+            controller: importPlaylistJsonDataController,
+            maxLines: 6,
+            decoration: InputDecoration(
+              hintText:
+                  'Paste JSON from "Copy playlists" here\n\nExample:\n'
+                  '[\n'
+                  '  {"playlistUri":"spotify:playlist:...","playlistType":"hotspot","name":"Goals"}\n'
+                  ']',
+              border: const OutlineInputBorder(),
+              filled: true,
+              fillColor: Theme.of(context).primaryColor.withOpacity(0.05),
+            ),
+          ),
+          const Gap(12),
+          _sectionButton(
+            context,
+            label: 'Import playlists from JSON',
+            icon: Icons.playlist_add,
+            disabled: importPlaylistJsonDataController.text.trim().isEmpty,
+            onPressed: () {
+              _importPlaylistsFromJson(
+                  importPlaylistJsonDataController.text.trim());
+            },
+          ),
+          const Gap(8),
+        ],
+      ),
+    );
+  }
+
+  void _copyPlaylistUrisToClipboard(List<DJPlaylist> playlists) {
+    final data = playlists
+        .map<Map<String, String>>((p) => {
+              'playlistUri': p.spotifyUri,
+              'playlistType': p.type,
+              'name': p.name,
+            })
+        .toList();
+    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
+    Clipboard.setData(ClipboardData(text: jsonString));
+  }
+
+  void _importPlaylistsFromJson(String jsonData) {
+    try {
+      final dynamic decoded = json.decode(jsonData);
+      if (decoded is! List) {
+        throw const FormatException('JSON must be a list.');
+      }
+
+      final existingPlaylists = ref.read(hivePlaylistData) ?? [];
+      int added = 0;
+      int skipped = 0;
+
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) {
+          throw const FormatException('Each item must be an object.');
+        }
+        final uri = item['playlistUri'] as String? ?? '';
+        final type = item['playlistType'] as String? ?? 'hotspot';
+        final name = item['name'] as String? ?? 'Imported playlist';
+
+        if (uri.isEmpty) continue;
+
+        final alreadyExists =
+            existingPlaylists.any((p) => p.spotifyUri == uri);
+        if (alreadyExists) {
+          skipped++;
+          continue;
+        }
+
+        final playlist = DJPlaylist(
+          id: '',
+          name: name,
+          type: type,
+          spotifyUri: uri,
+          autoNext: true,
+          shuffleAtEnd: false,
+          trackIds: [],
+        );
+        ref.read(hivePlaylistData.notifier).addDJplaylist(playlist);
+        added++;
+      }
+
+      if (mounted) {
+        importPlaylistJsonDataController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              added > 0
+                  ? 'Added $added playlist(s)${skipped > 0 ? ', $skipped already existed' : ''}. '
+                      'Open each playlist to sync tracks from Spotify.'
+                  : 'No new playlists — all already in your library.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid JSON — check the format and try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    return value;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Export track start times
+  // ---------------------------------------------------------------------------
+
+  Widget _exportTrackTimesSection(BuildContext context,
+      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${djTrackWithStartTimeList.length} track(s) with a start time set '
+            'in your playlists.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const Gap(4),
+          Text(
+            '${trackTimeList.length} track(s) currently in the export list.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(16),
+          _sectionButton(
+            context,
+            label: 'Add missing tracks to export list',
+            icon: Icons.sync,
+            disabled: djTrackWithStartTimeList.isEmpty,
+            onPressed: () {
+              updateTrackTimeListWithMissingTracks(
+                  djTrackWithStartTimeList, trackTimeList);
+            },
+          ),
+          const Gap(10),
+          _sectionButton(
+            context,
+            label: 'Copy export list as JSON  (${trackTimeList.length} tracks)',
+            icon: Icons.copy,
+            disabled: trackTimeList.isEmpty,
+            onPressed: () {
+              final bytes = exportTrackTimeListToClipboard(trackTimeList);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Copied ${trackTimeList.length} track start time(s) '
+                      'to clipboard  ($bytes bytes)',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          const Gap(8),
+        ],
+      ),
+    );
   }
 
   void updateTrackTimeListWithMissingTracks(
@@ -225,62 +428,153 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   }
 
   int exportTrackTimeListToClipboard(List<TrackTime> trackTimeList) {
-    // convert the trackTimeList to a json string
     final jsonString = jsonEncode(trackTimeList);
-    // copy the json string to the clipboard
     Clipboard.setData(ClipboardData(text: jsonString));
     return jsonString.length;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import track start times
+  // ---------------------------------------------------------------------------
+
+  Widget _importTrackTimesSection(BuildContext context,
+      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Paste a JSON list of track start times to import them.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(10),
+          TextField(
+            controller: importJsonDataController,
+            maxLines: 10,
+            decoration: InputDecoration(
+              hintText: 'Paste JSON here, then press Import below\n\n'
+                  'Example:\n${_exampleTrackTimeJson()}',
+              border: const OutlineInputBorder(),
+              filled: true,
+              fillColor: Theme.of(context).primaryColor.withOpacity(0.05),
+            ),
+          ),
+          const Gap(16),
+          _sectionButton(
+            context,
+            label: 'Import track start times from JSON',
+            icon: Icons.download,
+            disabled: importJsonDataController.text.trim().isEmpty,
+            onPressed: () {
+              importTrackTimeJsonData(importJsonDataController.text.trim());
+            },
+          ),
+          const Gap(8),
+        ],
+      ),
+    );
+  }
+
+  String _exampleTrackTimeJson() {
+    return '[\n'
+        '  {"id":"6epn3r7S14KUqlReYr77hA","startTime":11000},\n'
+        '  {"id":"4vVTI94F9uJ8lHNDWKv0i2","startTime":36000}\n'
+        ']';
   }
 
   void importTrackTimeJsonData(String jsonData) async {
     try {
       final dynamic decoded = json.decode(jsonData);
       if (decoded is! List) {
-        throw const FormatException('JSON-data må være en liste.');
+        throw const FormatException('JSON must be a list.');
       }
       final List<TrackTime> importedTracks = [];
 
       for (final jsonItem in decoded) {
         if (jsonItem is! Map<String, dynamic>) {
-          throw const FormatException('Hvert element må være et objekt.');
+          throw const FormatException('Each item must be an object.');
         }
         final trackTime = TrackTime.fromJson(jsonItem);
         importedTracks.add(trackTime);
       }
 
+      int added = 0;
       for (final trackTime in importedTracks) {
-        // Sjekk om track time allerede eksisterer
-        final existingTrackTime = ref
-            .watch(hiveTrackTimeData)
-            ?.where((element) => element.id == trackTime.id)
-            .isNotEmpty;
-        if (existingTrackTime ?? false) {
-          continue;
-        }
+        final exists = ref
+                .read(hiveTrackTimeData)
+                ?.any((element) => element.id == trackTime.id) ??
+            false;
+        if (exists) continue;
         ref.read(hiveTrackTimeData.notifier).addTrackTime(trackTime);
+        added++;
       }
 
-      // Vis bekreftelsesmelding
       if (mounted) {
+        importJsonDataController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Importerte ${importedTracks.length} spor'),
+            content: Text(
+              added > 0
+                  ? 'Imported $added track start time(s)'
+                  : 'No new entries — all already in the list.',
+            ),
           ),
         );
       }
-
-      // Tøm input-feltet
-      importJsonDataController.clear();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Feil ved import av JSON-data. Sjekk formatet.'),
+            content: Text('Invalid JSON — check the format and try again.'),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete / manage section
+  // ---------------------------------------------------------------------------
+
+  Widget _deleteSection(
+      BuildContext context, List<TrackTime> trackTimeList) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${trackTimeList.length} track start time(s) in the list.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(16),
+          _sectionButton(
+            context,
+            label: 'Delete list with track start times',
+            icon: Icons.delete_forever,
+            disabled: trackTimeList.isEmpty,
+            destructive: true,
+            onPressed: () {
+              deleteAllOrZeroTimeTrackTimes(trackTimeList, false);
+            },
+          ),
+          const Gap(10),
+          _sectionButton(
+            context,
+            label: 'Delete entries with no start time',
+            icon: Icons.delete_outline,
+            disabled: trackTimeList.isEmpty,
+            destructive: true,
+            onPressed: () {
+              deleteAllOrZeroTimeTrackTimes(trackTimeList, true);
+            },
+          ),
+          const Gap(8),
+        ],
+      ),
+    );
   }
 
   void deleteAllOrZeroTimeTrackTimes(
@@ -292,8 +586,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           title: const Text('Confirm deletion'),
           content: Text(
             onlyWithZeroStartTime
-                ? 'Are you sure you want to delete some of the ${trackTimeList.length} track time settings - only the ones with no start time?'
-                : 'Are you sure you want to delete all ${trackTimeList.length} track time settings?',
+                ? 'Delete ${trackTimeList.where((t) => t.startTime == 0).length} '
+                    'entries that have no start time?'
+                : 'Delete all ${trackTimeList.length} track start times from the list?',
           ),
           actions: [
             TextButton(
@@ -308,7 +603,6 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                     ref
                         .read(hiveTrackTimeData.notifier)
                         .removeTrackTime(trackTime.id);
-                    // skip delete
                   } else if (!onlyWithZeroStartTime) {
                     ref
                         .read(hiveTrackTimeData.notifier)
@@ -316,8 +610,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                   }
                 }
                 setState(() {
-                  trackTimeList =
-                      trackTimeList = ref.watch(dataTrackTimeProvider);
+                  this.trackTimeList = ref.read(dataTrackTimeProvider);
                 });
               },
               child: const Text(
@@ -331,70 +624,19 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     );
   }
 
-  void _copyPlaylistUrisToClipboard(List<DJPlaylist> playlists) {
-    final data = playlists
-        .map<Map<String, String>>((p) => {
-              'playlistUri': p.spotifyUri,
-              'playlistType': p.type,
-              'name': p.name,
-            })
-        .toList();
-    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
-    Clipboard.setData(ClipboardData(text: jsonString));
-  }
+  // ---------------------------------------------------------------------------
+  // Shared helpers
+  // ---------------------------------------------------------------------------
 
-  Widget _playlistUriExportSection(BuildContext context) {
-    final List<DJPlaylist> playlists =
-        ref.watch(hivePlaylistData) ?? <DJPlaylist>[];
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${playlists.length} playlists in your library.',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const Gap(12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  disabledBackgroundColor:
-                      Theme.of(context).primaryColor.withOpacity(0.3),
-                ),
-                onPressed: playlists.isEmpty
-                    ? null
-                    : () {
-                        _copyPlaylistUrisToClipboard(playlists);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Copied ${playlists.length} playlists'
-                                ' (URI + type) to clipboard',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                child: Text(
-                  'Copy all playlist URI and type (JSON)',
-                  style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                        color: playlists.isEmpty
-                            ? Colors.white.withOpacity(0.5)
-                            : Colors.white,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const Gap(8),
-        ],
-      ),
-    );
+  String spotifyUriValidate(String value) {
+    if (value.isEmpty) return '';
+    if (value.contains('https://open.spotify.com/playlist/')) {
+      return value.substring('https://open.spotify.com/'.length);
+    }
+    if (value.contains('https://open.spotify.com/album/')) {
+      return value.substring('https://open.spotify.com/'.length);
+    }
+    return value;
   }
 
   Widget globalInfoBox(BuildContext context, String label, Widget child) {
@@ -410,7 +652,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Theme.of(context).canvasColor,
               borderRadius: const BorderRadius.only(
@@ -418,15 +661,13 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).hintColor,
-                    ),
-              ),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).hintColor,
+                    letterSpacing: 0.8,
+                  ),
             ),
           ),
           child,
@@ -435,235 +676,34 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     );
   }
 
-  Widget exportingTrackTimeList(BuildContext context,
-      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
-    return Column(
-      children: [
-        Container(
-            color: Theme.of(context).canvasColor,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: SizedBox(),
-                ),
-                Expanded(
-                  flex: 70,
-                  child: Text(
-                    '${djTrackWithStartTimeList.length} tracks with start time in your playlists. $trackWithZeroStartTimeListLength of them have no start time.',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
-            )),
-        const Gap(10),
-        Container(
-            color: Theme.of(context).canvasColor,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: SizedBox(),
-                ),
-                Expanded(
-                  flex: 70,
-                  child: Text(
-                    '${trackTimeList.length} in the import/export track time list',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-              ],
-            )),
-        const Gap(20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                disabledBackgroundColor:
-                    Theme.of(context).primaryColor.withOpacity(0.3),
-              ),
-              onPressed: djTrackWithStartTimeList.isEmpty
-                  ? null
-                  : () {
-                      updateTrackTimeListWithMissingTracks(
-                          djTrackWithStartTimeList, trackTimeList);
-                    },
-              child: Text(
-                'Update track time list with missing tracks from you playlist for export',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge!
-                    .copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        const Gap(10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                disabledBackgroundColor:
-                    Theme.of(context).primaryColor.withOpacity(0.3),
-              ),
-              onPressed: trackTimeList.isEmpty
-                  ? null
-                  : () {
-                      final bytes =
-                          exportTrackTimeListToClipboard(trackTimeList);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Track time list copied to clipboard ${bytes.toString()} bytes'),
-                          ),
-                        );
-                      }
-                    },
-              child: Text(
-                'Copy track time list in JSON format to clipboard',
-                style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      color: trackTimeList.isEmpty
-                          ? Colors.white.withOpacity(0.5)
-                          : Colors.white,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const Gap(20),
-      ],
-    );
-  }
-
-  String getExampleJsonData() {
-    return '''
-    [
-      {"id":"6epn3r7S14KUqlReYr77hA","startTime":11000,"startTimeMS":0},
-      {"id":"4vVTI94F9uJ8lHNDWKv0i2","startTime":36000,"startTimeMS":0},
-      {"id":"0UODoSWbhBQyUhzL10D03d","startTime":13000,"startTimeMS":0},
-      {"id":"18nFS1XdlXMPWbPkkPdawl","startTime":6000,"startTimeMS":0},
-    ]
-    ''';
-  }
-
-  Widget importingTrackTimeList(BuildContext context,
-      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: TextField(
-            controller: importJsonDataController,
-            maxLines: 10,
-            onChanged: (value) {
-              setState(() {
-                importJsonDataController.text = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText:
-                  'Paste your JSON data here, the press button below to import'
-                  '\nExample:\n'
-                  '${getExampleJsonData()}',
-              border: OutlineInputBorder(),
-              filled: true,
-              fillColor: Theme.of(context).primaryColor.withOpacity(0.05),
-            ),
+  Widget _sectionButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required bool disabled,
+    required VoidCallback onPressed,
+    bool destructive = false,
+  }) {
+    final color = destructive ? Colors.red : Theme.of(context).primaryColor;
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: disabled ? color.withOpacity(0.3) : color,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          alignment: Alignment.centerLeft,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
           ),
         ),
-        const Gap(20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                disabledBackgroundColor:
-                    Theme.of(context).primaryColor.withOpacity(0.3),
+        onPressed: disabled ? null : onPressed,
+        icon: Icon(icon, color: Colors.white, size: 20),
+        label: Text(
+          label,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
               ),
-              onPressed: importJsonDataController.text.trim().isEmpty
-                  ? null
-                  : () {
-                      importTrackTimeJsonData(
-                          importJsonDataController.text.trim());
-                    },
-              child: Text(
-                'Import track time json data with spotify uri and start time',
-                style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      color: importJsonDataController.text.trim().isEmpty
-                          ? Colors.white.withOpacity(0.5)
-                          : Colors.white,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const Gap(20),
-      ],
-    );
-  }
-
-  Widget infoAboutImportExport(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).primaryColor,
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).canvasColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  topRight: Radius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Info about using preset track times'.toUpperCase(),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ),
-            Container(
-              color: Theme.of(context).cardColor,
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  const Expanded(flex: 5, child: SizedBox()),
-                  Expanded(
-                    flex: 65,
-                    child: Text(
-                      '- Tools for importing and exporting track start times. '
-                      'You can import a list of track ids with start time. When making og syncing '
-                      'playlists from Spotify, we can update these tracks with start time from the track time list. '
-                      'All the tracks you have set a start time on can be exported to '
-                      'the clipboard. The data is in JSON format. Then you can share the list with others using mail. '
-                      'You can also import track with start time. ',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontStyle: FontStyle.normal,
-                          ),
-                    ),
-                  ),
-                  const Expanded(flex: 5, child: SizedBox()),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
