@@ -70,9 +70,9 @@ class SpotifyNativeChannel: NSObject {
                 .playlistModifyPublic,
                 .userReadCurrentlyPlaying,
             ]
-            if let expiredSession = storedSession {
+            if storedSession != nil {
                 // Try silent renewal first
-                sessionManager?.renewSession(expiredSession)
+                sessionManager?.renewSession()
             } else {
                 sessionManager?.initiateSession(with: scope, options: .default, campaign: nil)
             }

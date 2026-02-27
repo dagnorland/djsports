@@ -193,19 +193,35 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
   void updateTrackTimeListWithMissingTracks(
       List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
-    // get all tracks from djTrackWithStartTimeList
     final allTracks =
         djTrackWithStartTimeList.map((e) => TrackTime.fromDJTrack(e)).toList();
 
-    // Legg til hvert spor i TrackTime-repositoriet
+    int addedCount = 0;
     for (final trackTime in allTracks) {
-      ref.read(hiveTrackTimeData.notifier).addTrackTime(trackTime);
+      final existsBefore = ref
+          .read(hiveTrackTimeData.notifier)
+          .existsTrackTime(trackTime.id);
+      if (!existsBefore) {
+        ref.read(hiveTrackTimeData.notifier).addTrackTime(trackTime);
+        addedCount++;
+      }
     }
 
-    // Oppdater den lokale listen
     setState(() {
-      trackTimeList = allTracks;
+      this.trackTimeList = ref.read(dataTrackTimeProvider);
     });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            addedCount > 0
+                ? 'Added $addedCount new track(s) to the export list'
+                : 'No new tracks to add — all ${allTracks.length} already in the list',
+          ),
+        ),
+      );
+    }
   }
 
   int exportTrackTimeListToClipboard(List<TrackTime> trackTimeList) {
@@ -466,13 +482,15 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
+                disabledBackgroundColor:
+                    Theme.of(context).primaryColor.withOpacity(0.3),
               ),
-              onPressed: () {
-                setState(() {
-                  updateTrackTimeListWithMissingTracks(
-                      djTrackWithStartTimeList, trackTimeList);
-                });
-              },
+              onPressed: djTrackWithStartTimeList.isEmpty
+                  ? null
+                  : () {
+                      updateTrackTimeListWithMissingTracks(
+                          djTrackWithStartTimeList, trackTimeList);
+                    },
               child: Text(
                 'Update track time list with missing tracks from you playlist for export',
                 style: Theme.of(context)
