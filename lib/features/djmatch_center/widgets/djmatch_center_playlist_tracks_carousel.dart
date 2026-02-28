@@ -131,7 +131,7 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    DJPlaylist playlist = ref.read(djPlaylistByIdProvider(playlistId));
+    DJPlaylist playlist = ref.watch(djPlaylistByIdProvider(playlistId));
     //playlist =
     //    ref.read(hivePlaylistData.notifier).shuffleTracksInPlaylist(playlistId);
     List<DJTrack> tracks =

@@ -14,10 +14,7 @@ import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class TrackTimeCenterScreen extends StatefulHookConsumerWidget {
-  const TrackTimeCenterScreen({
-    super.key,
-    this.refreshCallback,
-  });
+  const TrackTimeCenterScreen({super.key, this.refreshCallback});
 
   final VoidCallback? refreshCallback;
 
@@ -76,11 +73,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             Navigator.of(context).pop();
             widget.refreshCallback ?? widget.refreshCallback;
           },
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-            size: 30,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 30),
         ),
         actions: const [],
         title: const Text(
@@ -95,24 +88,26 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             children: [
               _infoSection(context),
               const Gap(20),
-              globalInfoBox(
-                context,
-                'PLAYLISTS',
-                _playlistSection(context),
-              ),
+              globalInfoBox(context, 'PLAYLISTS', _playlistSection(context)),
               const Gap(20),
               globalInfoBox(
                 context,
                 'EXPORT TRACK START TIMES',
                 _exportTrackTimesSection(
-                    context, djTrackWithStartTimeList, trackTimeList),
+                  context,
+                  djTrackWithStartTimeList,
+                  trackTimeList,
+                ),
               ),
               const Gap(20),
               globalInfoBox(
                 context,
                 'IMPORT TRACK START TIMES',
                 _importTrackTimesSection(
-                    context, djTrackWithStartTimeList, trackTimeList),
+                  context,
+                  djTrackWithStartTimeList,
+                  trackTimeList,
+                ),
               ),
               const Gap(20),
               globalInfoBox(
@@ -153,9 +148,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                   Text(
                     'How track start times work',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade800,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                    ),
                   ),
                   const Gap(8),
                   Text(
@@ -165,9 +160,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                     'You can also back up and restore your playlists using the '
                     'Playlists section below.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.blue.shade900,
-                          height: 1.5,
-                        ),
+                      color: Colors.blue.shade900,
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),
@@ -249,7 +244,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             disabled: importPlaylistJsonDataController.text.trim().isEmpty,
             onPressed: () {
               _importPlaylistsFromJson(
-                  importPlaylistJsonDataController.text.trim());
+                importPlaylistJsonDataController.text.trim(),
+              );
             },
           ),
           const Gap(8),
@@ -260,11 +256,13 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
   void _copyPlaylistUrisToClipboard(List<DJPlaylist> playlists) {
     final data = playlists
-        .map<Map<String, String>>((p) => {
-              'playlistUri': p.spotifyUri,
-              'playlistType': p.type,
-              'name': p.name,
-            })
+        .map<Map<String, String>>(
+          (p) => {
+            'playlistUri': p.spotifyUri,
+            'playlistType': p.type,
+            'name': p.name,
+          },
+        )
         .toList();
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
     Clipboard.setData(ClipboardData(text: jsonString));
@@ -291,8 +289,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
         if (uri.isEmpty) continue;
 
-        final alreadyExists =
-            existingPlaylists.any((p) => p.spotifyUri == uri);
+        final alreadyExists = existingPlaylists.any((p) => p.spotifyUri == uri);
         if (alreadyExists) {
           skipped++;
           continue;
@@ -318,7 +315,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             content: Text(
               added > 0
                   ? 'Added $added playlist(s)${skipped > 0 ? ', $skipped already existed' : ''}. '
-                      'Open each playlist to sync tracks from Spotify.'
+                        'Open each playlist to sync tracks from Spotify.'
                   : 'No new playlists — all already in your library.',
             ),
           ),
@@ -340,8 +337,11 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   // Export track start times
   // ---------------------------------------------------------------------------
 
-  Widget _exportTrackTimesSection(BuildContext context,
-      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
+  Widget _exportTrackTimesSection(
+    BuildContext context,
+    List<DJTrack> djTrackWithStartTimeList,
+    List<TrackTime> trackTimeList,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -365,7 +365,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             disabled: djTrackWithStartTimeList.isEmpty,
             onPressed: () {
               updateTrackTimeListWithMissingTracks(
-                  djTrackWithStartTimeList, trackTimeList);
+                djTrackWithStartTimeList,
+                trackTimeList,
+              );
             },
           ),
           const Gap(10),
@@ -395,9 +397,12 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   }
 
   void updateTrackTimeListWithMissingTracks(
-      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
-    final allTracks =
-        djTrackWithStartTimeList.map((e) => TrackTime.fromDJTrack(e)).toList();
+    List<DJTrack> djTrackWithStartTimeList,
+    List<TrackTime> trackTimeList,
+  ) {
+    final allTracks = djTrackWithStartTimeList
+        .map((e) => TrackTime.fromDJTrack(e))
+        .toList();
 
     int addedCount = 0;
     for (final trackTime in allTracks) {
@@ -437,13 +442,21 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   // Import track start times
   // ---------------------------------------------------------------------------
 
-  Widget _importTrackTimesSection(BuildContext context,
-      List<DJTrack> djTrackWithStartTimeList, List<TrackTime> trackTimeList) {
+  Widget _importTrackTimesSection(
+    BuildContext context,
+    List<DJTrack> djTrackWithStartTimeList,
+    List<TrackTime> trackTimeList,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            '${trackTimeList.length} track start time(s) in the list.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(4),
           Text(
             'Paste a JSON list of track start times to import them.',
             style: Theme.of(context).textTheme.bodyMedium,
@@ -453,7 +466,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             controller: importJsonDataController,
             maxLines: 10,
             decoration: InputDecoration(
-              hintText: 'Paste JSON here, then press Import below\n\n'
+              hintText:
+                  'Paste JSON here, then press Import below\n\n'
                   'Example:\n${_exampleTrackTimeJson()}',
               border: const OutlineInputBorder(),
               filled: true,
@@ -470,10 +484,50 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
               importTrackTimeJsonData(importJsonDataController.text.trim());
             },
           ),
+          const Gap(10),
+          _sectionButton(
+            context,
+            label: 'Update all tracks with no start time from list',
+            icon: Icons.update,
+            disabled: trackTimeList.isEmpty || trackWithZeroStartTimeListLength == 0,
+            onPressed: () {
+              _applyStartTimesToTracksWithNoStartTime();
+            },
+          ),
           const Gap(8),
         ],
       ),
     );
+  }
+
+  void _applyStartTimesToTracksWithNoStartTime() {
+    final allTracks = ref.read(hiveTrackData) ?? [];
+    final tracksWithNoStartTime =
+        allTracks.where((t) => t.startTime == 0).toList();
+
+    int updatedCount = 0;
+    for (final track in tracksWithNoStartTime) {
+      final match = trackTimeList.where((tt) => tt.id == track.id).firstOrNull;
+      if (match != null && match.startTime > 0) {
+        track.startTime = match.startTime;
+        track.startTimeMS = match.startTimeMS ?? 0;
+        ref.read(hiveTrackData.notifier).updateDJTrack(track);
+        updatedCount++;
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            updatedCount > 0
+                ? 'Updated $updatedCount track(s) with start times from the list'
+                : 'No matches found — none of the ${tracksWithNoStartTime.length} '
+                    'tracks without a start time exist in the import list',
+          ),
+        ),
+      );
+    }
   }
 
   String _exampleTrackTimeJson() {
@@ -501,7 +555,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
       int added = 0;
       for (final trackTime in importedTracks) {
-        final exists = ref
+        final exists =
+            ref
                 .read(hiveTrackTimeData)
                 ?.any((element) => element.id == trackTime.id) ??
             false;
@@ -538,8 +593,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   // Delete / manage section
   // ---------------------------------------------------------------------------
 
-  Widget _deleteSection(
-      BuildContext context, List<TrackTime> trackTimeList) {
+  Widget _deleteSection(BuildContext context, List<TrackTime> trackTimeList) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -578,7 +632,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   }
 
   void deleteAllOrZeroTimeTrackTimes(
-      List<TrackTime> trackTimeList, bool onlyWithZeroStartTime) {
+    List<TrackTime> trackTimeList,
+    bool onlyWithZeroStartTime,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -587,7 +643,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           content: Text(
             onlyWithZeroStartTime
                 ? 'Delete ${trackTimeList.where((t) => t.startTime == 0).length} '
-                    'entries that have no start time?'
+                      'entries that have no start time?'
                 : 'Delete all ${trackTimeList.length} track start times from the list?',
           ),
           actions: [
@@ -613,10 +669,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                   this.trackTimeList = ref.read(dataTrackTimeProvider);
                 });
               },
-              child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -642,10 +695,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   Widget globalInfoBox(BuildContext context, String label, Widget child) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(
-          color: Theme.of(context).primaryColor,
-          width: 1,
-        ),
+        border: Border.all(color: Theme.of(context).primaryColor, width: 1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -664,10 +714,10 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             child: Text(
               label,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).hintColor,
-                    letterSpacing: 0.8,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).hintColor,
+                letterSpacing: 0.8,
+              ),
             ),
           ),
           child,
@@ -692,18 +742,16 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           backgroundColor: disabled ? color.withOpacity(0.3) : color,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           alignment: Alignment.centerLeft,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         onPressed: disabled ? null : onPressed,
         icon: Icon(icon, color: Colors.white, size: 20),
         label: Text(
           label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

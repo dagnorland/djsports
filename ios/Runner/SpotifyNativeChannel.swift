@@ -107,7 +107,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
-            appRemote?.playerAPI?.play(uri) { _, error in
+            guard let playerAPI = appRemote?.playerAPI else {
+                result(FlutterError(
+                    code: "NOT_CONNECTED",
+                    message: "Spotify Remote is not connected",
+                    details: "SpotifyDisconnectedException"
+                ))
+                return
+            }
+            playerAPI.play(uri) { _, error in
                 if let error = error {
                     result(FlutterError(
                         code: "PLAY_ERROR",
@@ -120,7 +128,15 @@ class SpotifyNativeChannel: NSObject {
             }
 
         case "pause":
-            appRemote?.playerAPI?.pause { _, error in
+            guard let playerAPI = appRemote?.playerAPI else {
+                result(FlutterError(
+                    code: "NOT_CONNECTED",
+                    message: "Spotify Remote is not connected",
+                    details: "SpotifyDisconnectedException"
+                ))
+                return
+            }
+            playerAPI.pause { _, error in
                 if let error = error {
                     result(FlutterError(
                         code: "PAUSE_ERROR",
@@ -133,7 +149,15 @@ class SpotifyNativeChannel: NSObject {
             }
 
         case "resume":
-            appRemote?.playerAPI?.resume { _, error in
+            guard let playerAPI = appRemote?.playerAPI else {
+                result(FlutterError(
+                    code: "NOT_CONNECTED",
+                    message: "Spotify Remote is not connected",
+                    details: "SpotifyDisconnectedException"
+                ))
+                return
+            }
+            playerAPI.resume { _, error in
                 if let error = error {
                     result(FlutterError(
                         code: "RESUME_ERROR",
@@ -154,7 +178,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
-            appRemote?.playerAPI?.seek(toPosition: position) { _, error in
+            guard let playerAPI = appRemote?.playerAPI else {
+                result(FlutterError(
+                    code: "NOT_CONNECTED",
+                    message: "Spotify Remote is not connected",
+                    details: "SpotifyDisconnectedException"
+                ))
+                return
+            }
+            playerAPI.seek(toPosition: position) { _, error in
                 if let error = error {
                     result(FlutterError(
                         code: "SEEK_ERROR",

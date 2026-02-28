@@ -32,7 +32,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool initStateConnectDone = false;
   bool _isReconnecting = false;
   Timer? _connectionHealthCheckTimer;
-  Stream<bool>? _connectionStatusStream;
+  StreamSubscription<bool>? _connectionSubscription;
 
   Future<void> _spotifyConnect(BuildContext context, WidgetRef ref) async {
     final spotifyRemoteService = ref.read(spotifyRemoteRepositoryProvider);
@@ -89,24 +89,59 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Create the stream ONCE here — never inside build().
-    // Recreating it on every build() causes onListen to fire each rebuild,
-    // which emits an initial event, which triggers setState, which rebuilds
-    // again → continuous rebuild loop and high CPU.
+    // Subscribe ONCE in initState. The reconnect logic lives here (not in
+    // build/StreamBuilder) so it only fires on genuine stream events, never
+    // on unrelated setState calls.
+    Stream<bool>? stream;
     if (Platform.isIOS || Platform.isMacOS) {
-      _connectionStatusStream = SpotifyPlatformBridge()
-          .subscribeConnectionStatus();
+      stream = SpotifyPlatformBridge().subscribeConnectionStatus();
     } else if (Platform.isAndroid) {
-      _connectionStatusStream = SpotifySdk.subscribeConnectionStatus().map(
-        (s) => s.connected,
-      );
+      stream =
+          SpotifySdk.subscribeConnectionStatus().map((s) => s.connected);
     }
+    _connectionSubscription = stream?.listen(_onConnectionStatus);
     _initializeSpotifyConnection();
     _startConnectionHealthCheck();
   }
 
+  void _onConnectionStatus(bool connected) {
+    spotifyRemoteConnect = connected;
+    if (!connected && !_isReconnecting) {
+      _isReconnecting = true;
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.notConnected,
+        'Disconnected from Spotify',
+      );
+      ref
+          .read(spotifyRemoteRepositoryProvider)
+          .connect()
+          .then((success) {
+            if (success) {
+              _isReconnecting = false;
+              if (mounted) {
+                setState(() => spotifyConnect = true);
+                debugPrint('Spotify Remote re-connected successfully');
+              }
+            } else {
+              Future.delayed(const Duration(seconds: 5), () {
+                _isReconnecting = false;
+                if (mounted) setState(() => spotifyConnect = false);
+              });
+            }
+          })
+          .catchError((error) {
+            debugPrint('Error connecting to Spotify Remote: $error');
+            Future.delayed(const Duration(seconds: 5), () {
+              _isReconnecting = false;
+              if (mounted) setState(() => spotifyConnect = false);
+            });
+          });
+    }
+  }
+
   @override
   void dispose() {
+    _connectionSubscription?.cancel();
     _connectionHealthCheckTimer?.cancel();
     super.dispose();
   }
@@ -128,56 +163,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    //if (!spotifyConnect) {
-    //  _spotifyConnect(context, ref);
-    //}
     final playlistList = ref.watch(typeFilteredAllDataProvider);
     final packageInfo = useFuture(useMemoized(PackageInfo.fromPlatform));
-
-    // FlutterNativeSplash.remove();
+    isPlaying = ref.read(spotifyRemoteRepositoryProvider).isPlaying;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: StreamBuilder<bool>(
-        stream: _connectionStatusStream ?? const Stream<bool>.empty(),
-        builder: (context, snapshot) {
-          var data = snapshot.data;
-          if (data != null) {
-            spotifyRemoteConnect = data;
-            if (!spotifyRemoteConnect && !_isReconnecting) {
-              _isReconnecting = true;
-              SpotifyConnectionLog().addSimpleEntry(
-                SpotifyConnectionStatus.notConnected,
-                'Disconnected from Spotify',
-              );
-              // Reconnect automatically (guarded to prevent storm)
-              ref
-                  .read(spotifyRemoteRepositoryProvider)
-                  .connect()
-                  .then((success) {
-                    _isReconnecting = false;
-                    if (mounted) {
-                      setState(() {
-                        spotifyConnect = success;
-                      });
-                      if (success) {
-                        debugPrint('Spotify Remote re-connected successfully');
-                      }
-                    }
-                  })
-                  .catchError((error) {
-                    _isReconnecting = false;
-                    debugPrint('Error connecting to Spotify Remote: $error');
-                    if (mounted) {
-                      setState(() {
-                        spotifyConnect = false;
-                      });
-                    }
-                  });
-            }
-          }
-          isPlaying = ref.read(spotifyRemoteRepositoryProvider).isPlaying;
-          return Scaffold(
+      home: Scaffold(
             backgroundColor: Colors.white,
             appBar: AppBar(
               centerTitle: true,
@@ -396,9 +388,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
               ],
             ),
-          );
-        },
-      ),
+          ),
     );
   }
 }
