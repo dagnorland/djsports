@@ -26,8 +26,12 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
   @override
   void initState() {
     if (!Platform.isMacOS) {
-      FlutterVolumeController.addListener((volume) {
-        ref.read(spotifyRemoteRepositoryProvider).setVolume(volume);
+      FlutterVolumeController.addListener((newVolume) {
+        final repo = ref.read(spotifyRemoteRepositoryProvider);
+        // Skip near-zero drift to prevent the listener from re-firing
+        // continuously when floating-point rounding causes tiny differences.
+        if ((newVolume - repo.volume).abs() < 0.005) return;
+        repo.setVolume(newVolume);
       });
     }
     super.initState();

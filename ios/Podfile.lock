@@ -14,9 +14,6 @@ PODS:
     - FlutterMacOS
   - package_info_plus (0.4.5):
     - Flutter
-  - path_provider_foundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
   - spotify_sdk (0.0.1):
     - Flutter
   - sqflite_darwin (0.0.4):
@@ -31,7 +28,6 @@ DEPENDENCIES:
   - flutter_volume_controller (from `.symlinks/plugins/flutter_volume_controller/ios`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
-  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - spotify_sdk (from `.symlinks/plugins/spotify_sdk/ios`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
 
@@ -50,8 +46,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/just_audio/darwin"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
-  path_provider_foundation:
-    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   spotify_sdk:
     :path: ".symlinks/plugins/spotify_sdk/ios"
   sqflite_darwin:
@@ -65,7 +59,6 @@ SPEC CHECKSUMS:
   flutter_volume_controller: c2be490cb0487e8b88d0d9fc2b7e1c139a4ebccb
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
-  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   spotify_sdk: a48400bb29f70c4fe251ebfdc9135c37097ac5ca
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
 

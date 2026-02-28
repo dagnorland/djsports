@@ -55,10 +55,12 @@ class SpotifyRemoteRepository {
     return volume;
   }
 
+  // Called from the system volume listener — do NOT call _setSystemVolume here.
+  // Writing the volume back to the system from within the listener creates a
+  // feedback loop that fires the listener again, hammering the CPU.
   void setVolume(double v) {
     volume = v;
     volumeNotifier.value = v;
-    _setSystemVolume(v);
   }
 
   Future<void> adjustVolume(double adjustment) async {
