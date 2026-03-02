@@ -300,11 +300,15 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
 
 void showMessageToast(BuildContext context, String message) {
   debugPrint('[TOAST] $message');
+  final mq = MediaQuery.of(context);
+  final bottomMargin =
+      (mq.size.width < 600 || mq.size.height < 500) ? 110.0 : 0.0;
   toastification.show(
     context: context,
     title: Text(message),
     autoCloseDuration: const Duration(seconds: 3),
     style: ToastificationStyle.flat,
     alignment: Alignment.bottomCenter,
+    margin: EdgeInsets.only(bottom: bottomMargin),
   );
 }

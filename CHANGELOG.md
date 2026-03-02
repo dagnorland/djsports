@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - Release 2026-03-02
+
+### Added
+- **djMatchDay** — new match day view with playlist grid, per-section labels (Hotspot, Match, Fun Stuff, Pre-Match), animated track carousel cards with album art, prev/next navigation, and auto-advance after play
+- **Responsive home page** — AppBar adapts to screen width; narrow (< 600 px) collapses overflow actions into a `PopupMenuButton`; djMatchDay and djMatchCenter accessible from menu on all screen sizes
+
+### Changed
+- **djMatchCenter & djMatchDay** — on portrait / landscape phone (width < 600 px or height < 500 px) the control buttons move to a compact bar at the bottom instead of a sidebar, ensuring full accessibility on small screens
+- **Edit Playlist & Edit Track screens** — redesigned with modern responsive layout: stacked on narrow screens, side-by-side on wide screens; consistent section containers with color accent
+- **Playlist list view** — type color stripe on left edge of each card, compact icon-only trailing on narrow screens
+- **Playlist tracks view** — green counter badge, compact icon buttons on narrow screens, album art + full buttons on wide screens
+- **TypeFilter bar** — replaced fixed-width overflow row with horizontal scroll
+
+### Fixed
+- Toast notifications now appear above the compact bottom control bar on phones (added `margin: EdgeInsets.only(bottom: 110)` when compact bar is active)
+- Portrait blank space in djMatchDay grid removed (`padding: EdgeInsets.zero` on `GridView.builder` prevents inheriting status-bar top padding)
+- Sidebar scroll on landscape phones — `CenterControlWidget` wrapped in `SingleChildScrollView`, removed blocking `Expanded` widgets
+
+### UI
+- Delete buttons on playlists and tracks now show a confirmation dialog with clear description of what will be deleted
+
 ## [2.0.1] - Release 2026-02-28
 
 ### Fixed
