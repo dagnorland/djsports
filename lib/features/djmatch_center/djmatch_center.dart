@@ -7,6 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:io';
 
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'package:toastification/toastification.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
 
 class DJMatchCenterViewPage extends StatefulHookConsumerWidget {
@@ -32,6 +33,23 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
         // continuously when floating-point rounding causes tiny differences.
         if ((newVolume - repo.volume).abs() < 0.005) return;
         repo.setVolume(newVolume);
+      });
+      FlutterVolumeController.getVolume().then((v) {
+        if (v != null && mounted) {
+          ref.read(spotifyRemoteRepositoryProvider).setVolume(v);
+          final pct = (v * 100).round();
+          final mq = MediaQuery.of(context);
+          final bottomMargin =
+              (mq.size.width < 600 || mq.size.height < 500) ? 110.0 : 0.0;
+          toastification.show(
+            context: context,
+            title: Text('Volume: $pct%'),
+            autoCloseDuration: const Duration(seconds: 3),
+            style: ToastificationStyle.flat,
+            alignment: Alignment.bottomCenter,
+            margin: EdgeInsets.only(bottom: bottomMargin),
+          );
+        }
       });
     }
     super.initState();
@@ -130,6 +148,54 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
           );
   }
 
+  Widget _buildCompactControls() {
+    return ColoredBox(
+      color: Colors.red,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.play_arrow, color: Colors.white,
+                    size: 32),
+                onPressed: resumePlayer,
+              ),
+              IconButton(
+                icon: const Icon(Icons.pause, color: Colors.white, size: 32),
+                onPressed: pausePlayer,
+              ),
+              IconButton(
+                icon: const Icon(Icons.volume_up, color: Colors.white,
+                    size: 28),
+                onPressed: () => ref
+                    .read(spotifyRemoteRepositoryProvider)
+                    .adjustVolume(0.05),
+              ),
+              IconButton(
+                icon: const Icon(Icons.volume_down, color: Colors.white,
+                    size: 28),
+                onPressed: () => ref
+                    .read(spotifyRemoteRepositoryProvider)
+                    .adjustVolume(-0.05),
+              ),
+              IconButton(
+                icon: const Icon(Icons.backspace, color: Colors.white,
+                    size: 24),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  widget.refreshCallback?.call();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlists = ref.watch(typeFilteredAllDataProvider);
@@ -138,61 +204,86 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         backgroundColor: Colors.black,
-        body: Row(
-          children: [
-            Expanded(
-              flex: 93,
-              child: Column(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 600;
+            final isTallEnoughForSidebar = constraints.maxHeight >= 500;
+
+            Widget playlistContent = Column(
+              children: [
+                Expanded(
+                  flex: 14,
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers: getPlaylistWidgetByPlaylistType(
+                      playlists,
+                      DJPlaylistType.hotspot,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 40,
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers:
+                        getPlaylistWidgetByPlaylistType(
+                          playlists,
+                          DJPlaylistType.match,
+                        ) +
+                        getPlaylistWidgetByPlaylistType(
+                          playlists,
+                          DJPlaylistType.funStuff,
+                        ) +
+                        getPlaylistWidgetByPlaylistType(
+                          playlists,
+                          DJPlaylistType.preMatch,
+                        ),
+                  ),
+                ),
+              ],
+            );
+
+            // Tablet / macOS: sidebar on the right
+            if (isWide && isTallEnoughForSidebar) {
+              return Row(
                 children: [
-                  const SafeArea(child: SizedBox()),
                   Expanded(
-                    flex: 14,
-                    child: CustomScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      slivers: getPlaylistWidgetByPlaylistType(
-                        playlists,
-                        DJPlaylistType.hotspot,
+                    flex: 93,
+                    child: Column(
+                      children: [
+                        const SafeArea(child: SizedBox()),
+                        Expanded(child: playlistContent),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 7,
+                    child: Container(
+                      color: Colors.red,
+                      child: CenterControlWidget(
+                        onResume: () async => resumePlayer(),
+                        onPause: () async => pausePlayer(),
+                        onBack: () async {
+                          Navigator.of(context).pop();
+                          widget.refreshCallback?.call();
+                        },
+                        refreshCallback: widget.refreshCallback,
                       ),
                     ),
                   ),
-                  Expanded(
-                    flex: 40,
-                    child: CustomScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      slivers:
-                          getPlaylistWidgetByPlaylistType(
-                            playlists,
-                            DJPlaylistType.match,
-                          ) +
-                          getPlaylistWidgetByPlaylistType(
-                            playlists,
-                            DJPlaylistType.funStuff,
-                          ) +
-                          getPlaylistWidgetByPlaylistType(
-                            playlists,
-                            DJPlaylistType.preMatch,
-                          ),
-                    ),
-                  ),
                 ],
-              ),
-            ),
-            Expanded(
-              flex: 7,
-              child: Container(
-                color: Colors.red,
-                child: CenterControlWidget(
-                  onResume: () async => resumePlayer(),
-                  onPause: () async => pausePlayer(),
-                  onBack: () async {
-                    Navigator.of(context).pop();
-                    widget.refreshCallback?.call();
-                  },
-                  refreshCallback: widget.refreshCallback,
-                ),
-              ),
-            ),
-          ],
+              );
+            }
+
+            // Portrait / landscape phone: compact bar at bottom
+            return Column(
+              children: [
+                const SafeArea(bottom: false, child: SizedBox()),
+                Expanded(child: playlistContent),
+                _buildCompactControls(),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -56,7 +56,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   final artistController = TextEditingController();
   final mp3UriController = TextEditingController();
   final networkImageUriController = TextEditingController();
-  // Kept for parseStartTime()
   final startTimeController = TextEditingController();
 
   String playlistId = '';
@@ -66,10 +65,8 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   String trackDurationFormatted = '--:--';
   late bool autoPreview;
 
-  // Total start position in ms
   int get _totalStartMs => editStartTime + editStartTimeMS;
 
-  // Max slider value — fallback to 5 min if duration unknown
   double get _maxMs =>
       widget.duration > 0 ? widget.duration.toDouble() : 300000.0;
 
@@ -149,6 +146,26 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     }
   }
 
+  void _nudgeStart(int deltaMs) {
+    _onSliderChanged(
+      (_totalStartMs + deltaMs).clamp(0, _maxMs.toInt()).toDouble(),
+    );
+    _onSliderChangeEnd(_totalStartMs.toDouble());
+  }
+
+  void _playPreview() {
+    ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
+          spotifyUriController.text.isEmpty
+              ? mp3UriController.text
+              : spotifyUriController.text,
+          parseStartTime(),
+        );
+  }
+
+  void _pausePreview() {
+    ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+  }
+
   void updateTrack({bool goToNextTrack = false}) {
     if (widget.id.isEmpty) {
       ref.read(hiveTrackData.notifier).addDJTrack(
@@ -194,9 +211,254 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     }
   }
 
+  Widget _field(TextEditingController controller, String label, String hint) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(labelText: label, hintText: hint),
+    );
+  }
+
+  Widget _sectionContainer({required Widget child}) {
+    final primary = Theme.of(context).primaryColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: primary.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primary.withOpacity(0.15)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildMetadataSection(bool isWide) {
+    if (isWide) {
+      return _sectionContainer(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _field(nameController, 'Name', 'Track name')),
+            const Gap(16),
+            Expanded(child: _field(albumController, 'Album', 'Album name')),
+            const Gap(16),
+            Expanded(child: _field(artistController, 'Artist', 'Artist name')),
+          ],
+        ),
+      );
+    }
+    return _sectionContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _field(nameController, 'Name', 'Track name'),
+          const SizedBox(height: 12),
+          _field(albumController, 'Album', 'Album name'),
+          const SizedBox(height: 12),
+          _field(artistController, 'Artist', 'Artist name'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStartTimeSection(bool isWide, Color primary) {
+    final timeDisplay = Text(
+      _formatMs(_totalStartMs),
+      style: TextStyle(
+        color: primary,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+
+    final nudgeMinus = IconButton(
+      icon: const Icon(Icons.remove),
+      tooltip: '-1 second',
+      color: primary,
+      onPressed: () => _nudgeStart(-1000),
+    );
+    final nudgePlus = IconButton(
+      icon: const Icon(Icons.add),
+      tooltip: '+1 second',
+      color: primary,
+      onPressed: () => _nudgeStart(1000),
+    );
+    final playBtn = IconButton(
+      icon: const Icon(Icons.play_arrow),
+      color: primary,
+      iconSize: 36,
+      onPressed: _playPreview,
+    );
+    final pauseBtn = IconButton(
+      icon: const Icon(Icons.pause),
+      color: primary,
+      iconSize: 36,
+      onPressed: _pausePreview,
+    );
+
+    final autoPreviewToggle = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Checkbox(
+          value: autoPreview,
+          onChanged: (v) => setState(() => autoPreview = v ?? false),
+        ),
+        Text('Auto Preview', style: TextStyle(color: primary)),
+      ],
+    );
+
+    final volumeControls = ValueListenableBuilder<double>(
+      valueListenable:
+          ref.read(spotifyRemoteRepositoryProvider).volumeNotifier,
+      builder: (context, volume, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.volume_down),
+            tooltip: 'Volume -5%',
+            color: primary,
+            iconSize: 28,
+            onPressed: () =>
+                ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.05),
+          ),
+          Text(
+            '${(volume * 100).round()}%',
+            style: TextStyle(color: primary, fontWeight: FontWeight.w600),
+          ),
+          IconButton(
+            icon: const Icon(Icons.volume_up),
+            tooltip: 'Volume +5%',
+            color: primary,
+            iconSize: 28,
+            onPressed: () =>
+                ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.05),
+          ),
+        ],
+      ),
+    );
+
+    final slider = Row(
+      children: [
+        Text(
+          '0:00',
+          style: TextStyle(
+            color: primary.withOpacity(0.5),
+            fontSize: 12,
+          ),
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 6,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+            ),
+            child: Slider(
+              min: 0,
+              max: _maxMs,
+              divisions: _maxMs.toInt() ~/ 100,
+              value: _totalStartMs.clamp(0, _maxMs.toInt()).toDouble(),
+              label: _formatMs(_totalStartMs),
+              activeColor: primary,
+              onChanged: _onSliderChanged,
+              onChangeEnd: _onSliderChangeEnd,
+            ),
+          ),
+        ),
+        Text(
+          trackDurationFormatted,
+          style: TextStyle(color: primary.withOpacity(0.5), fontSize: 12),
+        ),
+      ],
+    );
+
+    if (isWide) {
+      return _sectionContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Start time',
+                  style: TextStyle(
+                    color: primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Gap(16),
+                timeDisplay,
+                const Gap(4),
+                nudgeMinus,
+                nudgePlus,
+                playBtn,
+                pauseBtn,
+                const Spacer(),
+                autoPreviewToggle,
+                const Gap(8),
+                volumeControls,
+              ],
+            ),
+            slider,
+          ],
+        ),
+      );
+    }
+
+    // Narrow: multi-row layout
+    return _sectionContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row 1: label + time
+          Row(
+            children: [
+              Text(
+                'Start time',
+                style: TextStyle(
+                  color: primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Gap(12),
+              timeDisplay,
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Row 2: nudge + play/pause + auto preview
+          Row(
+            children: [
+              nudgeMinus,
+              nudgePlus,
+              playBtn,
+              pauseBtn,
+              const Spacer(),
+              autoPreviewToggle,
+            ],
+          ),
+          // Row 3: volume
+          Row(
+            children: [
+              Text('Volume', style: TextStyle(color: primary, fontSize: 13)),
+              const Spacer(),
+              volumeControls,
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Row 4: slider
+          slider,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
+    final isWide = MediaQuery.of(context).size.width >= 600;
+
+    final titleText = widget.id.isEmpty
+        ? 'Create Track'
+        : '#${widget.index + 1} · ${widget.name}';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -206,237 +468,58 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 30),
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
         ),
-        title: Text(
-          widget.id.isEmpty
-              ? 'Create Track for $playlistName'
-              : '#${widget.index} Edit Track for $playlistName',
-          style: TextStyle(
-            color: primary,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              titleText,
+              style: TextStyle(
+                color: primary,
+                fontWeight: FontWeight.bold,
+                fontSize: isWide ? 18 : 15,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (playlistName.isNotEmpty)
+              Text(
+                playlistName,
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.all(12),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Name / Album / Artist row ──────────────────────────────
-              Container(
-                color: primary.withOpacity(0.05),
-                child: Row(
-                  children: [
-                    _buildTextField(
-                      controller: nameController,
-                      label: 'Name',
-                      hint: 'Enter name',
-                      primary: primary,
-                    ),
-                    const Gap(20),
-                    _buildTextField(
-                      controller: albumController,
-                      label: 'Album name',
-                      hint: 'Enter album',
-                      primary: primary,
-                    ),
-                    const Gap(20),
-                    _buildTextField(
-                      controller: artistController,
-                      label: 'Artist name',
-                      hint: 'Enter artist',
-                      primary: primary,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              // ── Start time slider ──────────────────────────────────────
-              Container(
-                color: primary.withOpacity(0.05),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Start time',
-                          style: TextStyle(
-                            color: primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(16),
-                        Text(
-                          _formatMs(_totalStartMs),
-                          style: TextStyle(
-                            color: primary,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: const [
-                              FontFeature.tabularFigures(),
-                            ],
-                          ),
-                        ),
-                        const Gap(8),
-                        IconButton(
-                          icon: const Icon(Icons.remove),
-                          tooltip: '-1 second',
-                          color: primary,
-                          onPressed: () {
-                            _onSliderChanged(
-                              (_totalStartMs - 1000)
-                                  .clamp(0, _maxMs.toInt())
-                                  .toDouble(),
-                            );
-                            _onSliderChangeEnd(_totalStartMs.toDouble());
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          tooltip: '+1 second',
-                          color: primary,
-                          onPressed: () {
-                            _onSliderChanged(
-                              (_totalStartMs + 1000)
-                                  .clamp(0, _maxMs.toInt())
-                                  .toDouble(),
-                            );
-                            _onSliderChangeEnd(_totalStartMs.toDouble());
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.play_arrow),
-                          color: primary,
-                          iconSize: 40,
-                          onPressed: () {
-                            ref
-                                .read(spotifyRemoteRepositoryProvider)
-                                .playSpotiyfyUriAndJumpStart(
-                                  spotifyUriController.text.isEmpty
-                                      ? mp3UriController.text
-                                      : spotifyUriController.text,
-                                  parseStartTime(),
-                                );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.pause),
-                          color: primary,
-                          iconSize: 40,
-                          onPressed: () => ref
-                              .read(spotifyRemoteRepositoryProvider)
-                              .pausePlayer(),
-                        ),
-                        const Spacer(),
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: autoPreview,
-                              onChanged: (v) =>
-                                  setState(() => autoPreview = v ?? false),
-                            ),
-                            Text(
-                              'Auto Preview',
-                              style: TextStyle(color: primary),
-                            ),
-                          ],
-                        ),
-                        const Gap(16),
-                        IconButton(
-                          icon: const Icon(Icons.volume_down),
-                          tooltip: 'Volume -5%',
-                          color: primary,
-                          iconSize: 32,
-                          onPressed: () => ref
-                              .read(spotifyRemoteRepositoryProvider)
-                              .adjustVolume(-0.05),
-                        ),
-                        ValueListenableBuilder<double>(
-                          valueListenable: ref
-                              .read(spotifyRemoteRepositoryProvider)
-                              .volumeNotifier,
-                          builder: (context, volume, _) => Text(
-                            '${(volume * 100).round()}%',
-                            style: TextStyle(
-                              color: primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.volume_up),
-                          tooltip: 'Volume +5%',
-                          color: primary,
-                          iconSize: 32,
-                          onPressed: () => ref
-                              .read(spotifyRemoteRepositoryProvider)
-                              .adjustVolume(0.05),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          '0:00',
-                          style: TextStyle(
-                            color: primary.withOpacity(0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 6,
-                              thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 10,
-                              ),
-                            ),
-                            child: Slider(
-                              min: 0,
-                              max: _maxMs,
-                              divisions: _maxMs.toInt() ~/ 100,
-                              value: _totalStartMs
-                                  .clamp(0, _maxMs.toInt())
-                                  .toDouble(),
-                              label: _formatMs(_totalStartMs),
-                              activeColor: primary,
-                              onChanged: _onSliderChanged,
-                              onChangeEnd: _onSliderChangeEnd,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          trackDurationFormatted,
-                          style: TextStyle(
-                            color: primary.withOpacity(0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              // ── Name / Album / Artist ─────────────────────────────
+              _buildMetadataSection(isWide),
               const SizedBox(height: 12),
-              // ── Buttons ────────────────────────────────────────────────
+
+              // ── Start time ────────────────────────────────────────
+              _buildStartTimeSection(isWide, primary),
+              const SizedBox(height: 16),
+
+              // ── Buttons ───────────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                    ),
+                  OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary,
@@ -448,15 +531,15 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                     ),
                   ),
                   if (widget.id.isNotEmpty) ...[
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
                       ),
                       onPressed: () => updateTrack(goToNextTrack: true),
-                      child: const Text(
-                        'Update & next track',
-                        style: TextStyle(color: Colors.white),
+                      child: Text(
+                        isWide ? 'Update & next track' : 'Update & next',
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ],
@@ -465,44 +548,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required Color primary,
-  }) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: TextField(
-          controller: controller,
-          decoration: _inputDecoration(
-            label: label,
-            hint: hint,
-            primary: primary,
-          ),
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String label,
-    required String hint,
-    required Color primary,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: primary, width: 2),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: primary, width: 2),
       ),
     );
   }

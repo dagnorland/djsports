@@ -12,18 +12,19 @@
             "deviceId": "macos"
         },
         {
-            "name": "djsports iPhone15",
+            "name": "djsports iPhone15 debug",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
             "deviceId": "00008130-00015D2C3E78001C"
         },
         {
-            "name": "djsports iPhone15 Pro Max",
+            "name": "djsports iPhone15 Release",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
-            "deviceId": "BFCBCD70-4C44-4FD3-81F1-1F9ACEE7D713"
+            "flutterMode": "release",
+            "deviceId": "00008130-00015D2C3E78001C"
         },
         {
             "name": "djsports iPad Pro 13-inch M4 18",

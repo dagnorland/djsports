@@ -118,6 +118,14 @@ class SpotifyRemoteRepository {
     }
   }
 
+  Future<void> _restoreVolume(double vol) async {
+    if (Platform.isMacOS) {
+      await _bridge.setVolume((vol * 100).round());
+    } else {
+      _setSystemVolume(vol);
+    }
+  }
+
   Future<bool> pausePlayer() async {
     try {
       await _mute();
@@ -243,16 +251,15 @@ class SpotifyRemoteRepository {
     bool success = false;
     int retryCount = 0;
 
+    // Capture volume before entering try so catch blocks can restore it.
+    double savedVolume = await _getSystemVolume();
+    if (savedVolume == 0) savedVolume = 0.5;
+
     // make a timer to find duration between two timestamps
     final startTime = DateTime.now();
     try {
-      // turn volume down
-      double volume = await _getSystemVolume();
-      if (volume == 0) {
-        volume = 0.5;
-      }
       if (jumpStart > 0) {
-        _setSystemVolume(0);
+        await _mute();
       }
       debugPrint('[PLAY] Calling bridge.play uri=${track.spotifyUri}');
       await _bridge.play(spotifyUri: track.spotifyUri);
@@ -266,7 +273,7 @@ class SpotifyRemoteRepository {
           while (retryCount < numberOfRetries && !success) {
             try {
               await _bridge.seekTo(positionedMilliseconds: jumpStart);
-              _setSystemVolume(volume);
+              await _restoreVolume(savedVolume);
               success = true;
             } catch (e) {
               retryCount++;
@@ -282,13 +289,14 @@ class SpotifyRemoteRepository {
         } catch (e) {
           debugPrint('Failed to jump start. $e');
           errorMessage = 'Failed to jump start. $e';
+        } finally {
+          // Always restore volume even if all seek retries failed.
+          await _restoreVolume(savedVolume);
         }
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
         latestDurationStartupMS = duration.inMilliseconds;
       }
-
-      _setSystemVolume(volume);
 
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -312,6 +320,7 @@ class SpotifyRemoteRepository {
       debugPrint('[PLAY] Success result: $result');
       return result;
     } on PlatformException catch (platformException) {
+      await _restoreVolume(savedVolume);
       debugPrint(
         '[PLAY] PlatformException code=${platformException.code} message=${platformException.message} details=${platformException.details}',
       );
@@ -343,6 +352,7 @@ class SpotifyRemoteRepository {
       return '[Error] Failed to play. '
           '${platformException.message ?? platformException.details}';
     } catch (e) {
+      await _restoreVolume(savedVolume);
       debugPrint('[PLAY] Caught error: $e');
       return '[Error] Failed to play. $e';
     }

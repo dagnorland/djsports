@@ -18,162 +18,238 @@ class DJPlaylistTrackView extends HookConsumerWidget {
     required this.onDelete,
   });
 
-  String formatDuration(int durationInMilliseconds) {
-    int seconds = durationInMilliseconds ~/ 1000;
-    var minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-    seconds = ((seconds % 60).toString().padLeft(2, '0')) as int;
-    return '$minutes:$seconds';
-  }
-
   String printDurationWithMS(Duration duration, int ms) {
-    String result = printDuration(duration);
-    if (ms > 0) {
-      result += '.$ms';
-    }
-    return result;
+    final result = printDuration(duration);
+    return ms > 0 ? '$result.$ms' : result;
   }
 
   String printDuration(Duration duration) {
-    String twoDigits(int n) {
-      if (n >= 10) return '$n';
-      return '0$n';
-    }
-
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    if (duration.inHours > 0) {
-      return '${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds';
-    } else {
-      return '$twoDigitMinutes:$twoDigitSeconds';
-    }
+    String two(int n) => n >= 10 ? '$n' : '0$n';
+    final mm = two(duration.inMinutes.remainder(60));
+    final ss = two(duration.inSeconds.remainder(60));
+    if (duration.inHours > 0) return '${two(duration.inHours)}:$mm:$ss';
+    return '$mm:$ss';
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    Widget leadingImage = track.networkImageUri.isEmpty
-        ? const SizedBox(width: 50, height: 50)
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(track.networkImageUri,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox(
-                      width: 50,
-                      height: 50,
-                    )),
+    final primary = Theme.of(context).primaryColor;
+
+    Future<void> confirmDelete(BuildContext ctx) async {
+      final confirmed = await showDialog<bool>(
+        context: ctx,
+        builder: (dialogCtx) => AlertDialog(
+          title: const Text('Remove Track'),
+          content: Text(
+            'Remove "${track.name}" by ${track.artist}?\n\n'
+            'The track will be removed from this playlist.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('Remove'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) onDelete();
+    }
+
+    void playTrack() {
+      ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(
+            track,
+            track.startTime + track.startTimeMS,
+            DJPlaylistType.hotspot,
+            '',
           );
-    Widget musicSourceImage = track.networkImageUri.isEmpty
-        ? const SizedBox(
-            width: 50,
-            height: 50,
+    }
+
+    Widget trackImage(double size) => track.networkImageUri.isEmpty
+        ? SizedBox(
+            width: size,
+            height: size,
+            child: Icon(
+              Icons.music_note,
+              size: size * 0.65,
+              color: Colors.grey.shade400,
+            ),
+          )
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              track.networkImageUri,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  SizedBox(width: size, height: size),
+            ),
+          );
+
+    Widget spotifySourceImage(double size) => track.networkImageUri.isEmpty
+        ? SizedBox(
+            width: size,
+            height: size,
             child: Icon(
               Icons.play_arrow,
-              size: 45,
+              size: size * 0.9,
               color: Colors.black38,
-            ))
+            ),
+          )
         : Stack(alignment: Alignment.center, children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               child: Image.asset(
-                  ref.read(spotifyRemoteRepositoryProvider).spotifyLogoFileName,
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover),
+                ref
+                    .read(spotifyRemoteRepositoryProvider)
+                    .spotifyLogoFileName,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+              ),
             ),
-            const Icon(Icons.play_arrow, size: 45, color: Colors.black38),
+            Icon(
+              Icons.play_arrow,
+              size: size * 0.9,
+              color: Colors.black38,
+            ),
           ]);
 
-    Widget rowCountWithImage = Chip(
-      backgroundColor: Theme.of(context).secondaryHeaderColor.withOpacity(0.4),
-      label: Text(
+    final counterBadge = Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: primary.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
         counter.toString(),
+        style: TextStyle(
+          color: primary,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+        ),
       ),
     );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2.0, right: 10),
-      child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-        child: ListTile(
-          tileColor: Colors.black12.withOpacity(0.04),
-          leading: rowCountWithImage,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                  child: Text(
+
+    final subtitleText =
+        '${printDurationWithMS(Duration(milliseconds: track.startTime), track.startTimeMS)}'
+        ' — ${printDuration(Duration(milliseconds: track.duration))}';
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 500;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Card(
+            elevation: 1,
+            shadowColor: Colors.black12,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 2,
+              ),
+              tileColor: Colors.grey.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              leading: counterBadge,
+              title: Text(
                 '${track.name} by ${track.artist}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              )),
-            ],
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: Text(
-                '${printDurationWithMS(Duration(milliseconds: track.startTime), track.startTimeMS)} - ${printDuration(Duration(milliseconds: track.duration))}'),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                  padding: const EdgeInsets.only(right: 20.0),
-                  child: InkWell(
-                      onTap: () {
-                        ref
-                            .read(spotifyRemoteRepositoryProvider)
-                            .playTrackAndJumpStart(
-                                track,
-                                track.startTime + track.startTimeMS,
-                                DJPlaylistType.hotspot,
-                                '');
-                      },
-                      child: leadingImage)),
-              Padding(
-                  padding: const EdgeInsets.only(right: 20.0),
-                  child: InkWell(
-                      onTap: () {
-                        ref
-                            .read(spotifyRemoteRepositoryProvider)
-                            .playTrackAndJumpStart(
-                                track,
-                                track.startTime + track.startTimeMS,
-                                DJPlaylistType.hotspot,
-                                '');
-                      },
-                      child: musicSourceImage)),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor),
-                onPressed: onEdit,
-                child: Text(
-                  'Edit',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall!
-                      .copyWith(color: Colors.white),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
                 ),
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor),
-                onPressed: onDelete,
-                child: Text(
-                  'Delete',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall!
-                      .copyWith(color: Colors.white),
+              subtitle: Text(
+                subtitleText,
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
                 ),
               ),
-            ],
+              trailing: isWide
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(onTap: playTrack, child: trackImage(44)),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: playTrack,
+                          child: spotifySourceImage(44),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                          ),
+                          onPressed: onEdit,
+                          child: Text(
+                            'Edit',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall!
+                                .copyWith(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                          ),
+                          onPressed: () => confirmDelete(context),
+                          child: Text(
+                            'Delete',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall!
+                                .copyWith(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: playTrack,
+                          borderRadius: BorderRadius.circular(8),
+                          child: trackImage(36),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          onPressed: onEdit,
+                          color: primary,
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete,
+                            size: 20,
+                            color: Colors.red.shade400,
+                          ),
+                          onPressed: () => confirmDelete(context),
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Delete',
+                        ),
+                      ],
+                    ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
