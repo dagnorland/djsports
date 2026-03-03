@@ -34,11 +34,14 @@ class SpotifyNativeChannel: NSObject {
             // Return cached token if still valid (> 5 min remaining)
             if let session = storedSession,
                session.expirationDate > Date(timeIntervalSinceNow: 300) {
+                let remaining = session.expirationDate.timeIntervalSinceNow
+                NSLog("[Spotify] getAccessToken: returning cached token (%.0f s remaining)", remaining)
                 result(session.accessToken)
                 return
             }
             // Prevent concurrent initiateSession calls
             if isAuthenticating {
+                NSLog("[Spotify] getAccessToken: AUTH_IN_PROGRESS, rejecting concurrent call")
                 result(FlutterError(
                     code: "AUTH_IN_PROGRESS",
                     message: "Authentication already in progress",
@@ -51,6 +54,7 @@ class SpotifyNativeChannel: NSObject {
                 let redirectUrl = args["redirectUrl"] as? String,
                 let redirectURL = URL(string: redirectUrl)
             else {
+                NSLog("[Spotify] getAccessToken: INVALID_ARGS")
                 result(FlutterError(
                     code: "INVALID_ARGS",
                     message: "Missing clientId or redirectUrl",
@@ -71,9 +75,10 @@ class SpotifyNativeChannel: NSObject {
                 .userReadCurrentlyPlaying,
             ]
             if storedSession != nil {
-                // Try silent renewal first
+                NSLog("[Spotify] getAccessToken: storedSession expired/near-expiry — calling renewSession()")
                 sessionManager?.renewSession()
             } else {
+                NSLog("[Spotify] getAccessToken: no storedSession — calling initiateSession()")
                 sessionManager?.initiateSession(with: scope, options: .default, campaign: nil)
             }
 
@@ -84,6 +89,7 @@ class SpotifyNativeChannel: NSObject {
                 let redirectURL = URL(string: redirectUrl),
                 let accessToken = args["accessToken"] as? String
             else {
+                NSLog("[Spotify] connect: INVALID_ARGS")
                 result(FlutterError(
                     code: "INVALID_ARGS",
                     message: "Missing clientId, redirectUrl, or accessToken",
@@ -91,9 +97,10 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
+            NSLog("[Spotify] connect: creating SPTAppRemote, token prefix=%@", String(accessToken.prefix(8)))
             pendingResult = result
             let config = SPTConfiguration(clientID: clientId, redirectURL: redirectURL)
-            appRemote = SPTAppRemote(configuration: config, logLevel: .error)
+            appRemote = SPTAppRemote(configuration: config, logLevel: .debug)
             appRemote?.connectionParameters.accessToken = accessToken
             appRemote?.delegate = self
             appRemote?.connect()
@@ -115,12 +122,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
-            playerAPI.play(uri) { _, error in
+            playerAPI.play(uri) { [weak self] _, error in
                 if let error = error {
+                    let details = (self?.appRemote?.isConnected == false)
+                        ? "SpotifyDisconnectedException"
+                        : error.localizedDescription
                     result(FlutterError(
                         code: "PLAY_ERROR",
                         message: error.localizedDescription,
-                        details: nil
+                        details: details
                     ))
                 } else {
                     result(nil)
@@ -136,12 +146,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
-            playerAPI.pause { _, error in
+            playerAPI.pause { [weak self] _, error in
                 if let error = error {
+                    let details = (self?.appRemote?.isConnected == false)
+                        ? "SpotifyDisconnectedException"
+                        : error.localizedDescription
                     result(FlutterError(
                         code: "PAUSE_ERROR",
                         message: error.localizedDescription,
-                        details: nil
+                        details: details
                     ))
                 } else {
                     result(nil)
@@ -157,12 +170,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
-            playerAPI.resume { _, error in
+            playerAPI.resume { [weak self] _, error in
                 if let error = error {
+                    let details = (self?.appRemote?.isConnected == false)
+                        ? "SpotifyDisconnectedException"
+                        : error.localizedDescription
                     result(FlutterError(
                         code: "RESUME_ERROR",
                         message: error.localizedDescription,
-                        details: nil
+                        details: details
                     ))
                 } else {
                     result(nil)
@@ -186,12 +202,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
-            playerAPI.seek(toPosition: position) { _, error in
+            playerAPI.seek(toPosition: position) { [weak self] _, error in
                 if let error = error {
+                    let details = (self?.appRemote?.isConnected == false)
+                        ? "SpotifyDisconnectedException"
+                        : error.localizedDescription
                     result(FlutterError(
                         code: "SEEK_ERROR",
                         message: error.localizedDescription,
-                        details: nil
+                        details: details
                     ))
                 } else {
                     result(nil)
@@ -201,9 +220,44 @@ class SpotifyNativeChannel: NSObject {
         case "setVolume":
             result(nil) // iOS uses system volume via flutter_volume_controller
 
+        case "clearSession":
+            NSLog("[Spotify] clearSession: clearing storedSession and disconnecting appRemote")
+            storedSession = nil
+            isAuthenticating = false
+            appRemote?.disconnect()
+            appRemote = nil
+            result(nil)
+
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    /// Called from AppDelegate.applicationWillResignActive.
+    /// Cleanly disconnects SPTAppRemote so it does not enter a zombie state
+    /// while the app is in the background.
+    func handleAppWillResignActive() {
+        guard let remote = appRemote, remote.isConnected else { return }
+        NSLog("[Spotify] handleAppWillResignActive: disconnecting appRemote")
+        remote.disconnect()
+    }
+
+    /// Called from AppDelegate.applicationDidBecomeActive.
+    /// Re-connects SPTAppRemote using the cached access token if the native
+    /// SPTSession is still valid.  Does nothing if already connected or if
+    /// there is no stored session (a full connect() call is needed instead).
+    func reconnectIfNeeded() {
+        guard let session = storedSession,
+              session.expirationDate > Date(),
+              let remote = appRemote,
+              !remote.isConnected else {
+            NSLog("[Spotify] reconnectIfNeeded: skipping (no session, no remote, or already connected)")
+            return
+        }
+        NSLog("[Spotify] reconnectIfNeeded: silent reconnect (token valid for %.0f s)",
+              session.expirationDate.timeIntervalSinceNow)
+        remote.connectionParameters.accessToken = session.accessToken
+        remote.connect()
     }
 
     func application(
@@ -218,7 +272,17 @@ class SpotifyNativeChannel: NSObject {
 
 extension SpotifyNativeChannel: SPTAppRemoteDelegate {
     func appRemoteDidEstablishConnection(_ appRemote: SPTAppRemote) {
+        NSLog("[Spotify] appRemoteDidEstablishConnection ✓")
         appRemote.playerAPI?.delegate = self
+        // Subscribe to player state so Spotify pushes periodic updates over
+        // the socket.  Without this the socket goes idle and Spotify closes it
+        // after a few minutes of no API activity.
+        appRemote.playerAPI?.subscribe(toPlayerState: { _, error in
+            if let error = error {
+                NSLog("[Spotify] subscribe playerState error: %@",
+                      error.localizedDescription)
+            }
+        })
         pendingResult?(true)
         pendingResult = nil
         eventSink?(["connected": true])
@@ -228,6 +292,8 @@ extension SpotifyNativeChannel: SPTAppRemoteDelegate {
         _ appRemote: SPTAppRemote,
         didDisconnectWithError error: Error?
     ) {
+        NSLog("[Spotify] appRemote didDisconnectWithError: %@",
+              error?.localizedDescription ?? "no error")
         eventSink?(["connected": false])
     }
 
@@ -235,10 +301,16 @@ extension SpotifyNativeChannel: SPTAppRemoteDelegate {
         _ appRemote: SPTAppRemote,
         didFailConnectionAttemptWithError error: Error?
     ) {
+        let errMsg = error?.localizedDescription ?? "Connection failed"
+        let nsErr = error as NSError?
+        NSLog("[Spotify] didFailConnectionAttemptWithError: %@ (domain=%@ code=%d)",
+              errMsg,
+              nsErr?.domain ?? "?",
+              nsErr?.code ?? -1)
         pendingResult?(FlutterError(
             code: "CONNECT_FAILED",
-            message: error?.localizedDescription ?? "Connection failed",
-            details: nil
+            message: errMsg,
+            details: errMsg
         ))
         pendingResult = nil
         eventSink?(["connected": false])
@@ -251,6 +323,8 @@ extension SpotifyNativeChannel: SPTAppRemotePlayerStateDelegate {
 
 extension SpotifyNativeChannel: SPTSessionManagerDelegate {
     func sessionManager(manager: SPTSessionManager, didInitiate session: SPTSession) {
+        let remaining = session.expirationDate.timeIntervalSinceNow
+        NSLog("[Spotify] sessionManager didInitiate: token valid for %.0f s", remaining)
         storedSession = session
         isAuthenticating = false
         pendingResult?(session.accessToken)
@@ -258,17 +332,22 @@ extension SpotifyNativeChannel: SPTSessionManagerDelegate {
     }
 
     func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
+        let nsErr = error as NSError
+        NSLog("[Spotify] sessionManager didFailWith: %@ (domain=%@ code=%d)",
+              error.localizedDescription, nsErr.domain, nsErr.code)
         isAuthenticating = false
         storedSession = nil  // Clear so next attempt uses initiateSession
         pendingResult?(FlutterError(
             code: "AUTH_FAILED",
             message: error.localizedDescription,
-            details: nil
+            details: error.localizedDescription
         ))
         pendingResult = nil
     }
 
     func sessionManager(manager: SPTSessionManager, didRenew session: SPTSession) {
+        let remaining = session.expirationDate.timeIntervalSinceNow
+        NSLog("[Spotify] sessionManager didRenew: token valid for %.0f s", remaining)
         storedSession = session
         isAuthenticating = false
         pendingResult?(session.accessToken)

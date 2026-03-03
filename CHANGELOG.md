@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - Release 2026-03-03
+
+### Fixed
+- **iOS Spotify idle disconnect** — connection was dropping after a few minutes of inactivity between song plays
+  - Root cause: `SPTAppRemote` uses a local socket to Spotify; without any traffic the socket goes idle and Spotify closes it
+  - Fix: subscribe to player state immediately after `appRemoteDidEstablishConnection` — Spotify now pushes periodic state updates, keeping the socket alive
+- **iOS Spotify disconnect on Control Center / notification shade** — every swipe-down was dropping the connection
+  - Root cause: `applicationWillResignActive` fires for any transient focus loss (Control Center, alerts, incoming call banners), not just true backgrounding
+  - Fix: moved disconnect to `applicationDidEnterBackground` and reconnect to `applicationWillEnterForeground`
+- **iOS reconnect requires two taps** — first tap on "Reconnect" failed, second tap succeeded
+  - Root cause: `initiateSession()` opens Spotify asynchronously; `appRemote.connect()` fired before Spotify finished starting
+  - Fix: `forceFullReconnect()` now waits 3 s and retries once after a failed step-2 attempt
+
+## [2.5.1] - Release 2026-03-03
+
+### Fixed
+- **iOS Spotify reconnect** — after a period of inactivity Spotify could become unreachable, causing `[Error] Failed to play. Spotify Remote is not connected`
+  - Root cause: `SPTSessionManager.storedSession` was still valid, so `getAccessToken` returned a cached token without opening Spotify; `SPTAppRemote.connect()` then failed because the Spotify app was not running
+  - Fix: new `clearSession` native method resets `storedSession` and disconnects the old `appRemote`; `forceFullReconnect()` calls this before reconnecting, forcing `initiateSession()` which opens Spotify and guarantees it is running before `appRemote.connect()` is attempted
+- **iOS zombie connection** — `SPTAppRemote` could show `isConnected=true` but reject play/pause commands with a 404-style error (details was `nil`, blocking the auto-reconnect logic)
+  - Fix: play/pause/resume/seekTo Swift callbacks now set `details` to `"SpotifyDisconnectedException"` when `isConnected=false`, or the error description otherwise; `_needsReconnect()` extended to catch `PLAY_ERROR`, `PAUSE_ERROR`, `RESUME_ERROR` codes
+- **djMatchDay reconnect dialog** — when a play fails with a connection error, a dialog is shown offering to reconnect; uses `forceFullReconnect()` so reconnect matches the app-start behaviour
+- **Frequent Spotify auth dialog** — reconnecting after the app was backgrounded no longer triggers a full Spotify authorization dialog every time
+  - `AppDelegate` now calls `appRemote.disconnect()` on `applicationWillResignActive` (prevents zombie connections) and `reconnectIfNeeded()` on `applicationDidBecomeActive` (silently re-establishes the socket using the cached token)
+  - `forceFullReconnect()` now tries a *soft* reconnect first (keeps the native `SPTSession`, only resets Dart-side caches); only falls back to `clearSession` + `initiateSession` if the soft reconnect fails (e.g. Spotify app truly not running)
+- Added `NSLog` tracing throughout `SpotifyNativeChannel.swift` for easier debugging of connection issues
+
 ## [2.5.0] - Release 2026-03-02
 
 ### Added

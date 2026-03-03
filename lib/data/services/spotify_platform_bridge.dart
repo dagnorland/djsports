@@ -30,6 +30,11 @@ abstract class SpotifyPlatformBridge {
 
   Future<void> setVolume(int percent);
 
+  /// Clears the native session cache so the next [getAccessToken] call is
+  /// forced through [SPTSessionManager.initiateSession], which opens the
+  /// Spotify app and guarantees it is running before [appRemote.connect()].
+  Future<void> clearSession();
+
   Stream<bool> subscribeConnectionStatus();
 }
 
@@ -88,6 +93,9 @@ class _IosBridge implements SpotifyPlatformBridge {
       _mc.invokeMethod('setVolume', {'volumePercent': percent});
 
   @override
+  Future<void> clearSession() => _mc.invokeMethod('clearSession');
+
+  @override
   Stream<bool> subscribeConnectionStatus() =>
       _ec.receiveBroadcastStream().map((event) {
         final map = event as Map<dynamic, dynamic>;
@@ -139,6 +147,9 @@ class _AndroidBridge implements SpotifyPlatformBridge {
 
   @override
   Future<void> setVolume(int percent) async {} // system volume via flutter_volume_controller
+
+  @override
+  Future<void> clearSession() async {} // no-op on Android
 
   @override
   Stream<bool> subscribeConnectionStatus() =>
