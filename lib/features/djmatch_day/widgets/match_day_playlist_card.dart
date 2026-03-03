@@ -105,26 +105,79 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     }
   }
 
-  void _showNavToast(String message) {
-    final mq = MediaQuery.of(context);
-    final bottomMargin =
-        (mq.size.width < 600 || mq.size.height < 500) ? 110.0 : 0.0;
+  bool _isConnectionError(String response) {
+    if (!response.contains('[Error]')) return false;
+    final lower = response.toLowerCase();
+    return lower.contains('not connected') ||
+        lower.contains('disconnected') ||
+        lower.contains('connection');
+  }
+
+  void _showToast(String message, {Widget? description}) {
     toastification.show(
       context: context,
       title: Text(message),
-      autoCloseDuration: const Duration(seconds: 2),
+      description: description,
+      autoCloseDuration: const Duration(seconds: 3),
       style: ToastificationStyle.flat,
-      alignment: Alignment.bottomCenter,
-      margin: EdgeInsets.only(bottom: bottomMargin),
+      alignment: Alignment.topCenter,
     );
+  }
+
+  Future<void> _showReconnectDialog(
+    DJTrack track,
+    int idx,
+    int trackCount,
+    bool shuffleAtEnd,
+  ) async {
+    final reconnect = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Spotify Disconnected'),
+        content: const Text(
+          'Lost connection to Spotify.\nReconnect and try again?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reconnect'),
+          ),
+        ],
+      ),
+    );
+    if (reconnect != true || !mounted) return;
+
+    _showToast('Reconnecting to Spotify…');
+    final success =
+        await ref.read(spotifyRemoteRepositoryProvider).forceFullReconnect();
+    if (!mounted) return;
+
+    if (success) {
+      await _playTrack(track, idx, trackCount, shuffleAtEnd, retry: false);
+    } else {
+      final err = ref.read(spotifyRemoteRepositoryProvider).lastConnectError;
+      _showToast(
+        'Failed to reconnect',
+        description: err.isNotEmpty ? Text(err) : null,
+      );
+    }
+  }
+
+  void _showNavToast(String message) {
+    _showToast(message);
   }
 
   Future<void> _playTrack(
     DJTrack track,
     int idx,
     int trackCount,
-    bool shuffleAtEnd,
-  ) async {
+    bool shuffleAtEnd, {
+    bool retry = true,
+  }) async {
     _autoNextTimer?.cancel();
     unawaited(_flashController.forward(from: 0.0));
     final response = await ref
@@ -136,6 +189,12 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
           widget.playlistName,
         );
     if (!mounted) return;
+
+    if (_isConnectionError(response) && retry) {
+      await _showReconnectDialog(track, idx, trackCount, shuffleAtEnd);
+      return;
+    }
+
     if (!response.contains('[Error]')) {
       track.playCount = track.playCount + 1;
       ref.read(hiveTrackData.notifier).updateDJTrack(track);
@@ -149,17 +208,9 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     }
     if (!mounted) return;
     final startMs = track.startTime + track.startTimeMS;
-    final mq = MediaQuery.of(context);
-    final bottomMargin =
-        (mq.size.width < 600 || mq.size.height < 500) ? 110.0 : 0.0;
-    toastification.show(
-      context: context,
-      title: Text(response),
+    _showToast(
+      response,
       description: startMs > 0 ? Text('Start @ ${_formatMs(startMs)}') : null,
-      autoCloseDuration: const Duration(seconds: 3),
-      style: ToastificationStyle.flat,
-      alignment: Alignment.bottomCenter,
-      margin: EdgeInsets.only(bottom: bottomMargin),
     );
   }
 
@@ -229,7 +280,7 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
           padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
           child: Column(
             mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header: playlist name + track counter
@@ -370,6 +421,28 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
                     icon: Icons.chevron_right,
                     enabled: true,
                     onPressed: () => _goNext(idx, tracks.length),
+                  ),
+                ],
+              ),
+              // Current track name — updates immediately as the user
+              // navigates between tracks.
+              Row(
+                children: [
+                  Icon(Icons.music_note, size: 11, color: borderColor),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Text(
+                      track.artist.isNotEmpty
+                          ? '${track.name}  •  ${track.artist}'
+                          : track.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: borderColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
