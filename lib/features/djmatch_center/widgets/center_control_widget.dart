@@ -119,6 +119,44 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                 error: (error, stack) => const SizedBox.shrink(),
               ),
             ),
+            lastTrack.maybeWhen(
+              data: (track) {
+                if (track == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: SizedBox(
+                    width: 80,
+                    child: Column(
+                      children: [
+                        Text(
+                          track.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (track.artist.isNotEmpty)
+                          Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              orElse: () => const SizedBox.shrink(),
+            ),
             const Gap(8),
             Column(
               children: [

@@ -280,7 +280,7 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
           padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
           child: Column(
             mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header: playlist name + track counter
@@ -421,6 +421,28 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
                     icon: Icons.chevron_right,
                     enabled: true,
                     onPressed: () => _goNext(idx, tracks.length),
+                  ),
+                ],
+              ),
+              // Current track name — updates immediately as the user
+              // navigates between tracks.
+              Row(
+                children: [
+                  Icon(Icons.music_note, size: 11, color: borderColor),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Text(
+                      track.artist.isNotEmpty
+                          ? '${track.name}  •  ${track.artist}'
+                          : track.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: borderColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),

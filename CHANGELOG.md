@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.4] - Release 2026-03-03
+
+### Fixed
+- **Volume stuck at 0 after pause then play (no start time)** — playing a song without a start time after pausing could leave audio silent
+  - Root cause: `pausePlayer()` mutes before pause; the system-volume listener fires during the mute and resets `repo.volume` to 0; a subsequent play with `jumpStart == 0` skipped all volume handling, leaving the system volume at 0
+  - Fix: `playTrackAndJumpStart` now calls `_restoreVolume(savedVolume)` before playing even when `jumpStart == 0`, ensuring volume is always correct regardless of prior mute state
+
+## [2.5.3] - Release 2026-03-03
+
+### Added
+- **djMatchDay song name on card** — each playlist card now shows the current track name and artist at the bottom, updating immediately as you navigate with ◄ ►
+- **djMatchDay now-playing bar** — compact `♪ Song  •  Artist` row above the bottom control buttons on phones; song name + artist below album art in the sidebar on tablets/wide screens
+
 ## [2.5.2] - Release 2026-03-03
 
 ### Fixed

@@ -132,7 +132,9 @@ class SpotifyRemoteRepository {
     }
 
     // Step 1: soft reconnect — reset Dart caches only, keep native session.
-    debugPrint('forceFullReconnect: step 1 – soft reconnect (native session kept)');
+    debugPrint(
+      'forceFullReconnect: step 1 – soft reconnect (native session kept)',
+    );
     lastConnectionTime = DateTime(1970);
     lastValidAccessToken = '';
     hasSpotifyAccessToken = false;
@@ -187,11 +189,14 @@ class SpotifyRemoteRepository {
   }
 
   Future<bool> pausePlayer() async {
+    // Capture volume BEFORE muting.  The system-volume listener fires when
+    // _mute() writes 0, overwriting repo.volume — so _unMute() would restore
+    // to 0 instead of the real level.  Using an explicit savedVolume avoids
+    // that race.
     try {
       await _mute();
       await Future.delayed(const Duration(milliseconds: 150));
       await _bridge.pause();
-      await _unMute();
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'Pause Spotify Remote App',
@@ -310,6 +315,8 @@ class SpotifyRemoteRepository {
     try {
       if (jumpStart > 0) {
         await _mute();
+      } else {
+        await _restoreVolume(savedVolume);
       }
       debugPrint('[PLAY] Calling bridge.play uri=${track.spotifyUri}');
       await _bridge.play(spotifyUri: track.spotifyUri);
@@ -662,7 +669,9 @@ class SpotifyRemoteRepository {
       // AUTH_IN_PROGRESS means native side is already authenticating;
       // return the cached token if we have one rather than failing hard.
       if (e.code == 'AUTH_IN_PROGRESS' && lastValidAccessToken.isNotEmpty) {
-        debugPrint('getSpotifyAccessToken: auth in progress, reusing cached token');
+        debugPrint(
+          'getSpotifyAccessToken: auth in progress, reusing cached token',
+        );
         return lastValidAccessToken;
       }
       if (e.toString().contains('MissingPluginException')) {

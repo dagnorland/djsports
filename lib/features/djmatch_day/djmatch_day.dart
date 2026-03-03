@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
+import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
 import 'package:djsports/features/djmatch_day/widgets/match_day_playlist_card.dart';
@@ -192,15 +193,52 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
   }
 
   Widget _buildCompactControls() {
+    final lastTrack = ref.watch(lastDjTrackPlayedProvider);
     return ColoredBox(
       color: Colors.red,
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            lastTrack.maybeWhen(
+              data: (track) {
+                if (track == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.music_note,
+                        color: Colors.white70,
+                        size: 13,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          track.artist.isNotEmpty
+                              ? '${track.name}  •  ${track.artist}'
+                              : track.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              orElse: () => const SizedBox.shrink(),
+            ),
+            SizedBox(
+              height: 64,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
               IconButton(
                 icon: const Icon(
                   Icons.play_arrow,
@@ -245,10 +283,12 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
                   widget.refreshCallback?.call();
                 },
               ),
-            ],
-          ),
-        ),
-      ),
+            ],      // close Row.children
+          ),        // close Row
+        ),          // close SizedBox
+      ],            // close Column.children
+    ),              // close Column
+    ),              // close SafeArea
     );
   }
 
