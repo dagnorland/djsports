@@ -14,9 +14,6 @@ class SpotifyNativeChannel: NSObject {
 
     private let refreshTokenKey = "spotify_macos_refresh_token"
     private var storedAccessToken: String?
-    /// Cached Spotify device ID — avoids a GET /devices round-trip on every command.
-    /// Cleared when the access token changes so a stale device isn't reused.
-    private var cachedDeviceId: String?
 
     func setup(messenger: FlutterBinaryMessenger) {
         let mc = FlutterMethodChannel(
@@ -51,6 +48,10 @@ class SpotifyNativeChannel: NSObject {
         case "setVolume":
             let percent = args["volumePercent"] as? Int ?? 50
             setVolumeOnDevice(percent: percent, result: result)
+        case "getUserProfile":
+            getUserProfile(result: result)
+        case "launchSpotify":
+            launchSpotify(result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -223,7 +224,6 @@ class SpotifyNativeChannel: NSObject {
                     UserDefaults.standard.set(refreshToken, forKey: self?.refreshTokenKey ?? "spotify_macos_refresh_token")
                 }
                 self?.storedAccessToken = accessToken
-                self?.cachedDeviceId = nil // token changed — re-resolve device
                 result(accessToken)
             }
         }.resume()
@@ -271,7 +271,6 @@ class SpotifyNativeChannel: NSObject {
                     )
                 }
                 self?.storedAccessToken = accessToken
-                self?.cachedDeviceId = nil // token changed — re-resolve device
                 completion(accessToken)
             }
         }.resume()
@@ -347,6 +346,46 @@ class SpotifyNativeChannel: NSObject {
         }
     }
 
+    // MARK: - launchSpotify: open or activate Spotify
+
+    private func launchSpotify(result: @escaping FlutterResult) {
+        // If Spotify is already running, just activate (bring to front).
+        if let app = NSRunningApplication
+            .runningApplications(withBundleIdentifier: "com.spotify.client")
+            .first {
+            app.activate(options: [.activateIgnoringOtherApps])
+            result(true)
+            return
+        }
+        // Not running — launch it.
+        guard let spotifyURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.spotify.client"
+        ) else {
+            result(FlutterError(
+                code: "SPOTIFY_NOT_FOUND",
+                message: "Spotify is not installed",
+                details: nil
+            ))
+            return
+        }
+        NSWorkspace.shared.openApplication(
+            at: spotifyURL,
+            configuration: NSWorkspace.OpenConfiguration()
+        ) { _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    result(FlutterError(
+                        code: "SPOTIFY_LAUNCH_FAILED",
+                        message: error.localizedDescription,
+                        details: nil
+                    ))
+                } else {
+                    result(true)
+                }
+            }
+        }
+    }
+
     // MARK: - Ensure Spotify is running before AppleScript
 
     private func ensureSpotifyRunning(then block: @escaping () -> Void) {
@@ -404,88 +443,68 @@ class SpotifyNativeChannel: NSObject {
             ))
             return
         }
-        print("[SpotifyMacOS] play called with uri: \(uri)")
+        let positionMs = args["positionMs"] as? Int
+        print("[SpotifyMacOS] play called with uri: \(uri) positionMs: \(positionMs ?? 0)")
         // Ensure Spotify is running so it registers as active Web API device
         ensureSpotifyRunning {
-            self.fetchDeviceThenPlay(uri: uri, result: result)
+            self.fetchDeviceThenPlay(uri: uri, positionMs: positionMs, result: result)
         }
     }
 
-    // MARK: - Device-aware playback helpers
+    // MARK: - Playback helpers
 
-    /// Resolves the best Spotify device ID via GET /me/player/devices.
-    /// Caches the result in `cachedDeviceId` and calls `completion` on the main queue.
-    /// Retries up to `attempts` times (1 s apart) when no devices are visible yet
-    /// (e.g. Spotify just launched and hasn't registered with the Web API).
-    private func resolveDeviceId(attempts: Int = 5, completion: @escaping (String?) -> Void) {
-        // Use the cache when available — avoids a round-trip per volume/resume call.
-        if let cached = cachedDeviceId {
-            completion(cached)
+    private func fetchDeviceThenPlay(uri: String, positionMs: Int?, result: @escaping FlutterResult) {
+        var body: [String: Any] = ["uris": [uri]]
+        if let pos = positionMs, pos > 0 {
+            body["position_ms"] = pos
+        }
+        spotifyWebAPI(method: "PUT", path: "/me/player/play", body: body, result: result)
+    }
+
+    private func resumeOnDevice(result: @escaping FlutterResult) {
+        spotifyWebAPI(method: "PUT", path: "/me/player/play", result: result)
+    }
+
+    private func setVolumeOnDevice(percent: Int, result: @escaping FlutterResult) {
+        spotifyWebAPI(method: "PUT", path: "/me/player/volume?volume_percent=\(percent)", result: result)
+    }
+
+    private func getUserProfile(result: @escaping FlutterResult) {
+        guard let token = storedAccessToken else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
             return
         }
-        guard let token = storedAccessToken else { completion(nil); return }
-        guard let url = URL(string: "https://api.spotify.com/v1/me/player/devices") else { completion(nil); return }
+        guard let url = URL(string: "https://api.spotify.com/v1/me") else {
+            result(FlutterError(code: "INVALID_URL", message: "Bad URL", details: nil))
+            return
+        }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-            guard let self = self else { return }
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                var deviceId: String? = nil
-                if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let devices = json["devices"] as? [[String: Any]],
-                   !devices.isEmpty {
-                    let active = devices.first { $0["is_active"] as? Bool == true }
-                    let device = active ?? devices.first
-                    deviceId = device?["id"] as? String
-                    let name = device?["name"] as? String ?? "?"
-                    let isActive = device?["is_active"] as? Bool ?? false
-                    print("[SpotifyMacOS] resolved device '\(name)' active=\(isActive) id=\(deviceId ?? "?")")
-                    self.cachedDeviceId = deviceId
-                }
-                if deviceId == nil && attempts > 1 {
-                    print("[SpotifyMacOS] no devices yet, retrying in 1 s (\(attempts - 1) left)")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        self.cachedDeviceId = nil // force re-fetch on retry
-                        self.resolveDeviceId(attempts: attempts - 1, completion: completion)
-                    }
+                if let error = error {
+                    result(FlutterError(code: "API_ERROR", message: error.localizedDescription, details: nil))
                     return
                 }
-                completion(deviceId)
+                guard
+                    let data = data,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                else {
+                    result(FlutterError(code: "PARSE_ERROR", message: "Could not parse /me response", details: nil))
+                    return
+                }
+                let displayName = json["display_name"] as? String ?? ""
+                let email = json["email"] as? String ?? ""
+                let id = json["id"] as? String ?? ""
+                let product = json["product"] as? String ?? ""
+                result([
+                    "displayName": displayName,
+                    "email": email,
+                    "id": id,
+                    "product": product,
+                ])
             }
         }.resume()
-    }
-
-    /// Plays `uri` on the best available Spotify device.
-    private func fetchDeviceThenPlay(uri: String, result: @escaping FlutterResult) {
-        resolveDeviceId { [weak self] deviceId in
-            guard let self = self else { return }
-            var path = "/me/player/play"
-            if let id = deviceId { path += "?device_id=\(id)" }
-            print("[SpotifyMacOS] playing on device_id=\(deviceId ?? "none")")
-            self.spotifyWebAPI(method: "PUT", path: path, body: ["uris": [uri]], result: result)
-        }
-    }
-
-    /// Resumes playback on the best available Spotify device.
-    private func resumeOnDevice(result: @escaping FlutterResult) {
-        resolveDeviceId { [weak self] deviceId in
-            guard let self = self else { return }
-            var path = "/me/player/play"
-            if let id = deviceId { path += "?device_id=\(id)" }
-            self.spotifyWebAPI(method: "PUT", path: path, result: result)
-        }
-    }
-
-    /// Sets volume on the best available Spotify device.
-    private func setVolumeOnDevice(percent: Int, result: @escaping FlutterResult) {
-        resolveDeviceId { [weak self] deviceId in
-            guard let self = self else { return }
-            var path = "/me/player/volume?volume_percent=\(percent)"
-            if let id = deviceId { path += "&device_id=\(id)" }
-            self.spotifyWebAPI(method: "PUT", path: path, result: result)
-        }
     }
 
     private func seekTo(args: [String: Any], result: @escaping FlutterResult) {

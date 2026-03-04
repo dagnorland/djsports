@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:toastification/toastification.dart';
 
+enum _NoDeviceAction { cancel, openSpotify }
+
 class MatchDayPlaylistCard extends ConsumerStatefulWidget {
   const MatchDayPlaylistCard({
     super.key,
@@ -113,6 +115,13 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
         lower.contains('connection');
   }
 
+  bool _isNoActiveDeviceError(String response) {
+    if (!response.contains('[Error]')) return false;
+    final lower = response.toLowerCase();
+    return lower.contains('no active device') ||
+        lower.contains('player command failed');
+  }
+
   void _showToast(String message, {Widget? description}) {
     toastification.show(
       context: context,
@@ -167,6 +176,40 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     }
   }
 
+  Future<void> _showNoDeviceDialog(
+    DJTrack track,
+    int idx,
+    int trackCount,
+    bool shuffleAtEnd,
+  ) async {
+    final action = await showDialog<_NoDeviceAction>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('No Active Spotify Device'),
+        content: const Text(
+          'Spotify is not playing on any device.\n'
+          'Open the Spotify app and try again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, _NoDeviceAction.cancel),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Open Spotify'),
+            onPressed: () => Navigator.pop(ctx, _NoDeviceAction.openSpotify),
+          ),
+        ],
+      ),
+    );
+    if (action == null || !mounted) return;
+    if (action == _NoDeviceAction.openSpotify) {
+      _showToast('Opening Spotify…');
+      await ref.read(spotifyRemoteRepositoryProvider).launchSpotify();
+    }
+  }
+
   void _showNavToast(String message) {
     _showToast(message);
   }
@@ -190,6 +233,10 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
         );
     if (!mounted) return;
 
+    if (_isNoActiveDeviceError(response) && retry) {
+      await _showNoDeviceDialog(track, idx, trackCount, shuffleAtEnd);
+      return;
+    }
     if (_isConnectionError(response) && retry) {
       await _showReconnectDialog(track, idx, trackCount, shuffleAtEnd);
       return;

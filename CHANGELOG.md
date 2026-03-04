@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6] - Release 2026-03-04
+
+### Added
+- **macOS: Show connected Spotify account** — display name and email of the authenticated Spotify user are now shown in the Spotify Diagnostics panel
+
+### Fixed
+- **macOS: "Open Spotify" button now works** — new `launchSpotify` native method activates Spotify if it is already running (brings it to the foreground), or launches it if not running; previously the button was a no-op when Spotify was already a running process
+- **macOS: Eliminated unnecessary mute/seek/unmute on play** — tracks with a jump-start position now pass `position_ms` directly in the Spotify Web API play request body, removing the mute → play → seek → unmute cycle; startup time drops from ~700 ms to ~200 ms
+- **macOS: No more "no devices yet" retry delays** — removed per-command device-ID resolution (`GET /me/player/devices`); all Web API commands now target the active device implicitly, which works correctly and saves up to 5 s of retries
+- **macOS: Pause no longer mutes audio** — `pausePlayer()` on macOS now calls pause directly without setting volume to 0 first; muting before pause is only needed on iOS/Android for system-volume fade
+- **macOS: "No active device" error shows a dialog** — when Spotify returns "Player command failed: No active device found", a dialog is shown with an "Open Spotify" button instead of silently failing
+
 ## [2.5.5] - Release 2026-03-04
 
 ### Fixed
