@@ -1,4 +1,5 @@
-// enum with notConnected, connectedSpotify, connectedSpotifyRemoteApp, , tokenExpired
+// enum with notConnected, connectedSpotify, connectedSpotifyRemoteApp,
+// tokenExpired
 import 'package:flutter/material.dart';
 
 enum SpotifyConnectionStatus {
@@ -27,7 +28,11 @@ class SpotifyConnectionLog {
   SpotifyConnectionLog._internal();
 
   final List<SpotifyConnectionLogEntry> _log = <SpotifyConnectionLogEntry>[];
-  final int _maxEntries = 50;
+  static const int _maxEntries = 200;
+
+  /// Incremented every time an entry is added or the log is cleared.
+  /// Widgets can use [ValueListenableBuilder] on this to auto-rebuild.
+  final ValueNotifier<int> changeCount = ValueNotifier(0);
 
   void addSimpleEntry(SpotifyConnectionStatus status, String message) {
     final entry = SpotifyConnectionLogEntry(DateTime.now(), status, message);
@@ -39,17 +44,21 @@ class SpotifyConnectionLog {
     if (_log.length > _maxEntries) {
       _log.removeAt(0);
     }
+    changeCount.value++;
   }
 
   void clear() {
     _log.clear();
+    changeCount.value++;
   }
 
   void debugPrintLog() {
     debugPrint('SpotifyConnectionLog: START SHOW LOG ********************');
     for (final entry in _log) {
       debugPrint(
-          'SpotifyConnectionLog: ${entry.timestamp} ${entry.status} ${entry.message}');
+        'SpotifyConnectionLog: ${entry.timestamp} '
+        '${entry.status} ${entry.message}',
+      );
     }
     debugPrint('SpotifyConnectionLog: END SHOW LOG ********************');
   }

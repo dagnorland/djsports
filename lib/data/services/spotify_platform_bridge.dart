@@ -20,7 +20,7 @@ abstract class SpotifyPlatformBridge {
     required String accessToken,
   });
 
-  Future<void> play({required String spotifyUri});
+  Future<void> play({required String spotifyUri, int positionMs = 0});
 
   Future<void> pause();
 
@@ -29,6 +29,12 @@ abstract class SpotifyPlatformBridge {
   Future<void> seekTo({required int positionedMilliseconds});
 
   Future<void> setVolume(int percent);
+
+  /// Opens Spotify: activates it if running, launches it if not.
+  Future<void> launchSpotify();
+
+  /// Returns Spotify user profile fields: displayName, email, id, product.
+  Future<Map<String, String>> getUserProfile();
 
   /// Clears the native session cache so the next [getAccessToken] call is
   /// forced through [SPTSessionManager.initiateSession], which opens the
@@ -73,8 +79,11 @@ class _IosBridge implements SpotifyPlatformBridge {
           .then((v) => v ?? false);
 
   @override
-  Future<void> play({required String spotifyUri}) =>
-      _mc.invokeMethod('play', {'spotifyUri': spotifyUri});
+  Future<void> play({required String spotifyUri, int positionMs = 0}) =>
+      _mc.invokeMethod('play', {
+        'spotifyUri': spotifyUri,
+        if (positionMs > 0) 'positionMs': positionMs,
+      });
 
   @override
   Future<void> pause() => _mc.invokeMethod('pause');
@@ -91,6 +100,15 @@ class _IosBridge implements SpotifyPlatformBridge {
   @override
   Future<void> setVolume(int percent) =>
       _mc.invokeMethod('setVolume', {'volumePercent': percent});
+
+  @override
+  Future<void> launchSpotify() => _mc.invokeMethod('launchSpotify');
+
+  @override
+  Future<Map<String, String>> getUserProfile() async {
+    final raw = await _mc.invokeMapMethod<String, dynamic>('getUserProfile');
+    return (raw ?? {}).map((k, v) => MapEntry(k, v?.toString() ?? ''));
+  }
 
   @override
   Future<void> clearSession() => _mc.invokeMethod('clearSession');
@@ -132,7 +150,7 @@ class _AndroidBridge implements SpotifyPlatformBridge {
       );
 
   @override
-  Future<void> play({required String spotifyUri}) =>
+  Future<void> play({required String spotifyUri, int positionMs = 0}) =>
       SpotifySdk.play(spotifyUri: spotifyUri);
 
   @override
@@ -147,6 +165,12 @@ class _AndroidBridge implements SpotifyPlatformBridge {
 
   @override
   Future<void> setVolume(int percent) async {} // system volume via flutter_volume_controller
+
+  @override
+  Future<void> launchSpotify() async {}
+
+  @override
+  Future<Map<String, String>> getUserProfile() async => {};
 
   @override
   Future<void> clearSession() async {} // no-op on Android

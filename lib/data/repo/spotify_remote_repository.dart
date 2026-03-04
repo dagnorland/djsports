@@ -22,6 +22,8 @@ class SpotifyRemoteRepository {
   String lastConnectError = '';
   bool isConnectedRemote = false;
   bool hasSpotifyAccessToken = false;
+  String spotifyUserDisplayName = '';
+  String spotifyUserEmail = '';
   bool isSpotifyPluginInstalled = false;
   bool isPlaying = false;
   bool _isConnecting = false;
@@ -82,6 +84,8 @@ class SpotifyRemoteRepository {
       _setSystemVolume(newVolume);
     }
   }
+
+  Future<void> launchSpotify() => _bridge.launchSpotify();
 
   Future<bool> connect() async {
     if (_isConnecting) {
@@ -175,6 +179,35 @@ class SpotifyRemoteRepository {
     return connect();
   }
 
+  /// Resets every Dart-side cache and clears the native session.
+  /// Does NOT reconnect — call [connect] afterwards if needed.
+  Future<String> resetAll() async {
+    _isConnecting = false;
+    lastConnectionTime = DateTime(1970);
+    lastValidAccessToken = '';
+    hasSpotifyAccessToken = false;
+    isConnectedRemote = false;
+    lastConnectError = '';
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.notConnected,
+      'resetAll: clearing native session + all Dart caches',
+    );
+    try {
+      await _bridge.clearSession();
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.notConnected,
+        'resetAll: done — session cleared, caches reset',
+      );
+      return 'Session cleared, all caches reset';
+    } catch (e) {
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.notConnected,
+        'resetAll error: $e',
+      );
+      return 'Error clearing session: $e';
+    }
+  }
+
   Future<void> _mute() async {
     if (Platform.isMacOS) {
       await _bridge.setVolume(0);
@@ -200,13 +233,8 @@ class SpotifyRemoteRepository {
   }
 
   Future<bool> pausePlayer() async {
-    // Capture volume BEFORE muting.  The system-volume listener fires when
-    // _mute() writes 0, overwriting repo.volume — so _unMute() would restore
-    // to 0 instead of the real level.  Using an explicit savedVolume avoids
-    // that race.
     try {
-      await _mute();
-      await Future.delayed(const Duration(milliseconds: 150));
+      if (!Platform.isMacOS) await _mute();
       await _bridge.pause();
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -313,82 +341,31 @@ class SpotifyRemoteRepository {
       debugPrint('[PLAY] Blocked: not connected');
       return '[Error] Not connected to Spotify';
     }
-    String errorMessage = '';
-    bool success = false;
-    int retryCount = 0;
-
-    // Capture volume before entering try so catch blocks can restore it.
-    double savedVolume = await _getSystemVolume();
-    if (savedVolume == 0) savedVolume = 0.5;
-
-    // make a timer to find duration between two timestamps
     final startTime = DateTime.now();
     try {
-      if (jumpStart > 0) {
-        await _mute();
-      } else {
-        await _restoreVolume(savedVolume);
-      }
       debugPrint('[PLAY] Calling bridge.play uri=${track.spotifyUri}');
-      await _bridge.play(spotifyUri: track.spotifyUri);
+      await _bridge.play(
+        spotifyUri: track.spotifyUri,
+        positionMs: jumpStart > 0 ? jumpStart : 0,
+      );
       debugPrint('[PLAY] bridge.play returned OK');
       if (jumpStart > 0) {
-        try {
-          await Future.delayed(const Duration(milliseconds: 120));
-          retryCount = 0;
-          success = false;
-
-          while (retryCount < numberOfRetries && !success) {
-            try {
-              await _bridge.seekTo(positionedMilliseconds: jumpStart);
-              await _restoreVolume(savedVolume);
-              success = true;
-            } catch (e) {
-              retryCount++;
-              if (retryCount >= numberOfRetries) {
-                debugPrint(
-                  'Failed to jump start after $numberOfRetries attempts. $e',
-                );
-                errorMessage =
-                    'Failed to jump start after $numberOfRetries attempts. $e';
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('Failed to jump start. $e');
-          errorMessage = 'Failed to jump start. $e';
-        } finally {
-          // Always restore volume even if all seek retries failed.
-          await _restoreVolume(savedVolume);
-        }
-        final endTime = DateTime.now();
-        final duration = endTime.difference(startTime);
-        latestDurationStartupMS = duration.inMilliseconds;
+        latestDurationStartupMS =
+            DateTime.now().difference(startTime).inMilliseconds;
       }
 
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'play track ${track.spotifyUri}',
       );
-      String retryMessage = '';
-      if (retryCount > 0) {
-        retryMessage = ' - used $retryCount retries';
-      } else {
-        retryMessage = '';
-      }
-      String startupTimeMessage = '';
-      if (jumpStart > 0 && latestDurationStartupMS > 0) {
-        startupTimeMessage = ' - startup time: $latestDurationStartupMS';
-      } else {
-        startupTimeMessage = '';
-      }
-
-      final result =
-          '${track.name} - $startupTimeMessage $retryMessage $errorMessage';
+      final startupTimeMessage =
+          jumpStart > 0 && latestDurationStartupMS > 0
+              ? ' - startup time: $latestDurationStartupMS'
+              : '';
+      final result = '${track.name} -$startupTimeMessage';
       debugPrint('[PLAY] Success result: $result');
       return result;
     } on PlatformException catch (platformException) {
-      await _restoreVolume(savedVolume);
       debugPrint(
         '[PLAY] PlatformException code=${platformException.code} '
         'message=${platformException.message}\n'
@@ -422,7 +399,6 @@ class SpotifyRemoteRepository {
       return '[Error] Failed to play. '
           '${platformException.message ?? platformException.details}';
     } catch (e) {
-      await _restoreVolume(savedVolume);
       debugPrint('[PLAY] Caught error: $e');
       return '[Error] Failed to play. $e';
     }
@@ -619,6 +595,13 @@ class SpotifyRemoteRepository {
         SpotifyConnectionStatus.connectedSpotify,
         'Connect to Spotify',
       );
+      // Fetch user profile in background — failure is non-fatal.
+      if (Platform.isMacOS && accessToken.isNotEmpty) {
+        _bridge.getUserProfile().then((profile) {
+          spotifyUserDisplayName = profile['displayName'] ?? '';
+          spotifyUserEmail = profile['email'] ?? '';
+        }).catchError((_) {});
+      }
     } catch (e) {
       debugPrint('[Spotify] connectAccessToken error: $e');
       lastConnectError = 'Token error: $e';
@@ -676,7 +659,14 @@ class SpotifyRemoteRepository {
             'user-read-currently-playing',
       );
 
+      final prefix = accessToken.isNotEmpty
+          ? accessToken.substring(0, accessToken.length.clamp(0, 12))
+          : '(empty)';
       debugPrint('getSpotifyAccessToken accessToken: $accessToken');
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.connectedSpotify,
+        'getAccessToken OK: prefix=$prefix len=${accessToken.length}',
+      );
       isSpotifyPluginInstalled = true;
       return accessToken;
     } on PlatformException catch (e) {

@@ -166,7 +166,35 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                     playlistType,
                     playlistName);
 
-            if (response.contains('[ErrorMessage]')) {
+            final isNoDevice = response.contains('[Error]') &&
+                (response.toLowerCase().contains('no active device') ||
+                    response.toLowerCase().contains('player command failed'));
+            if (isNoDevice) {
+              final action = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('No Active Spotify Device'),
+                  content: const Text(
+                    'Spotify is not playing on any device.\n'
+                    'Open the Spotify app and try again.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: const Text('Open Spotify'),
+                      onPressed: () => Navigator.pop(ctx, true),
+                    ),
+                  ],
+                ),
+              );
+              if (action == true) {
+                await ref.read(spotifyRemoteRepositoryProvider).launchSpotify();
+              }
+            } else if (response.contains('[Error]')) {
               showMessageToast(context, response);
             } else {
               track.playCount = track.playCount + 1;
