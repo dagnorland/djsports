@@ -151,6 +151,14 @@ class SpotifyRemoteRepository {
       '(soft failed, lastError: $lastConnectError)',
     );
     await _bridge.clearSession();
+    // Reset Dart-side cache so the next getSpotifyAccessToken() call goes
+    // to native (triggering initiateSession → opens Spotify app).
+    // Without this, the recent lastConnectionTime from step 1 causes
+    // getSpotifyAccessToken to return the cached token, skipping initiateSession.
+    lastConnectionTime = DateTime(1970);
+    lastValidAccessToken = '';
+    hasSpotifyAccessToken = false;
+    isConnectedRemote = false;
     if (await connect()) return true;
 
     // initiateSession() launches Spotify but is async — the app may not be
@@ -161,6 +169,9 @@ class SpotifyRemoteRepository {
       'waiting 3 s for Spotify to finish starting…',
     );
     await Future.delayed(const Duration(seconds: 3));
+    // Reset again: connect() above may have set lastConnectionTime even on failure.
+    lastConnectionTime = DateTime(1970);
+    lastValidAccessToken = '';
     return connect();
   }
 
@@ -379,7 +390,9 @@ class SpotifyRemoteRepository {
     } on PlatformException catch (platformException) {
       await _restoreVolume(savedVolume);
       debugPrint(
-        '[PLAY] PlatformException code=${platformException.code} message=${platformException.message} details=${platformException.details}',
+        '[PLAY] PlatformException code=${platformException.code} '
+        'message=${platformException.message}\n'
+        '  details=${platformException.details}',
       );
       if (retry && _needsReconnect(platformException)) {
         hasSpotifyAccessToken = false;
@@ -490,7 +503,9 @@ class SpotifyRemoteRepository {
       return '[Success] Playing track $spotifyUri';
     } on PlatformException catch (platformException) {
       debugPrint(
-        '[PLAY] PlatformException code=${platformException.code} message=${platformException.message} details=${platformException.details}',
+        '[PLAY] PlatformException code=${platformException.code} '
+        'message=${platformException.message}\n'
+        '  details=${platformException.details}',
       );
       if (retry && _needsReconnect(platformException)) {
         hasSpotifyAccessToken = false;
@@ -723,13 +738,17 @@ class SpotifyRemoteRepository {
       return result;
     } on PlatformException catch (e) {
       lastConnectError = '${e.code}: ${e.message ?? e.details}';
+      // details now contains NSError domain+code and a human-readable hint
+      // from SpotifyNativeChannel — log it on its own line for visibility.
       debugPrint(
         '[Spotify] connectToSpotifyRemote PlatformException: '
-        'code=${e.code} message=${e.message} details=${e.details}',
+        'code=${e.code} message=${e.message}\n'
+        '  details=${e.details}',
       );
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.notConnected,
-        'connectToSpotifyRemote failed: code=${e.code} msg=${e.message}',
+        'connectToSpotifyRemote failed: code=${e.code} '
+        'msg=${e.message} details=${e.details}',
       );
       return false;
     } on MissingPluginException {

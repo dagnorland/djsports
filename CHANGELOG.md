@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.5] - Release 2026-03-04
+
+### Fixed
+- **macOS: "No active device found" on play/resume/volume** — all Spotify Web API commands now resolve the best available device (`GET /me/player/devices`) and pass `device_id` explicitly, so playback works even when Spotify has not been used recently and is not yet the active device
+  - Device ID is cached after first resolution; cache is cleared on token refresh to avoid stale state
+  - Play retries device resolution up to 5× (1 s apart) when Spotify has just launched and hasn't registered with the Web API yet
+
 ## [2.5.4] - Release 2026-03-03
 
 ### Fixed

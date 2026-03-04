@@ -14,6 +14,9 @@ class SpotifyNativeChannel: NSObject {
 
     private let refreshTokenKey = "spotify_macos_refresh_token"
     private var storedAccessToken: String?
+    /// Cached Spotify device ID — avoids a GET /devices round-trip on every command.
+    /// Cleared when the access token changes so a stale device isn't reused.
+    private var cachedDeviceId: String?
 
     func setup(messenger: FlutterBinaryMessenger) {
         let mc = FlutterMethodChannel(
@@ -42,16 +45,12 @@ class SpotifyNativeChannel: NSObject {
         case "pause":
             spotifyWebAPI(method: "PUT", path: "/me/player/pause", result: result)
         case "resume":
-            spotifyWebAPI(method: "PUT", path: "/me/player/play", result: result)
+            resumeOnDevice(result: result)
         case "seekTo":
             seekTo(args: args, result: result)
         case "setVolume":
             let percent = args["volumePercent"] as? Int ?? 50
-            spotifyWebAPI(
-                method: "PUT",
-                path: "/me/player/volume?volume_percent=\(percent)",
-                result: result
-            )
+            setVolumeOnDevice(percent: percent, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -224,6 +223,7 @@ class SpotifyNativeChannel: NSObject {
                     UserDefaults.standard.set(refreshToken, forKey: self?.refreshTokenKey ?? "spotify_macos_refresh_token")
                 }
                 self?.storedAccessToken = accessToken
+                self?.cachedDeviceId = nil // token changed — re-resolve device
                 result(accessToken)
             }
         }.resume()
@@ -271,6 +271,7 @@ class SpotifyNativeChannel: NSObject {
                     )
                 }
                 self?.storedAccessToken = accessToken
+                self?.cachedDeviceId = nil // token changed — re-resolve device
                 completion(accessToken)
             }
         }.resume()
@@ -406,12 +407,84 @@ class SpotifyNativeChannel: NSObject {
         print("[SpotifyMacOS] play called with uri: \(uri)")
         // Ensure Spotify is running so it registers as active Web API device
         ensureSpotifyRunning {
-            self.spotifyWebAPI(
-                method: "PUT",
-                path: "/me/player/play",
-                body: ["uris": [uri]],
-                result: result
-            )
+            self.fetchDeviceThenPlay(uri: uri, result: result)
+        }
+    }
+
+    // MARK: - Device-aware playback helpers
+
+    /// Resolves the best Spotify device ID via GET /me/player/devices.
+    /// Caches the result in `cachedDeviceId` and calls `completion` on the main queue.
+    /// Retries up to `attempts` times (1 s apart) when no devices are visible yet
+    /// (e.g. Spotify just launched and hasn't registered with the Web API).
+    private func resolveDeviceId(attempts: Int = 5, completion: @escaping (String?) -> Void) {
+        // Use the cache when available — avoids a round-trip per volume/resume call.
+        if let cached = cachedDeviceId {
+            completion(cached)
+            return
+        }
+        guard let token = storedAccessToken else { completion(nil); return }
+        guard let url = URL(string: "https://api.spotify.com/v1/me/player/devices") else { completion(nil); return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                var deviceId: String? = nil
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let devices = json["devices"] as? [[String: Any]],
+                   !devices.isEmpty {
+                    let active = devices.first { $0["is_active"] as? Bool == true }
+                    let device = active ?? devices.first
+                    deviceId = device?["id"] as? String
+                    let name = device?["name"] as? String ?? "?"
+                    let isActive = device?["is_active"] as? Bool ?? false
+                    print("[SpotifyMacOS] resolved device '\(name)' active=\(isActive) id=\(deviceId ?? "?")")
+                    self.cachedDeviceId = deviceId
+                }
+                if deviceId == nil && attempts > 1 {
+                    print("[SpotifyMacOS] no devices yet, retrying in 1 s (\(attempts - 1) left)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.cachedDeviceId = nil // force re-fetch on retry
+                        self.resolveDeviceId(attempts: attempts - 1, completion: completion)
+                    }
+                    return
+                }
+                completion(deviceId)
+            }
+        }.resume()
+    }
+
+    /// Plays `uri` on the best available Spotify device.
+    private func fetchDeviceThenPlay(uri: String, result: @escaping FlutterResult) {
+        resolveDeviceId { [weak self] deviceId in
+            guard let self = self else { return }
+            var path = "/me/player/play"
+            if let id = deviceId { path += "?device_id=\(id)" }
+            print("[SpotifyMacOS] playing on device_id=\(deviceId ?? "none")")
+            self.spotifyWebAPI(method: "PUT", path: path, body: ["uris": [uri]], result: result)
+        }
+    }
+
+    /// Resumes playback on the best available Spotify device.
+    private func resumeOnDevice(result: @escaping FlutterResult) {
+        resolveDeviceId { [weak self] deviceId in
+            guard let self = self else { return }
+            var path = "/me/player/play"
+            if let id = deviceId { path += "?device_id=\(id)" }
+            self.spotifyWebAPI(method: "PUT", path: path, result: result)
+        }
+    }
+
+    /// Sets volume on the best available Spotify device.
+    private func setVolumeOnDevice(percent: Int, result: @escaping FlutterResult) {
+        resolveDeviceId { [weak self] deviceId in
+            guard let self = self else { return }
+            var path = "/me/player/volume?volume_percent=\(percent)"
+            if let id = deviceId { path += "&device_id=\(id)" }
+            self.spotifyWebAPI(method: "PUT", path: path, result: result)
         }
     }
 

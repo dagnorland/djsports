@@ -12,7 +12,61 @@ class SpotifyNativeChannel: NSObject {
     private var storedSession: SPTSession?
     private var isAuthenticating = false
 
+    private static let sessionDefaultsKey = "djsports_spotify_session"
+
+    // MARK: - Session persistence
+
+    private func persistSession(_ session: SPTSession) {
+        do {
+            let data = try NSKeyedArchiver.archivedData(
+                withRootObject: session,
+                requiringSecureCoding: false
+            )
+            UserDefaults.standard.set(data, forKey: Self.sessionDefaultsKey)
+            NSLog("[Spotify] persistSession: saved (expires in %.0f s)",
+                  session.expirationDate.timeIntervalSinceNow)
+        } catch {
+            NSLog("[Spotify] persistSession: archive failed — %@",
+                  error.localizedDescription)
+        }
+    }
+
+    private func loadPersistedSession() -> SPTSession? {
+        guard let data = UserDefaults.standard.data(
+            forKey: Self.sessionDefaultsKey
+        ) else {
+            NSLog("[Spotify] loadPersistedSession: nothing in UserDefaults")
+            return nil
+        }
+        do {
+            let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
+            unarchiver.requiresSecureCoding = false
+            let session = unarchiver.decodeObject(
+                forKey: NSKeyedArchiveRootObjectKey
+            ) as? SPTSession
+            if let s = session {
+                NSLog("[Spotify] loadPersistedSession: restored (expires in %.0f s)",
+                      s.expirationDate.timeIntervalSinceNow)
+            } else {
+                NSLog("[Spotify] loadPersistedSession: data present but no SPTSession decoded")
+                UserDefaults.standard.removeObject(forKey: Self.sessionDefaultsKey)
+            }
+            return session
+        } catch {
+            NSLog("[Spotify] loadPersistedSession: unarchive failed — %@",
+                  error.localizedDescription)
+            UserDefaults.standard.removeObject(forKey: Self.sessionDefaultsKey)
+            return nil
+        }
+    }
+
+    private func clearPersistedSession() {
+        UserDefaults.standard.removeObject(forKey: Self.sessionDefaultsKey)
+        NSLog("[Spotify] clearPersistedSession: removed from UserDefaults")
+    }
+
     func setup(messenger: FlutterBinaryMessenger) {
+        storedSession = loadPersistedSession()
         let mc = FlutterMethodChannel(
             name: Self.methodChannelName,
             binaryMessenger: messenger
@@ -124,9 +178,12 @@ class SpotifyNativeChannel: NSObject {
             }
             playerAPI.play(uri) { [weak self] _, error in
                 if let error = error {
-                    let details = (self?.appRemote?.isConnected == false)
-                        ? "SpotifyDisconnectedException"
-                        : error.localizedDescription
+                    let nsErr = error as NSError
+                    let connected = self?.appRemote?.isConnected == true
+                    let details = connected
+                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                    NSLog("[Spotify] play error: %@", details)
                     result(FlutterError(
                         code: "PLAY_ERROR",
                         message: error.localizedDescription,
@@ -148,9 +205,12 @@ class SpotifyNativeChannel: NSObject {
             }
             playerAPI.pause { [weak self] _, error in
                 if let error = error {
-                    let details = (self?.appRemote?.isConnected == false)
-                        ? "SpotifyDisconnectedException"
-                        : error.localizedDescription
+                    let nsErr = error as NSError
+                    let connected = self?.appRemote?.isConnected == true
+                    let details = connected
+                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                    NSLog("[Spotify] pause error: %@", details)
                     result(FlutterError(
                         code: "PAUSE_ERROR",
                         message: error.localizedDescription,
@@ -172,9 +232,12 @@ class SpotifyNativeChannel: NSObject {
             }
             playerAPI.resume { [weak self] _, error in
                 if let error = error {
-                    let details = (self?.appRemote?.isConnected == false)
-                        ? "SpotifyDisconnectedException"
-                        : error.localizedDescription
+                    let nsErr = error as NSError
+                    let connected = self?.appRemote?.isConnected == true
+                    let details = connected
+                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                    NSLog("[Spotify] resume error: %@", details)
                     result(FlutterError(
                         code: "RESUME_ERROR",
                         message: error.localizedDescription,
@@ -204,9 +267,12 @@ class SpotifyNativeChannel: NSObject {
             }
             playerAPI.seek(toPosition: position) { [weak self] _, error in
                 if let error = error {
-                    let details = (self?.appRemote?.isConnected == false)
-                        ? "SpotifyDisconnectedException"
-                        : error.localizedDescription
+                    let nsErr = error as NSError
+                    let connected = self?.appRemote?.isConnected == true
+                    let details = connected
+                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
+                    NSLog("[Spotify] seekTo error: %@", details)
                     result(FlutterError(
                         code: "SEEK_ERROR",
                         message: error.localizedDescription,
@@ -223,6 +289,7 @@ class SpotifyNativeChannel: NSObject {
         case "clearSession":
             NSLog("[Spotify] clearSession: clearing storedSession and disconnecting appRemote")
             storedSession = nil
+            clearPersistedSession()
             isAuthenticating = false
             appRemote?.disconnect()
             appRemote = nil
@@ -303,14 +370,24 @@ extension SpotifyNativeChannel: SPTAppRemoteDelegate {
     ) {
         let errMsg = error?.localizedDescription ?? "Connection failed"
         let nsErr = error as NSError?
+        let domain = nsErr?.domain ?? "?"
+        let code = nsErr?.code ?? -1
         NSLog("[Spotify] didFailConnectionAttemptWithError: %@ (domain=%@ code=%d)",
-              errMsg,
-              nsErr?.domain ?? "?",
-              nsErr?.code ?? -1)
+              errMsg, domain, code)
+        // Build a details string that reaches the Flutter debug log.
+        // SPTAppRemoteErrorDomain code -1000 = Spotify app not running / not foreground.
+        let hint: String
+        if code == -1000 || errMsg.contains("Connection attempt failed") {
+            hint = "Spotify app is not running or not in the foreground. " +
+                   "Open Spotify manually first, then reconnect."
+        } else {
+            hint = ""
+        }
+        let details = "[\(domain) \(code)] \(errMsg)" + (hint.isEmpty ? "" : " — \(hint)")
         pendingResult?(FlutterError(
             code: "CONNECT_FAILED",
             message: errMsg,
-            details: errMsg
+            details: details
         ))
         pendingResult = nil
         eventSink?(["connected": false])
@@ -326,6 +403,7 @@ extension SpotifyNativeChannel: SPTSessionManagerDelegate {
         let remaining = session.expirationDate.timeIntervalSinceNow
         NSLog("[Spotify] sessionManager didInitiate: token valid for %.0f s", remaining)
         storedSession = session
+        persistSession(session)
         isAuthenticating = false
         pendingResult?(session.accessToken)
         pendingResult = nil
@@ -336,7 +414,8 @@ extension SpotifyNativeChannel: SPTSessionManagerDelegate {
         NSLog("[Spotify] sessionManager didFailWith: %@ (domain=%@ code=%d)",
               error.localizedDescription, nsErr.domain, nsErr.code)
         isAuthenticating = false
-        storedSession = nil  // Clear so next attempt uses initiateSession
+        storedSession = nil
+        clearPersistedSession()
         pendingResult?(FlutterError(
             code: "AUTH_FAILED",
             message: error.localizedDescription,
@@ -349,6 +428,7 @@ extension SpotifyNativeChannel: SPTSessionManagerDelegate {
         let remaining = session.expirationDate.timeIntervalSinceNow
         NSLog("[Spotify] sessionManager didRenew: token valid for %.0f s", remaining)
         storedSession = session
+        persistSession(session)
         isAuthenticating = false
         pendingResult?(session.accessToken)
         pendingResult = nil

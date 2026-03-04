@@ -378,7 +378,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final packageInfo = useFuture(useMemoized(PackageInfo.fromPlatform));
     isPlaying = ref.read(spotifyRemoteRepositoryProvider).isPlaying;
 
-    final isWide = MediaQuery.of(context).size.width >= 600;
+    final isWide = MediaQuery.of(context).size.width >= 1000;
     final hasToken =
         ref.read(spotifyRemoteRepositoryProvider).hasSpotifyAccessToken;
     final version = packageInfo.data?.version;
