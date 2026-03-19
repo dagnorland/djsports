@@ -505,7 +505,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             context,
             label: 'Update all tracks with no start time from list',
             icon: Icons.update,
-            disabled: trackTimeList.isEmpty || trackWithZeroStartTimeListLength == 0,
+            disabled:
+                trackTimeList.isEmpty || trackWithZeroStartTimeListLength == 0,
             onPressed: () {
               _applyStartTimesToTracksWithNoStartTime();
             },
@@ -518,8 +519,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
   void _applyStartTimesToTracksWithNoStartTime() {
     final allTracks = ref.read(hiveTrackData) ?? [];
-    final tracksWithNoStartTime =
-        allTracks.where((t) => t.startTime == 0).toList();
+    final tracksWithNoStartTime = allTracks
+        .where((t) => t.startTime == 0)
+        .toList();
 
     int updatedCount = 0;
     for (final track in tracksWithNoStartTime) {
@@ -539,7 +541,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             updatedCount > 0
                 ? 'Updated $updatedCount track(s) with start times from the list'
                 : 'No matches found — none of the ${tracksWithNoStartTime.length} '
-                    'tracks without a start time exist in the import list',
+                      'tracks without a start time exist in the import list',
           ),
         ),
       );
@@ -719,9 +721,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           const Gap(6),
           Text(
             'Step-by-step connect:',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Gap(8),
           _diagButton(
@@ -756,9 +758,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           const Gap(6),
           Text(
             'Playback:',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Gap(8),
           TextField(
@@ -784,12 +786,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             _diagSeek,
           ),
           const Gap(6),
-          _diagButton(
-            context,
-            'Step 5: Pause',
-            Icons.pause,
-            _diagPause,
-          ),
+          _diagButton(context, 'Step 5: Pause', Icons.pause, _diagPause),
           const Gap(6),
           _diagButton(
             context,
@@ -827,10 +824,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     );
   }
 
-  Widget _diagStateCard(
-    BuildContext context,
-    SpotifyRemoteRepository repo,
-  ) {
+  Widget _diagStateCard(BuildContext context, SpotifyRemoteRepository repo) {
     String tokenInfo;
     if (repo.lastValidAccessToken.isEmpty) {
       tokenInfo = '(none)';
@@ -843,8 +837,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     if (repo.lastConnectionTime.year == 1970) {
       connTime = 'never';
     } else {
-      final age =
-          DateTime.now().difference(repo.lastConnectionTime);
+      final age = DateTime.now().difference(repo.lastConnectionTime);
       if (age.inSeconds < 60) {
         connTime = '${age.inSeconds}s ago';
       } else {
@@ -865,24 +858,20 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
         children: [
           Text(
             'Current State',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Gap(6),
           _diagStateRow(
             'hasToken',
             repo.hasSpotifyAccessToken ? 'true' : 'false',
-            repo.hasSpotifyAccessToken
-                ? Colors.green
-                : Colors.red,
+            repo.hasSpotifyAccessToken ? Colors.green : Colors.red,
           ),
           _diagStateRow(
             'isConnectedRemote',
             repo.isConnectedRemote ? 'true' : 'false',
-            repo.isConnectedRemote
-                ? Colors.green
-                : Colors.red,
+            repo.isConnectedRemote ? Colors.green : Colors.red,
           ),
           _diagStateRow(
             'isPlaying',
@@ -890,11 +879,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             Colors.black54,
           ),
           _diagStateRow('token', tokenInfo, Colors.black54),
-          _diagStateRow(
-            'lastConnection',
-            connTime,
-            Colors.black54,
-          ),
+          _diagStateRow('lastConnection', connTime, Colors.black54),
           if (repo.spotifyUserDisplayName.isNotEmpty ||
               repo.spotifyUserEmail.isNotEmpty)
             _diagStateRow(
@@ -902,8 +887,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
               [
                 if (repo.spotifyUserDisplayName.isNotEmpty)
                   repo.spotifyUserDisplayName,
-                if (repo.spotifyUserEmail.isNotEmpty)
-                  repo.spotifyUserEmail,
+                if (repo.spotifyUserEmail.isNotEmpty) repo.spotifyUserEmail,
               ].join('  '),
               Colors.green.shade700,
             ),
@@ -956,11 +940,11 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
       children: [
         ValueListenableBuilder<int>(
           valueListenable: SpotifyConnectionLog().changeCount,
-          builder: (_, __, ___) => Text(
+          builder: (context, value, child) => Text(
             'Log  (${SpotifyConnectionLog().log.length} entries)',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         const Spacer(),
@@ -979,7 +963,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   Widget _diagLogView(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: SpotifyConnectionLog().changeCount,
-      builder: (_, __, ___) {
+      builder: (context, value, child) {
         final entries = SpotifyConnectionLog().log.reversed.toList();
         if (entries.isEmpty) {
           return Container(
@@ -1054,10 +1038,7 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            statusIcon,
-            style: TextStyle(color: statusColor, fontSize: 11),
-          ),
+          Text(statusIcon, style: TextStyle(color: statusColor, fontSize: 11)),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -1087,14 +1068,9 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           backgroundColor: _diagRunning
               ? Colors.teal.withOpacity(0.3)
               : Colors.teal.shade700,
-          padding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 16,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           alignment: Alignment.centerLeft,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         onPressed: _diagRunning ? null : onPressed,
         icon: Icon(icon, color: Colors.white, size: 18),
@@ -1175,8 +1151,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
         ok
             ? 'Full connect OK'
             : 'Full connect FAILED  '
-                'hasToken=${repo.hasSpotifyAccessToken} '
-                'remote=${repo.isConnectedRemote}',
+                  'hasToken=${repo.hasSpotifyAccessToken} '
+                  'remote=${repo.isConnectedRemote}',
       );
     } catch (e) {
       _diagDone('Error: $e');

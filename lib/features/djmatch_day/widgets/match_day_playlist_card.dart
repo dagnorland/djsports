@@ -544,7 +544,7 @@ class _AlbumArt extends StatelessWidget {
       width: 40,
       height: 40,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const SizedBox(
+      errorBuilder: (context, error, stackTrace) => const SizedBox(
         width: 40,
         height: 40,
         child: Icon(Icons.cloud_off_outlined, size: 32, color: Colors.black38),

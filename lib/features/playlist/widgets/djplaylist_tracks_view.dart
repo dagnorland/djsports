@@ -86,8 +86,16 @@ class DJPlaylistTrackView extends HookConsumerWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  SizedBox(width: size, height: size),
+              errorBuilder: (context, error, stackTrace) =>
+                  SizedBox(
+                    width: size,
+                    height: size,
+                    child: Icon(
+                      Icons.cloud_off_outlined,
+                      size: size,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
             ),
           );
 

@@ -25,10 +25,11 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
   Widget buildSuggestions(BuildContext context) {
     if (query.isEmpty || query.length < 5) {
       return const Center(
-          child: Text(
-        'Text min 5 characters to search',
-        style: TextStyle(fontSize: 20),
-      ));
+        child: Text(
+          'Text min 5 characters to search',
+          style: TextStyle(fontSize: 20),
+        ),
+      );
     }
     // search-as-you-type if enabled
     searchService.searchTrack(query);
@@ -39,10 +40,11 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
   Widget buildResults(BuildContext context) {
     if (query.isEmpty || query.length < 5) {
       return const Center(
-          child: Text(
-        'Text min 5 characters to search',
-        style: TextStyle(fontSize: 20),
-      ));
+        child: Text(
+          'Text min 5 characters to search',
+          style: TextStyle(fontSize: 20),
+        ),
+      );
     }
     // always search if submitted
     searchService.searchTrack(query);
@@ -53,29 +55,29 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
     bool isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     return Consumer(
-      builder: (_, ref, __) {
+      builder: (context, ref, child) {
         final resultsValue = ref.watch(searchResultsProvider);
         return resultsValue.when(
           data: (result) {
             return result.when(
               (tracks) => GridView.builder(
-                  itemCount: tracks.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    // if landscape mode set crossAxisCount to 8
-                    crossAxisCount: isLandscape ? 8 : 5,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 5,
-                    childAspectRatio: isLandscape ? 0.7 : 0.9,
-                  ),
-                  itemBuilder: (context, index) {
-                    return SpotifyTrackSearchResultTile(
-                      track: tracks[index],
-                      existInPlaylist: false,
-                      onSelected: (track) =>
-                          addTrackToPlaylist(context, track, ref),
-                    );
-                  },
+                itemCount: tracks.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  // if landscape mode set crossAxisCount to 8
+                  crossAxisCount: isLandscape ? 8 : 5,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 5,
+                  childAspectRatio: isLandscape ? 0.7 : 0.9,
                 ),
+                itemBuilder: (context, index) {
+                  return SpotifyTrackSearchResultTile(
+                    track: tracks[index],
+                    existInPlaylist: false,
+                    onSelected: (track) =>
+                        addTrackToPlaylist(context, track, ref),
+                  );
+                },
+              ),
               error: (error) => SearchPlaceholder(title: error.message),
             );
           },
@@ -102,7 +104,7 @@ class SpotifySearchDelegate extends SearchDelegate<Track?> {
                 query = '';
                 showSuggestions(context);
               },
-            )
+            ),
           ];
   }
 }

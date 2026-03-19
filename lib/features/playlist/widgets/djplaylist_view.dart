@@ -62,15 +62,15 @@ class DJPlaylistView extends HookConsumerWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => SizedBox(
+            errorBuilder: (context, error, stackTrace) => SizedBox(
               width: size,
-              height: size,
-              child: Icon(
-                Icons.cloud_off_outlined,
-                size: size,
-                color: Colors.grey.shade400,
-              ),
+            height: size,
+            child: Icon(
+              Icons.cloud_off_outlined,
+              size: size,
+              color: Colors.grey.shade400,
             ),
+          ),
           );
 
     Widget spotifySourceImage(double size) => networkImageUri.isEmpty
