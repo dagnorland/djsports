@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.7] - Release 2026-03-19
+
+### Changed
+- **Removed bloc/flutter_bloc dependencies** — `bloc` and `flutter_bloc` packages removed; state management is handled exclusively by Riverpod
+- **Upgraded just_audio to ^0.10.5** — updated `DJAudioHandler` to use the new non-nullable APIs (`effectiveIndices`, `shuffleIndices`, `sequence`)
+- **Upgraded dependencies** — `flutter_dotenv ^6.0.0`, `package_info_plus ^9.0.0`, `flutter_lints ^6.0.0`, `hive_ce_generator ^1.11.0`
+
+### Fixed
+- **iOS: native volume mute/seek/unmute on play with start position** — play with a `positionMs` offset now mutes, plays, seeks, and restores system volume natively in `SpotifyNativeChannel.swift` via `MPVolumeView`, matching macOS behavior and removing the Dart-side `_restoreVolume` workaround
+- **Code quality** — used `unawaited()` for background user-profile fetch to suppress lint warnings; various formatting fixes across the codebase
+
 ## [2.5.6] - Release 2026-03-04
 
 ### Added

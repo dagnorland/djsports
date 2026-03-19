@@ -53,7 +53,7 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
 
   Widget buildMatchingSuggestions(BuildContext context) {
     return Consumer(
-      builder: (_, ref, __) {
+      builder: (context, ref, child) {
         final resultsValue = ref.watch(playlistResultsProvider);
         return resultsValue.when(
           data: (result) {

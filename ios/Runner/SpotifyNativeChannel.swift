@@ -1,4 +1,6 @@
+import AVFoundation
 import Flutter
+import MediaPlayer
 import UIKit
 
 class SpotifyNativeChannel: NSObject {
@@ -11,6 +13,7 @@ class SpotifyNativeChannel: NSObject {
     private var eventSink: FlutterEventSink?
     private var storedSession: SPTSession?
     private var isAuthenticating = false
+    private let _volumeView = MPVolumeView()
 
     private static let sessionDefaultsKey = "djsports_spotify_session"
 
@@ -65,7 +68,30 @@ class SpotifyNativeChannel: NSObject {
         NSLog("[Spotify] clearPersistedSession: removed from UserDefaults")
     }
 
+    // MARK: - System volume helpers
+
+    private func attachVolumeView() {
+        _volumeView.frame = CGRect(x: -1000, y: -1000, width: 1, height: 1)
+        _volumeView.isHidden = true
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first
+        window?.addSubview(_volumeView)
+    }
+
+    private func getSystemVolume() -> Float {
+        AVAudioSession.sharedInstance().outputVolume
+    }
+
+    private func setSystemVolume(_ volume: Float) {
+        guard let slider = _volumeView.subviews
+            .compactMap({ $0 as? UISlider })
+            .first else { return }
+        DispatchQueue.main.async { slider.value = volume }
+    }
+
     func setup(messenger: FlutterBinaryMessenger) {
+        DispatchQueue.main.async { self.attachVolumeView() }
         storedSession = loadPersistedSession()
         let mc = FlutterMethodChannel(
             name: Self.methodChannelName,
@@ -176,8 +202,15 @@ class SpotifyNativeChannel: NSObject {
                 ))
                 return
             }
+            let positionMs = args["positionMs"] as? Int ?? 0
+            let savedVolume: Float? = positionMs > 0 ? getSystemVolume() : nil
+            if positionMs > 0 {
+                NSLog("[Spotify] play: muting for seek to %d ms", positionMs)
+                setSystemVolume(0)
+            }
             playerAPI.play(uri) { [weak self] _, error in
                 if let error = error {
+                    if let vol = savedVolume { self?.setSystemVolume(vol) }
                     let nsErr = error as NSError
                     let connected = self?.appRemote?.isConnected == true
                     let details = connected
@@ -189,6 +222,17 @@ class SpotifyNativeChannel: NSObject {
                         message: error.localizedDescription,
                         details: details
                     ))
+                } else if positionMs > 0 {
+                    NSLog("[Spotify] play ok, seeking to %d ms", positionMs)
+                    playerAPI.seek(toPosition: positionMs) { [weak self] _, seekError in
+                        if let seekError = seekError {
+                            NSLog("[Spotify] seekTo after play error: %@", seekError.localizedDescription)
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            if let vol = savedVolume { self?.setSystemVolume(vol) }
+                        }
+                        result(nil)
+                    }
                 } else {
                     result(nil)
                 }

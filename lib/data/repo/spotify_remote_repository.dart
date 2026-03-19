@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
@@ -224,14 +225,6 @@ class SpotifyRemoteRepository {
     }
   }
 
-  Future<void> _restoreVolume(double vol) async {
-    if (Platform.isMacOS) {
-      await _bridge.setVolume((vol * 100).round());
-    } else {
-      _setSystemVolume(vol);
-    }
-  }
-
   Future<bool> pausePlayer() async {
     try {
       if (!Platform.isMacOS) await _mute();
@@ -350,18 +343,18 @@ class SpotifyRemoteRepository {
       );
       debugPrint('[PLAY] bridge.play returned OK');
       if (jumpStart > 0) {
-        latestDurationStartupMS =
-            DateTime.now().difference(startTime).inMilliseconds;
+        latestDurationStartupMS = DateTime.now()
+            .difference(startTime)
+            .inMilliseconds;
       }
 
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'play track ${track.spotifyUri}',
       );
-      final startupTimeMessage =
-          jumpStart > 0 && latestDurationStartupMS > 0
-              ? ' - startup time: $latestDurationStartupMS'
-              : '';
+      final startupTimeMessage = jumpStart > 0 && latestDurationStartupMS > 0
+          ? ' - startup time: $latestDurationStartupMS'
+          : '';
       final result = '${track.name} -$startupTimeMessage';
       debugPrint('[PLAY] Success result: $result');
       return result;
@@ -597,10 +590,17 @@ class SpotifyRemoteRepository {
       );
       // Fetch user profile in background — failure is non-fatal.
       if (Platform.isMacOS && accessToken.isNotEmpty) {
-        _bridge.getUserProfile().then((profile) {
-          spotifyUserDisplayName = profile['displayName'] ?? '';
-          spotifyUserEmail = profile['email'] ?? '';
-        }).catchError((_) {});
+        unawaited(
+          _bridge
+              .getUserProfile()
+              .then((profile) {
+                spotifyUserDisplayName = profile['displayName'] ?? '';
+                spotifyUserEmail = profile['email'] ?? '';
+              })
+              .catchError((error) {
+                debugPrint('Failed to get user profile: $error');
+              }),
+        );
       }
     } catch (e) {
       debugPrint('[Spotify] connectAccessToken error: $e');

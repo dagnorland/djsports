@@ -15,47 +15,44 @@ class DJAudioHandler extends BaseAudioHandler {
   }
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
-    _player.playbackEventStream.listen(
-      (PlaybackEvent event) {
-        final playing = _player.playing;
-        final queueIndex =
-            _player.effectiveIndices?.indexOf(_player.currentIndex ?? 0);
-        playbackState.add(
-          playbackState.value.copyWith(
-            controls: [
-              MediaControl.skipToPrevious,
-              if (playing) MediaControl.pause else MediaControl.play,
-              MediaControl.stop,
-              MediaControl.skipToNext,
-            ],
-            systemActions: const {
-              MediaAction.seek,
-            },
-            androidCompactActionIndices: const [0, 1, 3],
-            processingState: const {
-              ProcessingState.idle: AudioProcessingState.idle,
-              ProcessingState.loading: AudioProcessingState.loading,
-              ProcessingState.buffering: AudioProcessingState.buffering,
-              ProcessingState.ready: AudioProcessingState.ready,
-              ProcessingState.completed: AudioProcessingState.completed,
-            }[_player.processingState]!,
-            repeatMode: const {
-              LoopMode.off: AudioServiceRepeatMode.none,
-              LoopMode.one: AudioServiceRepeatMode.one,
-              LoopMode.all: AudioServiceRepeatMode.all,
-            }[_player.loopMode]!,
-            shuffleMode: _player.shuffleModeEnabled
-                ? AudioServiceShuffleMode.all
-                : AudioServiceShuffleMode.none,
-            playing: playing,
-            updatePosition: _player.position,
-            bufferedPosition: _player.bufferedPosition,
-            speed: _player.speed,
-            queueIndex: queueIndex,
-          ),
-        );
-      },
-    );
+    _player.playbackEventStream.listen((PlaybackEvent event) {
+      final playing = _player.playing;
+      final currentIndex = _player.currentIndex;
+      if (currentIndex == null) return;
+      final queueIndex = _player.effectiveIndices.indexOf(currentIndex);
+      playbackState.add(
+        playbackState.value.copyWith(
+          controls: [
+            MediaControl.skipToPrevious,
+            if (playing) MediaControl.pause else MediaControl.play,
+            MediaControl.stop,
+            MediaControl.skipToNext,
+          ],
+          systemActions: const {MediaAction.seek},
+          androidCompactActionIndices: const [0, 1, 3],
+          processingState: const {
+            ProcessingState.idle: AudioProcessingState.idle,
+            ProcessingState.loading: AudioProcessingState.loading,
+            ProcessingState.buffering: AudioProcessingState.buffering,
+            ProcessingState.ready: AudioProcessingState.ready,
+            ProcessingState.completed: AudioProcessingState.completed,
+          }[_player.processingState]!,
+          repeatMode: const {
+            LoopMode.off: AudioServiceRepeatMode.none,
+            LoopMode.one: AudioServiceRepeatMode.one,
+            LoopMode.all: AudioServiceRepeatMode.all,
+          }[_player.loopMode]!,
+          shuffleMode: _player.shuffleModeEnabled
+              ? AudioServiceShuffleMode.all
+              : AudioServiceShuffleMode.none,
+          playing: playing,
+          updatePosition: _player.position,
+          bufferedPosition: _player.bufferedPosition,
+          speed: _player.speed,
+          queueIndex: queueIndex,
+        ),
+      );
+    });
   }
 
   void _listenForCurrentSongIndexChanges() {
@@ -72,7 +69,7 @@ class DJAudioHandler extends BaseAudioHandler {
 
         //log('shuffle queue indices' + _player.shuffleIndices!.toString());
         //log('normal index: ' + index.toString());
-        index = _player.shuffleIndices!.indexOf(index);
+        index = _player.shuffleIndices.indexOf(index);
         //log('effective index: ' + index.toString());
       }
       if (index < playlist.length && index > -1) {
@@ -82,79 +79,68 @@ class DJAudioHandler extends BaseAudioHandler {
   }
 
   void _listenForSequenceStateChanges() {
-    _player.sequenceStateStream.listen(
-      (SequenceState? sequenceState) {
-        final sequence = sequenceState?.effectiveSequence;
+    _player.sequenceStateStream.listen((SequenceState? sequenceState) {
+      final sequence = sequenceState?.effectiveSequence;
 
-        if (sequence == null || sequence.isEmpty) return;
-        final items = sequence.map((source) => source.tag as MediaItem);
-        queue.add(items.toList());
-      },
-    );
+      if (sequence == null || sequence.isEmpty) return;
+      final items = sequence.map((source) => source.tag as MediaItem);
+      queue.add(items.toList());
+    });
   }
 
   void _listenForDurationChanges() {
-    _player.durationStream.listen(
-      (duration) {
-        var index = _player.currentIndex;
-        final newQueue = queue.value;
-        if (index == null || newQueue.isEmpty) return;
+    _player.durationStream.listen((duration) {
+      var index = _player.currentIndex;
+      final newQueue = queue.value;
+      if (index == null || newQueue.isEmpty) return;
 
-        if (_player.shuffleModeEnabled) {
-          index = _player.shuffleIndices!.indexOf(index);
-        }
-        final oldMediaItem = newQueue[index];
-        final newMediaItem = oldMediaItem.copyWith(duration: duration);
-        newQueue[index] = newMediaItem;
-        mediaItem.add(newMediaItem);
-      },
-    );
+      if (_player.shuffleModeEnabled) {
+        index = _player.shuffleIndices.indexOf(index);
+      }
+      final oldMediaItem = newQueue[index];
+      final newMediaItem = oldMediaItem.copyWith(duration: duration);
+      newQueue[index] = newMediaItem;
+      mediaItem.add(newMediaItem);
+    });
   }
 
   void _listenForShuffleModeChanges() {
-    _player.shuffleModeEnabledStream.listen(
-      (enabled) {
-        int? queueIndex = _player.currentIndex;
-        if (queueIndex != null) {
-          if (queueIndex < queue.value.length && queueIndex > -1) {
-            queueIndex =
-                _player.effectiveIndices?.indexOf(_player.currentIndex ?? 0);
-          }
+    _player.shuffleModeEnabledStream.listen((enabled) {
+      int? queueIndex = _player.currentIndex;
+      if (queueIndex != null) {
+        if (queueIndex < queue.value.length && queueIndex > -1) {
+          queueIndex = _player.effectiveIndices.indexOf(
+            _player.currentIndex ?? 0,
+          );
         }
-        playbackState.add(
-          playbackState.value.copyWith(
-            shuffleMode: enabled
-                ? AudioServiceShuffleMode.all
-                : AudioServiceShuffleMode.none,
-            queueIndex: queueIndex,
-          ),
-        );
-      },
-    );
+      }
+      playbackState.add(
+        playbackState.value.copyWith(
+          shuffleMode: enabled
+              ? AudioServiceShuffleMode.all
+              : AudioServiceShuffleMode.none,
+          queueIndex: queueIndex,
+        ),
+      );
+    });
   }
 
   void _listenForRepeatModeChanges() {
-    _player.loopModeStream.listen(
-      (loopMode) {
-        late AudioServiceRepeatMode repeatMode;
-        switch (loopMode) {
-          case LoopMode.off:
-            repeatMode = AudioServiceRepeatMode.none;
-            break;
-          case LoopMode.one:
-            repeatMode = AudioServiceRepeatMode.one;
-            break;
-          case LoopMode.all:
-            repeatMode = AudioServiceRepeatMode.all;
-            break;
-        }
-        playbackState.add(
-          playbackState.value.copyWith(
-            repeatMode: repeatMode,
-          ),
-        );
-      },
-    );
+    _player.loopModeStream.listen((loopMode) {
+      late AudioServiceRepeatMode repeatMode;
+      switch (loopMode) {
+        case LoopMode.off:
+          repeatMode = AudioServiceRepeatMode.none;
+          break;
+        case LoopMode.one:
+          repeatMode = AudioServiceRepeatMode.one;
+          break;
+        case LoopMode.all:
+          repeatMode = AudioServiceRepeatMode.all;
+          break;
+      }
+      playbackState.add(playbackState.value.copyWith(repeatMode: repeatMode));
+    });
   }
 
   UriAudioSource _createAudioSource(MediaItem mediaItem) {
@@ -211,14 +197,19 @@ class DJAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async {
-    playbackState.add(playbackState.value
-        .copyWith(processingState: AudioProcessingState.completed));
+    playbackState.add(
+      playbackState.value.copyWith(
+        processingState: AudioProcessingState.completed,
+      ),
+    );
     await _player.stop();
   }
 
   @override
-  Future<dynamic> customAction(String name,
-      [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(
+    String name, [
+    Map<String, dynamic>? extras,
+  ]) async {
     switch (name) {
       case 'start':
         {
@@ -240,7 +231,7 @@ class DJAudioHandler extends BaseAudioHandler {
         {
           int oldIndex = extras!['oldIndex'] as int;
           int newIndex = extras['newIndex'] as int;
-          final indexedAudioSource = _player.sequence![oldIndex];
+          final indexedAudioSource = _player.sequence.elementAt(oldIndex);
 
           if (newIndex > oldIndex) {
             await _playList.insert(newIndex, indexedAudioSource);
