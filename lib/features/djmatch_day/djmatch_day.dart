@@ -5,7 +5,9 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
+import 'package:djsports/features/djmatch_day/widgets/debug_log_sheet.dart';
 import 'package:djsports/features/djmatch_day/widgets/match_day_playlist_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
@@ -180,14 +182,26 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
   Widget _buildSidebar() {
     return Container(
       color: Colors.red,
-      child: CenterControlWidget(
-        onResume: () async => resumePlayer(),
-        onPause: () async => pausePlayer(),
-        onBack: () {
-          Navigator.of(context).pop();
-          widget.refreshCallback?.call();
-        },
-        refreshCallback: widget.refreshCallback,
+      child: Column(
+        children: [
+          Expanded(
+            child: CenterControlWidget(
+              onResume: () async => resumePlayer(),
+              onPause: () async => pausePlayer(),
+              onBack: () {
+                Navigator.of(context).pop();
+                widget.refreshCallback?.call();
+              },
+              refreshCallback: widget.refreshCallback,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report, color: Colors.white70, size: 22),
+            tooltip: 'Debug log',
+            onPressed: () => DebugLogSheet.show(context),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
@@ -247,11 +261,32 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
                 ),
                 onPressed: resumePlayer,
               ),
-              IconButton(
-                icon:
-                    const Icon(Icons.pause, color: Colors.white, size: 32),
-                onPressed: pausePlayer,
+              ValueListenableBuilder<bool>(
+                valueListenable: ref
+                    .read(spotifyRemoteRepositoryProvider)
+                    .silencePlayingNotifier,
+                builder: (context, isSilence, _) => IconButton(
+                  icon: Icon(
+                    Icons.pause,
+                    color: isSilence ? Colors.orange : Colors.white,
+                    size: 32,
+                  ),
+                  tooltip: isSilence ? 'Silence playing' : 'Pause',
+                  onPressed: pausePlayer,
+                ),
               ),
+              if (Platform.isIOS || Platform.isMacOS)
+                IconButton(
+                  icon: const Icon(
+                    Icons.open_in_new,
+                    color: Color(0xFF1DB954),
+                    size: 26,
+                  ),
+                  tooltip: 'Open Spotify',
+                  onPressed: () => ref
+                      .read(spotifyRemoteRepositoryProvider)
+                      .launchSpotify(),
+                ),
               IconButton(
                 icon: const Icon(
                   Icons.volume_up,
@@ -271,6 +306,15 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
                 onPressed: () => ref
                     .read(spotifyRemoteRepositoryProvider)
                     .adjustVolume(-0.05),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.bug_report,
+                  color: Colors.white70,
+                  size: 24,
+                ),
+                tooltip: 'Debug log',
+                onPressed: () => DebugLogSheet.show(context),
               ),
               IconButton(
                 icon: const Icon(
@@ -309,14 +353,19 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
             final isTallEnoughForSidebar = constraints.maxHeight >= 500;
 
             if (isWide && isTallEnoughForSidebar) {
+              final sidebarOnRight = AppSettings.sidebarOnRight;
+              final board = Expanded(
+                flex: 85,
+                child: SafeArea(child: _buildBoard(allPlaylists)),
+              );
+              final sidebar = Expanded(
+                flex: 15,
+                child: _buildSidebar(),
+              );
               return Row(
-                children: [
-                  Expanded(
-                    flex: 85,
-                    child: SafeArea(child: _buildBoard(allPlaylists)),
-                  ),
-                  Expanded(flex: 15, child: _buildSidebar()),
-                ],
+                children: sidebarOnRight
+                    ? [board, sidebar]
+                    : [sidebar, board],
               );
             }
 

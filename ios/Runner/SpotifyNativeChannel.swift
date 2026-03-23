@@ -1,98 +1,31 @@
-import AVFoundation
-import Flutter
-import MediaPlayer
 import UIKit
+import Flutter
+import AuthenticationServices
+import CryptoKit
 
 class SpotifyNativeChannel: NSObject {
     static let methodChannelName = "com.djsports/spotify_native"
     static let eventChannelName = "com.djsports/spotify_connection_events"
 
-    private var appRemote: SPTAppRemote?
-    private var sessionManager: SPTSessionManager?
-    private var pendingResult: FlutterResult?
     private var eventSink: FlutterEventSink?
-    private var storedSession: SPTSession?
-    private var isAuthenticating = false
-    private let _volumeView = MPVolumeView()
+    private var authSession: ASWebAuthenticationSession?
 
-    private static let sessionDefaultsKey = "djsports_spotify_session"
+    private let refreshTokenKey = "spotify_ios_refresh_token"
+    private var storedAccessToken: String?
 
-    // MARK: - Session persistence
+    /// 10-minute silence track used as a keep-alive when the user presses pause.
+    private let silenceTrackUri = "spotify:track:0XycH5D4znCfJIBeYt3upG"
+    // Keep-alive timer: pings GET /v1/me/player every 10 s while connected
+    private var keepAliveTimer: Timer?
+    private let keepAliveInterval: TimeInterval = 10
 
-    private func persistSession(_ session: SPTSession) {
-        do {
-            let data = try NSKeyedArchiver.archivedData(
-                withRootObject: session,
-                requiringSecureCoding: false
-            )
-            UserDefaults.standard.set(data, forKey: Self.sessionDefaultsKey)
-            NSLog("[Spotify] persistSession: saved (expires in %.0f s)",
-                  session.expirationDate.timeIntervalSinceNow)
-        } catch {
-            NSLog("[Spotify] persistSession: archive failed — %@",
-                  error.localizedDescription)
-        }
-    }
-
-    private func loadPersistedSession() -> SPTSession? {
-        guard let data = UserDefaults.standard.data(
-            forKey: Self.sessionDefaultsKey
-        ) else {
-            NSLog("[Spotify] loadPersistedSession: nothing in UserDefaults")
-            return nil
-        }
-        do {
-            let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
-            unarchiver.requiresSecureCoding = false
-            let session = unarchiver.decodeObject(
-                forKey: NSKeyedArchiveRootObjectKey
-            ) as? SPTSession
-            if let s = session {
-                NSLog("[Spotify] loadPersistedSession: restored (expires in %.0f s)",
-                      s.expirationDate.timeIntervalSinceNow)
-            } else {
-                NSLog("[Spotify] loadPersistedSession: data present but no SPTSession decoded")
-                UserDefaults.standard.removeObject(forKey: Self.sessionDefaultsKey)
-            }
-            return session
-        } catch {
-            NSLog("[Spotify] loadPersistedSession: unarchive failed — %@",
-                  error.localizedDescription)
-            UserDefaults.standard.removeObject(forKey: Self.sessionDefaultsKey)
-            return nil
-        }
-    }
-
-    private func clearPersistedSession() {
-        UserDefaults.standard.removeObject(forKey: Self.sessionDefaultsKey)
-        NSLog("[Spotify] clearPersistedSession: removed from UserDefaults")
-    }
-
-    // MARK: - System volume helpers
-
-    private func attachVolumeView() {
-        _volumeView.frame = CGRect(x: -1000, y: -1000, width: 1, height: 1)
-        _volumeView.isHidden = true
-        let window = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first
-        window?.addSubview(_volumeView)
-    }
-
-    private func getSystemVolume() -> Float {
-        AVAudioSession.sharedInstance().outputVolume
-    }
-
-    private func setSystemVolume(_ volume: Float) {
-        guard let slider = _volumeView.subviews
-            .compactMap({ $0 as? UISlider })
-            .first else { return }
-        DispatchQueue.main.async { slider.value = volume }
-    }
+    // Pending play retry after auto-opening Spotify
+    private var pendingPlayBody: [String: Any]?
+    private var pendingPlayResult: FlutterResult?
+    private var foregroundObserver: Any?
+    private var pendingPlayTimeoutTimer: Timer?
 
     func setup(messenger: FlutterBinaryMessenger) {
-        DispatchQueue.main.async { self.attachVolumeView() }
-        storedSession = loadPersistedSession()
         let mc = FlutterMethodChannel(
             name: Self.methodChannelName,
             binaryMessenger: messenger
@@ -111,373 +44,898 @@ class SpotifyNativeChannel: NSObject {
 
         switch call.method {
         case "getAccessToken":
-            // Return cached token if still valid (> 5 min remaining)
-            if let session = storedSession,
-               session.expirationDate > Date(timeIntervalSinceNow: 300) {
-                let remaining = session.expirationDate.timeIntervalSinceNow
-                NSLog("[Spotify] getAccessToken: returning cached token (%.0f s remaining)", remaining)
-                result(session.accessToken)
-                return
-            }
-            // Prevent concurrent initiateSession calls
-            if isAuthenticating {
-                NSLog("[Spotify] getAccessToken: AUTH_IN_PROGRESS, rejecting concurrent call")
-                result(FlutterError(
-                    code: "AUTH_IN_PROGRESS",
-                    message: "Authentication already in progress",
-                    details: nil
-                ))
-                return
-            }
-            guard
-                let clientId = args["clientId"] as? String,
-                let redirectUrl = args["redirectUrl"] as? String,
-                let redirectURL = URL(string: redirectUrl)
-            else {
-                NSLog("[Spotify] getAccessToken: INVALID_ARGS")
-                result(FlutterError(
-                    code: "INVALID_ARGS",
-                    message: "Missing clientId or redirectUrl",
-                    details: nil
-                ))
-                return
-            }
-            isAuthenticating = true
-            pendingResult = result
-            let config = SPTConfiguration(clientID: clientId, redirectURL: redirectURL)
-            sessionManager = SPTSessionManager(configuration: config, delegate: self)
-            let scope: SPTScope = [
-                .appRemoteControl,
-                .streaming,
-                .userModifyPlaybackState,
-                .playlistReadPrivate,
-                .playlistModifyPublic,
-                .userReadCurrentlyPlaying,
-            ]
-            if storedSession != nil {
-                NSLog("[Spotify] getAccessToken: storedSession expired/near-expiry — calling renewSession()")
-                sessionManager?.renewSession()
-            } else {
-                NSLog("[Spotify] getAccessToken: no storedSession — calling initiateSession()")
-                sessionManager?.initiateSession(with: scope, options: .default, campaign: nil)
-            }
-
+            getAccessToken(args: args, result: result)
         case "connect":
-            guard
-                let clientId = args["clientId"] as? String,
-                let redirectUrl = args["redirectUrl"] as? String,
-                let redirectURL = URL(string: redirectUrl),
-                let accessToken = args["accessToken"] as? String
-            else {
-                NSLog("[Spotify] connect: INVALID_ARGS")
-                result(FlutterError(
-                    code: "INVALID_ARGS",
-                    message: "Missing clientId, redirectUrl, or accessToken",
-                    details: nil
-                ))
-                return
-            }
-            NSLog("[Spotify] connect: creating SPTAppRemote, token prefix=%@", String(accessToken.prefix(8)))
-            pendingResult = result
-            let config = SPTConfiguration(clientID: clientId, redirectURL: redirectURL)
-            appRemote = SPTAppRemote(configuration: config, logLevel: .debug)
-            appRemote?.connectionParameters.accessToken = accessToken
-            appRemote?.delegate = self
-            appRemote?.connect()
-
+            connectToSpotify(result: result)
         case "play":
-            guard let uri = args["spotifyUri"] as? String else {
-                result(FlutterError(
-                    code: "INVALID_ARGS",
-                    message: "Missing spotifyUri",
-                    details: nil
-                ))
-                return
-            }
-            guard let playerAPI = appRemote?.playerAPI else {
-                result(FlutterError(
-                    code: "NOT_CONNECTED",
-                    message: "Spotify Remote is not connected",
-                    details: "SpotifyDisconnectedException"
-                ))
-                return
-            }
-            let positionMs = args["positionMs"] as? Int ?? 0
-            let savedVolume: Float? = positionMs > 0 ? getSystemVolume() : nil
-            if positionMs > 0 {
-                NSLog("[Spotify] play: muting for seek to %d ms", positionMs)
-                setSystemVolume(0)
-            }
-            playerAPI.play(uri) { [weak self] _, error in
-                if let error = error {
-                    if let vol = savedVolume { self?.setSystemVolume(vol) }
-                    let nsErr = error as NSError
-                    let connected = self?.appRemote?.isConnected == true
-                    let details = connected
-                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                    NSLog("[Spotify] play error: %@", details)
-                    result(FlutterError(
-                        code: "PLAY_ERROR",
-                        message: error.localizedDescription,
-                        details: details
-                    ))
-                } else if positionMs > 0 {
-                    NSLog("[Spotify] play ok, seeking to %d ms", positionMs)
-                    playerAPI.seek(toPosition: positionMs) { [weak self] _, seekError in
-                        if let seekError = seekError {
-                            NSLog("[Spotify] seekTo after play error: %@", seekError.localizedDescription)
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            if let vol = savedVolume { self?.setSystemVolume(vol) }
-                        }
-                        result(nil)
-                    }
-                } else {
-                    result(nil)
-                }
-            }
-
+            playTrack(args: args, result: result)
         case "pause":
-            guard let playerAPI = appRemote?.playerAPI else {
-                result(FlutterError(
-                    code: "NOT_CONNECTED",
-                    message: "Spotify Remote is not connected",
-                    details: "SpotifyDisconnectedException"
-                ))
-                return
-            }
-            playerAPI.pause { [weak self] _, error in
-                if let error = error {
-                    let nsErr = error as NSError
-                    let connected = self?.appRemote?.isConnected == true
-                    let details = connected
-                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                    NSLog("[Spotify] pause error: %@", details)
-                    result(FlutterError(
-                        code: "PAUSE_ERROR",
-                        message: error.localizedDescription,
-                        details: details
-                    ))
-                } else {
-                    result(nil)
-                }
-            }
-
+            playSilenceKeepAlive(result: result)
         case "resume":
-            guard let playerAPI = appRemote?.playerAPI else {
-                result(FlutterError(
-                    code: "NOT_CONNECTED",
-                    message: "Spotify Remote is not connected",
-                    details: "SpotifyDisconnectedException"
-                ))
-                return
-            }
-            playerAPI.resume { [weak self] _, error in
-                if let error = error {
-                    let nsErr = error as NSError
-                    let connected = self?.appRemote?.isConnected == true
-                    let details = connected
-                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                    NSLog("[Spotify] resume error: %@", details)
-                    result(FlutterError(
-                        code: "RESUME_ERROR",
-                        message: error.localizedDescription,
-                        details: details
-                    ))
-                } else {
-                    result(nil)
-                }
-            }
-
+            resumeOnDevice(result: result)
         case "seekTo":
-            guard let position = args["positionedMilliseconds"] as? Int else {
-                result(FlutterError(
-                    code: "INVALID_ARGS",
-                    message: "Missing positionedMilliseconds",
-                    details: nil
-                ))
-                return
-            }
-            guard let playerAPI = appRemote?.playerAPI else {
-                result(FlutterError(
-                    code: "NOT_CONNECTED",
-                    message: "Spotify Remote is not connected",
-                    details: "SpotifyDisconnectedException"
-                ))
-                return
-            }
-            playerAPI.seek(toPosition: position) { [weak self] _, error in
-                if let error = error {
-                    let nsErr = error as NSError
-                    let connected = self?.appRemote?.isConnected == true
-                    let details = connected
-                        ? "[\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                        : "SpotifyDisconnectedException [\(nsErr.domain) \(nsErr.code)] \(error.localizedDescription)"
-                    NSLog("[Spotify] seekTo error: %@", details)
-                    result(FlutterError(
-                        code: "SEEK_ERROR",
-                        message: error.localizedDescription,
-                        details: details
-                    ))
-                } else {
-                    result(nil)
-                }
-            }
-
+            seekTo(args: args, result: result)
         case "setVolume":
-            result(nil) // iOS uses system volume via flutter_volume_controller
-
+            let percent = args["volumePercent"] as? Int ?? 50
+            spotifyWebAPI(
+                method: "PUT",
+                path: "/me/player/volume?volume_percent=\(percent)",
+                result: result
+            )
+        case "getUserProfile":
+            getUserProfile(result: result)
+        case "getActiveDevices":
+            getActiveDevices(result: result)
         case "clearSession":
-            NSLog("[Spotify] clearSession: clearing storedSession and disconnecting appRemote")
-            storedSession = nil
-            clearPersistedSession()
-            isAuthenticating = false
-            appRemote?.disconnect()
-            appRemote = nil
+            stopKeepAlive()
+            storedAccessToken = nil
+            UserDefaults.standard.removeObject(forKey: refreshTokenKey)
+            eventSink?(["connected": false])
             result(nil)
-
+        case "launchSpotify":
+            launchSpotify(result: result)
+        case "getDebugInfo":
+            result([
+                "native.hasToken": storedAccessToken != nil ? "true" : "false",
+                "native.hasRefreshToken": UserDefaults.standard.string(
+                    forKey: refreshTokenKey
+                ) != nil ? "true" : "false",
+            ] as [String: Any])
         default:
             result(FlutterMethodNotImplemented)
         }
     }
 
-    /// Called from AppDelegate.applicationWillResignActive.
-    /// Cleanly disconnects SPTAppRemote so it does not enter a zombie state
-    /// while the app is in the background.
-    func handleAppWillResignActive() {
-        guard let remote = appRemote, remote.isConnected else { return }
-        NSLog("[Spotify] handleAppWillResignActive: disconnecting appRemote")
-        remote.disconnect()
-    }
+    // MARK: - getAccessToken (PKCE OAuth with refresh token caching)
 
-    /// Called from AppDelegate.applicationDidBecomeActive.
-    /// Re-connects SPTAppRemote using the cached access token if the native
-    /// SPTSession is still valid.  Does nothing if already connected or if
-    /// there is no stored session (a full connect() call is needed instead).
-    func reconnectIfNeeded() {
-        guard let session = storedSession,
-              session.expirationDate > Date(),
-              let remote = appRemote,
-              !remote.isConnected else {
-            NSLog("[Spotify] reconnectIfNeeded: skipping (no session, no remote, or already connected)")
+    private func getAccessToken(args: [String: Any], result: @escaping FlutterResult) {
+        guard
+            let clientId = args["clientId"] as? String,
+            let redirectUrl = args["redirectUrl"] as? String,
+            let scope = args["scope"] as? String
+        else {
+            result(FlutterError(
+                code: "INVALID_ARGS",
+                message: "Missing clientId, redirectUrl or scope",
+                details: nil
+            ))
             return
         }
-        NSLog("[Spotify] reconnectIfNeeded: silent reconnect (token valid for %.0f s)",
-              session.expirationDate.timeIntervalSinceNow)
-        remote.connectionParameters.accessToken = session.accessToken
-        remote.connect()
-    }
 
-    func application(
-        _ app: UIApplication,
-        open url: URL,
-        options: [UIApplication.OpenURLOptionsKey: Any]
-    ) -> Bool {
-        sessionManager?.application(app, open: url, options: options)
-        return true
-    }
-}
+        let normalizedScope = scope
+            .replacingOccurrences(of: ", ", with: " ")
+            .replacingOccurrences(of: ",", with: " ")
 
-extension SpotifyNativeChannel: SPTAppRemoteDelegate {
-    func appRemoteDidEstablishConnection(_ appRemote: SPTAppRemote) {
-        NSLog("[Spotify] appRemoteDidEstablishConnection ✓")
-        appRemote.playerAPI?.delegate = self
-        // Subscribe to player state so Spotify pushes periodic updates over
-        // the socket.  Without this the socket goes idle and Spotify closes it
-        // after a few minutes of no API activity.
-        appRemote.playerAPI?.subscribe(toPlayerState: { _, error in
-            if let error = error {
-                NSLog("[Spotify] subscribe playerState error: %@",
-                      error.localizedDescription)
+        if let refreshToken = UserDefaults.standard.string(forKey: refreshTokenKey) {
+            refreshAccessToken(clientId: clientId, refreshToken: refreshToken) { [weak self] accessToken in
+                if let accessToken = accessToken {
+                    self?.eventSink?(["connected": true])
+                    result(accessToken)
+                } else {
+                    self?.startPKCEFlow(
+                        clientId: clientId,
+                        redirectUrl: redirectUrl,
+                        scope: normalizedScope,
+                        result: result
+                    )
+                }
             }
-        })
-        pendingResult?(true)
-        pendingResult = nil
-        eventSink?(["connected": true])
-    }
-
-    func appRemote(
-        _ appRemote: SPTAppRemote,
-        didDisconnectWithError error: Error?
-    ) {
-        NSLog("[Spotify] appRemote didDisconnectWithError: %@",
-              error?.localizedDescription ?? "no error")
-        eventSink?(["connected": false])
-    }
-
-    func appRemote(
-        _ appRemote: SPTAppRemote,
-        didFailConnectionAttemptWithError error: Error?
-    ) {
-        let errMsg = error?.localizedDescription ?? "Connection failed"
-        let nsErr = error as NSError?
-        let domain = nsErr?.domain ?? "?"
-        let code = nsErr?.code ?? -1
-        NSLog("[Spotify] didFailConnectionAttemptWithError: %@ (domain=%@ code=%d)",
-              errMsg, domain, code)
-        // Build a details string that reaches the Flutter debug log.
-        // SPTAppRemoteErrorDomain code -1000 = Spotify app not running / not foreground.
-        let hint: String
-        if code == -1000 || errMsg.contains("Connection attempt failed") {
-            hint = "Spotify app is not running or not in the foreground. " +
-                   "Open Spotify manually first, then reconnect."
         } else {
-            hint = ""
+            startPKCEFlow(
+                clientId: clientId,
+                redirectUrl: redirectUrl,
+                scope: normalizedScope,
+                result: result
+            )
         }
-        let details = "[\(domain) \(code)] \(errMsg)" + (hint.isEmpty ? "" : " — \(hint)")
-        pendingResult?(FlutterError(
-            code: "CONNECT_FAILED",
-            message: errMsg,
-            details: details
+    }
+
+    private func startPKCEFlow(
+        clientId: String,
+        redirectUrl: String,
+        scope: String,
+        result: @escaping FlutterResult
+    ) {
+        let codeVerifier = generateCodeVerifier()
+        let codeChallenge = generateCodeChallenge(from: codeVerifier)
+
+        var components = URLComponents(string: "https://accounts.spotify.com/authorize")!
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "redirect_uri", value: redirectUrl),
+            URLQueryItem(name: "scope", value: scope),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "code_challenge", value: codeChallenge),
+        ]
+
+        guard let authURL = components.url else {
+            result(FlutterError(
+                code: "INVALID_URL",
+                message: "Could not build Spotify auth URL",
+                details: nil
+            ))
+            return
+        }
+
+        let callbackScheme = URL(string: redirectUrl)?.scheme ?? "djsports"
+
+        authSession = ASWebAuthenticationSession(
+            url: authURL,
+            callbackURLScheme: callbackScheme
+        ) { [weak self] callbackURL, error in
+            guard let self = self else { return }
+
+            guard let callbackURL = callbackURL, error == nil else {
+                DispatchQueue.main.async {
+                    result(FlutterError(
+                        code: "AUTH_CANCELLED",
+                        message: error?.localizedDescription ?? "Authentication cancelled",
+                        details: nil
+                    ))
+                }
+                return
+            }
+
+            guard let code = URLComponents(
+                url: callbackURL,
+                resolvingAgainstBaseURL: false
+            )?.queryItems?.first(where: { $0.name == "code" })?.value else {
+                DispatchQueue.main.async {
+                    result(FlutterError(
+                        code: "AUTH_FAILED",
+                        message: "No authorization code in callback",
+                        details: nil
+                    ))
+                }
+                return
+            }
+
+            self.exchangeCodeForToken(
+                code: code,
+                clientId: clientId,
+                redirectUrl: redirectUrl,
+                codeVerifier: codeVerifier,
+                result: result
+            )
+        }
+        authSession?.presentationContextProvider = self
+        authSession?.prefersEphemeralWebBrowserSession = false
+        authSession?.start()
+    }
+
+    private func exchangeCodeForToken(
+        code: String,
+        clientId: String,
+        redirectUrl: String,
+        codeVerifier: String,
+        result: @escaping FlutterResult
+    ) {
+        guard let tokenURL = URL(string: "https://accounts.spotify.com/api/token") else { return }
+
+        var request = URLRequest(url: tokenURL)
+        request.httpMethod = "POST"
+        request.setValue(
+            "application/x-www-form-urlencoded",
+            forHTTPHeaderField: "Content-Type"
+        )
+
+        let params: [String: String] = [
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirectUrl,
+            "client_id": clientId,
+            "code_verifier": codeVerifier,
+        ]
+        request.httpBody = encodeFormParams(params)
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+            DispatchQueue.main.async {
+                guard let data = data, error == nil else {
+                    result(FlutterError(
+                        code: "TOKEN_EXCHANGE_FAILED",
+                        message: error?.localizedDescription,
+                        details: nil
+                    ))
+                    return
+                }
+                guard
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let accessToken = json["access_token"] as? String
+                else {
+                    result(FlutterError(
+                        code: "TOKEN_PARSE_FAILED",
+                        message: "Could not parse token response",
+                        details: nil
+                    ))
+                    return
+                }
+                if let refreshToken = json["refresh_token"] as? String {
+                    UserDefaults.standard.set(
+                        refreshToken,
+                        forKey: self?.refreshTokenKey ?? "spotify_ios_refresh_token"
+                    )
+                }
+                self?.storedAccessToken = accessToken
+                self?.eventSink?(["connected": true])
+                result(accessToken)
+            }
+        }.resume()
+    }
+
+    private func refreshAccessToken(
+        clientId: String,
+        refreshToken: String,
+        completion: @escaping (String?) -> Void
+    ) {
+        guard let tokenURL = URL(string: "https://accounts.spotify.com/api/token") else {
+            completion(nil)
+            return
+        }
+
+        var request = URLRequest(url: tokenURL)
+        request.httpMethod = "POST"
+        request.setValue(
+            "application/x-www-form-urlencoded",
+            forHTTPHeaderField: "Content-Type"
+        )
+
+        let params: [String: String] = [
+            "grant_type": "refresh_token",
+            "refresh_token": refreshToken,
+            "client_id": clientId,
+        ]
+        request.httpBody = encodeFormParams(params)
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+            DispatchQueue.main.async {
+                guard
+                    let data = data,
+                    error == nil,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let accessToken = json["access_token"] as? String
+                else {
+                    completion(nil)
+                    return
+                }
+                if let newRefresh = json["refresh_token"] as? String {
+                    UserDefaults.standard.set(
+                        newRefresh,
+                        forKey: self?.refreshTokenKey ?? "spotify_ios_refresh_token"
+                    )
+                }
+                self?.storedAccessToken = accessToken
+                completion(accessToken)
+            }
+        }.resume()
+    }
+
+    // MARK: - PKCE helpers
+
+    private func generateCodeVerifier() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return Data(bytes).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private func generateCodeChallenge(from verifier: String) -> String {
+        let hash = SHA256.hash(data: Data(verifier.utf8))
+        return Data(hash).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private func encodeFormParams(_ params: [String: String]) -> Data? {
+        return params
+            .map {
+                let k = $0.key.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryAllowed
+                ) ?? $0.key
+                let v = $0.value.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryAllowed
+                ) ?? $0.value
+                return "\(k)=\(v)"
+            }
+            .joined(separator: "&")
+            .data(using: .utf8)
+    }
+
+    // MARK: - connect
+
+    private func connectToSpotify(result: @escaping FlutterResult) {
+        // Web API is stateless — "connected" means having a valid access token.
+        guard storedAccessToken != nil ||
+              UserDefaults.standard.string(forKey: refreshTokenKey) != nil
+        else {
+            result(FlutterError(
+                code: "NOT_CONNECTED",
+                message: "No access token — call getAccessToken first",
+                details: nil
+            ))
+            return
+        }
+        NSLog("[SpotifyiOS] connect: Web API ready — activating local device in background")
+        result(true)
+        eventSink?(["connected": true])
+        startKeepAlive()
+        // Fire-and-forget: transfer playback to this device so it's ready before first play.
+        activateLocalDevice { deviceId in
+            if let deviceId = deviceId {
+                NSLog("[SpotifyiOS] connect: activated device %@", deviceId)
+            } else {
+                NSLog("[SpotifyiOS] connect: no device to activate (Spotify not running?)")
+            }
+        }
+    }
+
+    // MARK: - Keep-alive
+
+    private func startKeepAlive() {
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = Timer.scheduledTimer(
+            withTimeInterval: keepAliveInterval, repeats: true
+        ) { [weak self] _ in
+            self?.pingPlayerState()
+        }
+        NSLog("[SpotifyiOS] keepAlive: started (interval %.0fs)", keepAliveInterval)
+    }
+
+    private func stopKeepAlive() {
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = nil
+        NSLog("[SpotifyiOS] keepAlive: stopped")
+    }
+
+    /// Pings GET /v1/me/player.
+    /// - 200: device active → transfer playback to it (keeps Spotify's audio
+    ///        session alive by sending it a write command).
+    /// - 204: no active device → call activateLocalDevice so the next play
+    ///        doesn't need to open Spotify first.
+    private func pingPlayerState() {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player")
+        else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                NSLog("[SpotifyiOS] keepAlive: ping status %d", status)
+
+                if status == 204 {
+                    // No active device — try to reactivate proactively so the
+                    // next play attempt doesn't have to open Spotify first.
+                    NSLog("[SpotifyiOS] keepAlive: no active device — reactivating…")
+                    self.activateLocalDevice { deviceId in
+                        NSLog(
+                            "[SpotifyiOS] keepAlive: reactivate → %@",
+                            deviceId ?? "nil"
+                        )
+                    }
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Device activation helpers
+
+    /// Finds the preferred playback device and transfers playback to it.
+    /// Prefers: active device > Smartphone > first available.
+    private func activateLocalDevice(completion: @escaping (String?) -> Void) {
+        fetchPreferredDeviceId { [weak self] deviceId in
+            guard let self = self, let deviceId = deviceId else {
+                completion(nil)
+                return
+            }
+            self.transferPlaybackToDevice(deviceId) { success in
+                completion(success ? deviceId : nil)
+            }
+        }
+    }
+
+    /// Returns the best device ID: active first, then Smartphone, then any.
+    private func fetchPreferredDeviceId(completion: @escaping (String?) -> Void) {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player/devices")
+        else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                guard
+                    let data = data, error == nil,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let devices = json["devices"] as? [[String: Any]],
+                    !devices.isEmpty
+                else {
+                    completion(nil)
+                    return
+                }
+                // 1. Already-active device
+                if let active = devices.first(where: { $0["is_active"] as? Bool == true }),
+                   let id = active["id"] as? String {
+                    let name = active["name"] as? String ?? "?"
+                    NSLog("[SpotifyiOS] preferredDevice: already active — %@", name)
+                    completion(id)
+                    return
+                }
+                // 2. Smartphone (the iPhone running this app)
+                if let phone = devices.first(where: {
+                    ($0["type"] as? String)?.lowercased() == "smartphone"
+                }), let id = phone["id"] as? String {
+                    let name = phone["name"] as? String ?? "?"
+                    NSLog("[SpotifyiOS] preferredDevice: smartphone — %@", name)
+                    completion(id)
+                    return
+                }
+                // 3. First available
+                if let first = devices.first, let id = first["id"] as? String {
+                    let name = first["name"] as? String ?? "?"
+                    NSLog("[SpotifyiOS] preferredDevice: first available — %@", name)
+                    completion(id)
+                    return
+                }
+                completion(nil)
+            }
+        }.resume()
+    }
+
+    /// Transfers playback to [deviceId] via PUT /v1/me/player (play: false = keep paused).
+    private func transferPlaybackToDevice(_ deviceId: String, completion: @escaping (Bool) -> Void) {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player")
+        else {
+            completion(false)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "device_ids": [deviceId],
+            "play": false,
+        ])
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            DispatchQueue.main.async {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                NSLog("[SpotifyiOS] transferPlayback → device %@ status: %d", deviceId, status)
+                completion(status < 400)
+            }
+        }.resume()
+    }
+
+    // MARK: - Silence keep-alive
+
+    /// Called instead of a real pause. Plays a 10-min silence track so that
+    /// the Spotify device stays active and can be played immediately next time.
+    private func playSilenceKeepAlive(result: @escaping FlutterResult) {
+        NSLog("[SpotifyiOS] pause → playing silence track (%@)", silenceTrackUri)
+        let body: [String: Any] = ["uris": [silenceTrackUri]]
+        spotifyWebAPI(method: "PUT", path: "/me/player/play", body: body, result: result)
+    }
+
+    // MARK: - launchSpotify
+
+    private func launchSpotify(result: @escaping FlutterResult) {
+        guard let spotifyURL = URL(string: "spotify:") else {
+            result(false)
+            return
+        }
+        UIApplication.shared.open(spotifyURL, options: [:]) { success in
+            DispatchQueue.main.async {
+                NSLog("[SpotifyiOS] launchSpotify: %@", success ? "opened" : "failed")
+                result(success)
+            }
+        }
+    }
+
+    // MARK: - Auto-open Spotify + return flow
+
+    /// Opens Spotify, schedules return to djsports after 2 s, then retries
+    /// the pending play when djsports comes back to foreground.
+    private func openSpotifyAndReturnToApp(
+        body: [String: Any],
+        result: @escaping FlutterResult
+    ) {
+        // Store pending play
+        pendingPlayBody = body
+        pendingPlayResult = result
+
+        // Register foreground observer to fire retryPendingPlay when we return
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.retryPendingPlay()
+        }
+
+        // Timeout — if user never returns, fail after 45 s
+        pendingPlayTimeoutTimer = Timer.scheduledTimer(
+            withTimeInterval: 45, repeats: false
+        ) { [weak self] _ in
+            NSLog("[SpotifyiOS] Pending play timed out")
+            self?.cancelPendingPlay()
+        }
+
+        guard let spotifyURL = URL(string: "spotify:") else {
+            cancelPendingPlay(error: "Could not build Spotify URL")
+            return
+        }
+        UIApplication.shared.open(spotifyURL, options: [:]) { [weak self] success in
+            NSLog("[SpotifyiOS] Opened Spotify: %@", success ? "ok" : "failed")
+            guard success else {
+                self?.cancelPendingPlay(error: "Could not open Spotify app")
+                return
+            }
+            // Return to djsports after giving the user 2 s to see Spotify
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.returnToApp()
+            }
+        }
+    }
+
+    private func returnToApp() {
+        guard let url = URL(string: "djsports://") else { return }
+        UIApplication.shared.open(url, options: [:]) { success in
+            NSLog("[SpotifyiOS] Returned to djsports: %@", success ? "ok" : "failed")
+        }
+    }
+
+    private func retryPendingPlay() {
+        guard let body = pendingPlayBody, let result = pendingPlayResult else { return }
+        clearPendingPlay()
+        NSLog("[SpotifyiOS] retryPendingPlay — activating device then playing")
+        // Give Spotify a moment after we returned to foreground
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            self.activateLocalDevice { deviceId in
+                if let deviceId = deviceId {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NSLog("[SpotifyiOS] retryPendingPlay — playing on device: %@", deviceId)
+                        self.spotifyWebAPI(
+                            method: "PUT",
+                            path: "/me/player/play?device_id=\(deviceId)",
+                            body: body,
+                            result: result
+                        )
+                    }
+                } else {
+                    // Still no device — return the original error so the dialog shows
+                    result(FlutterError(
+                        code: "API_ERROR",
+                        message: "No active device found. Open Spotify app and try again.",
+                        details: nil
+                    ))
+                }
+            }
+        }
+    }
+
+    private func cancelPendingPlay(error: String? = nil) {
+        guard let result = pendingPlayResult else { return }
+        clearPendingPlay()
+        result(FlutterError(
+            code: "API_ERROR",
+            message: error ?? "No active device found. Open Spotify app and try again.",
+            details: nil
         ))
-        pendingResult = nil
-        eventSink?(["connected": false])
+    }
+
+    private func clearPendingPlay() {
+        pendingPlayBody = nil
+        pendingPlayResult = nil
+        pendingPlayTimeoutTimer?.invalidate()
+        pendingPlayTimeoutTimer = nil
+        if let obs = foregroundObserver {
+            NotificationCenter.default.removeObserver(obs)
+            foregroundObserver = nil
+        }
+    }
+
+    // MARK: - Playback via Spotify Web API
+
+    private func playTrack(args: [String: Any], result: @escaping FlutterResult) {
+        guard let uri = args["spotifyUri"] as? String else {
+            result(FlutterError(
+                code: "INVALID_ARGS",
+                message: "Missing spotifyUri",
+                details: nil
+            ))
+            return
+        }
+        let positionMs = args["positionMs"] as? Int
+        NSLog("[SpotifyiOS] play called with uri: %@ positionMs: %d", uri, positionMs ?? 0)
+        var body: [String: Any] = ["uris": [uri]]
+        if let pos = positionMs, pos > 0 {
+            body["position_ms"] = pos
+        }
+        playWithAutoDeviceFallback(body: body, result: result)
+    }
+
+    private func resumeOnDevice(result: @escaping FlutterResult) {
+        playWithAutoDeviceFallback(body: [:], result: result)
+    }
+
+    /// Tries to play; on HTTP 404 (no active device) automatically fetches
+    /// the device list and retries with an explicit device_id.
+    private func playWithAutoDeviceFallback(
+        body: [String: Any],
+        result: @escaping FlutterResult
+    ) {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player/play")
+        else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let error = error {
+                    result(FlutterError(
+                        code: "API_ERROR",
+                        message: error.localizedDescription,
+                        details: nil
+                    ))
+                    return
+                }
+                guard let http = response as? HTTPURLResponse else {
+                    result(nil)
+                    return
+                }
+                NSLog("[SpotifyiOS] play status: %d", http.statusCode)
+                if http.statusCode == 404 {
+                    // No active device — find preferred device, transfer playback, then retry.
+                    NSLog("[SpotifyiOS] No active device — transferring to preferred device…")
+                    self.activateLocalDevice { deviceId in
+                        guard let deviceId = deviceId else {
+                            // Spotify not running — open it, return to this app, retry.
+                            NSLog("[SpotifyiOS] No device available — auto-opening Spotify…")
+                            self.openSpotifyAndReturnToApp(body: body, result: result)
+                            return
+                        }
+                        // Short wait for transfer to register before playing.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            NSLog("[SpotifyiOS] Retrying play after transfer to device_id: %@", deviceId)
+                            self.spotifyWebAPI(
+                                method: "PUT",
+                                path: "/me/player/play?device_id=\(deviceId)",
+                                body: body,
+                                result: result
+                            )
+                        }
+                    }
+                    return
+                }
+                if http.statusCode >= 400 {
+                    let bodyStr = data.flatMap {
+                        String(data: $0, encoding: .utf8)
+                    } ?? "(no body)"
+                    NSLog("[SpotifyiOS] play error body: %@", bodyStr)
+                    result(FlutterError(
+                        code: "API_ERROR",
+                        message: "HTTP \(http.statusCode): \(bodyStr)",
+                        details: nil
+                    ))
+                    return
+                }
+                result(nil)
+            }
+        }.resume()
+    }
+
+    /// Returns the first available Spotify device ID, or nil if none found.
+    private func fetchFirstDeviceId(completion: @escaping (String?) -> Void) {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player/devices")
+        else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                guard
+                    let data = data, error == nil,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let devices = json["devices"] as? [[String: Any]],
+                    let first = devices.first,
+                    let id = first["id"] as? String
+                else {
+                    completion(nil)
+                    return
+                }
+                let name = first["name"] as? String ?? "Unknown"
+                NSLog("[SpotifyiOS] Auto-selected device: %@ (%@)", name, id)
+                completion(id)
+            }
+        }.resume()
+    }
+
+    private func seekTo(args: [String: Any], result: @escaping FlutterResult) {
+        guard let positionMs = args["positionedMilliseconds"] as? Int else {
+            result(FlutterError(
+                code: "INVALID_ARGS",
+                message: "Missing positionedMilliseconds",
+                details: nil
+            ))
+            return
+        }
+        spotifyWebAPI(
+            method: "PUT",
+            path: "/me/player/seek?position_ms=\(positionMs)",
+            result: result
+        )
+    }
+
+    private func getUserProfile(result: @escaping FlutterResult) {
+        guard let token = storedAccessToken else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            return
+        }
+        guard let url = URL(string: "https://api.spotify.com/v1/me") else {
+            result(FlutterError(code: "INVALID_URL", message: "Bad URL", details: nil))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    result(FlutterError(
+                        code: "API_ERROR",
+                        message: error.localizedDescription,
+                        details: nil
+                    ))
+                    return
+                }
+                guard
+                    let data = data,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                else {
+                    result(FlutterError(
+                        code: "PARSE_ERROR",
+                        message: "Could not parse /me response",
+                        details: nil
+                    ))
+                    return
+                }
+                let displayName = json["display_name"] as? String ?? ""
+                let email = json["email"] as? String ?? ""
+                let id = json["id"] as? String ?? ""
+                let product = json["product"] as? String ?? ""
+                result([
+                    "displayName": displayName,
+                    "email": email,
+                    "id": id,
+                    "product": product,
+                ] as [String: Any])
+            }
+        }.resume()
+    }
+
+    private func getActiveDevices(result: @escaping FlutterResult) {
+        guard let token = storedAccessToken else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            return
+        }
+        guard let url = URL(string: "https://api.spotify.com/v1/me/player/devices") else {
+            result(FlutterError(code: "INVALID_URL", message: "Bad URL", details: nil))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    result(FlutterError(
+                        code: "API_ERROR",
+                        message: error.localizedDescription,
+                        details: nil
+                    ))
+                    return
+                }
+                guard
+                    let data = data,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let devices = json["devices"] as? [[String: Any]]
+                else {
+                    result([String]())
+                    return
+                }
+                let names: [String] = devices.map { device in
+                    let name = device["name"] as? String ?? "Unknown"
+                    let type = device["type"] as? String ?? ""
+                    let active = device["is_active"] as? Bool ?? false
+                    return "\(name) (\(type))\(active ? " ●" : "")"
+                }
+                result(names)
+            }
+        }.resume()
+    }
+
+    // MARK: - Spotify Web API helper
+
+    private func spotifyWebAPI(
+        method: String,
+        path: String,
+        body: [String: Any]? = nil,
+        result: @escaping FlutterResult
+    ) {
+        guard let token = storedAccessToken else {
+            result(FlutterError(
+                code: "NO_TOKEN",
+                message: "No access token available — call getAccessToken first",
+                details: nil
+            ))
+            return
+        }
+        guard let url = URL(string: "https://api.spotify.com/v1\(path)") else {
+            result(FlutterError(
+                code: "INVALID_URL",
+                message: "Bad API path: \(path)",
+                details: nil
+            ))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let body = body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+        NSLog("[SpotifyiOS] Web API %@ %@", method, path)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    NSLog("[SpotifyiOS] Web API error: %@", error.localizedDescription)
+                    result(FlutterError(
+                        code: "API_ERROR",
+                        message: error.localizedDescription,
+                        details: nil
+                    ))
+                    return
+                }
+                if let http = response as? HTTPURLResponse {
+                    NSLog("[SpotifyiOS] Web API status: %d", http.statusCode)
+                    if http.statusCode >= 400 {
+                        let body = data.flatMap {
+                            String(data: $0, encoding: .utf8)
+                        } ?? "(no body)"
+                        NSLog("[SpotifyiOS] Web API error body: %@", body)
+                        result(FlutterError(
+                            code: "API_ERROR",
+                            message: "HTTP \(http.statusCode): \(body)",
+                            details: nil
+                        ))
+                        return
+                    }
+                }
+                result(nil)
+            }
+        }.resume()
     }
 }
 
-extension SpotifyNativeChannel: SPTAppRemotePlayerStateDelegate {
-    func playerStateDidChange(_ playerState: SPTAppRemotePlayerState) {}
-}
-
-extension SpotifyNativeChannel: SPTSessionManagerDelegate {
-    func sessionManager(manager: SPTSessionManager, didInitiate session: SPTSession) {
-        let remaining = session.expirationDate.timeIntervalSinceNow
-        NSLog("[Spotify] sessionManager didInitiate: token valid for %.0f s", remaining)
-        storedSession = session
-        persistSession(session)
-        isAuthenticating = false
-        pendingResult?(session.accessToken)
-        pendingResult = nil
-    }
-
-    func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
-        let nsErr = error as NSError
-        NSLog("[Spotify] sessionManager didFailWith: %@ (domain=%@ code=%d)",
-              error.localizedDescription, nsErr.domain, nsErr.code)
-        isAuthenticating = false
-        storedSession = nil
-        clearPersistedSession()
-        pendingResult?(FlutterError(
-            code: "AUTH_FAILED",
-            message: error.localizedDescription,
-            details: error.localizedDescription
-        ))
-        pendingResult = nil
-    }
-
-    func sessionManager(manager: SPTSessionManager, didRenew session: SPTSession) {
-        let remaining = session.expirationDate.timeIntervalSinceNow
-        NSLog("[Spotify] sessionManager didRenew: token valid for %.0f s", remaining)
-        storedSession = session
-        persistSession(session)
-        isAuthenticating = false
-        pendingResult?(session.accessToken)
-        pendingResult = nil
-    }
-}
+// MARK: - FlutterStreamHandler
 
 extension SpotifyNativeChannel: FlutterStreamHandler {
     func onListen(
@@ -485,11 +943,25 @@ extension SpotifyNativeChannel: FlutterStreamHandler {
         eventSink events: @escaping FlutterEventSink
     ) -> FlutterError? {
         eventSink = events
+        // Emit connected state based on whether we have a stored token
+        let hasToken = storedAccessToken != nil ||
+                       UserDefaults.standard.string(forKey: refreshTokenKey) != nil
+        events(["connected": hasToken])
         return nil
     }
 
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         eventSink = nil
         return nil
+    }
+}
+
+// MARK: - ASWebAuthenticationPresentationContextProviding
+
+extension SpotifyNativeChannel: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first ?? UIWindow()
     }
 }

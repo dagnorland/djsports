@@ -200,11 +200,9 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
   Widget build(BuildContext context) {
     final playlists = ref.watch(typeFilteredAllDataProvider);
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        body: LayoutBuilder(
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 600;
             final isTallEnoughForSidebar = constraints.maxHeight >= 500;
@@ -285,7 +283,6 @@ class _DJMatchCenterViewPageState extends ConsumerState<DJMatchCenterViewPage> {
             );
           },
         ),
-      ),
     );
   }
 }

@@ -31,7 +31,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool spotifyRemoteConnect = false;
   bool isPlaying = false;
   bool initStateConnectDone = false;
-  bool _isReconnecting = false;
   Timer? _connectionHealthCheckTimer;
   StreamSubscription<bool>? _connectionSubscription;
 
@@ -92,8 +91,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (Platform.isIOS || Platform.isMacOS) {
       stream = SpotifyPlatformBridge().subscribeConnectionStatus();
     } else if (Platform.isAndroid) {
-      stream =
-          SpotifySdk.subscribeConnectionStatus().map((s) => s.connected);
+      stream = SpotifySdk.subscribeConnectionStatus().map((s) => s.connected);
     }
     _connectionSubscription = stream?.listen(_onConnectionStatus);
     _initializeSpotifyConnection();
@@ -102,36 +100,12 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   void _onConnectionStatus(bool connected) {
     spotifyRemoteConnect = connected;
-    if (!connected && !_isReconnecting) {
-      _isReconnecting = true;
+    if (!connected) {
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.notConnected,
-        'Disconnected from Spotify',
+        'Disconnected from Spotify (socket dropped)',
       );
-      ref
-          .read(spotifyRemoteRepositoryProvider)
-          .connect()
-          .then((success) {
-            if (success) {
-              _isReconnecting = false;
-              if (mounted) {
-                setState(() => spotifyConnect = true);
-                debugPrint('Spotify Remote re-connected successfully');
-              }
-            } else {
-              Future.delayed(const Duration(seconds: 5), () {
-                _isReconnecting = false;
-                if (mounted) setState(() => spotifyConnect = false);
-              });
-            }
-          })
-          .catchError((error) {
-            debugPrint('Error connecting to Spotify Remote: $error');
-            Future.delayed(const Duration(seconds: 5), () {
-              _isReconnecting = false;
-              if (mounted) setState(() => spotifyConnect = false);
-            });
-          });
+      if (mounted) setState(() => spotifyConnect = false);
     }
   }
 
@@ -158,27 +132,22 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _navigateTo(Widget screen) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   void _handlePopupAction(String value) {
     switch (value) {
-      case 'matchcenter':
-        _navigateTo(
-          DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
-        );
       case 'matchday':
-        _navigateTo(
-          DJMatchDayViewPage(refreshCallback: () => setState(() {})),
-        );
+        _navigateTo(DJMatchDayViewPage(refreshCallback: () => setState(() {})));
       case 'newplaylist':
         ref.invalidate(typeFilteredAllDataProvider);
         _navigateTo(DJPlaylistEditScreen.empty());
       case 'settings':
         _navigateTo(TrackTimeCenterScreen());
+      case 'matchcenter':
+        _navigateTo(
+          DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
+        );
     }
   }
 
@@ -196,13 +165,21 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
       if (hasToken)
-        IconButton(
-          onPressed: () => setState(() {
-            pausePlayer();
-          }),
-          icon: Icon(
-            Icons.pause,
-            color: isPlaying ? Colors.green : Colors.grey,
+        ValueListenableBuilder<bool>(
+          valueListenable: ref
+              .read(spotifyRemoteRepositoryProvider)
+              .silencePlayingNotifier,
+          builder: (context, isSilence, _) => Tooltip(
+            message: isSilence ? 'Silence playing' : 'Pause',
+            child: IconButton(
+              onPressed: () => setState(() { pausePlayer(); }),
+              icon: Icon(
+                Icons.pause,
+                color: isSilence
+                    ? Colors.orange
+                    : (isPlaying ? Colors.green : Colors.grey),
+              ),
+            ),
           ),
         ),
       Tooltip(
@@ -254,13 +231,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         padding: const EdgeInsets.only(right: 5),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent.shade700,
+            backgroundColor: Colors.deepPurple.shade700,
           ),
           onPressed: () => _navigateTo(
-            DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
+            DJMatchDayViewPage(refreshCallback: () => setState(() {})),
           ),
           child: Text(
-            'djMatchCenter',
+            'djMatchDay',
             style: Theme.of(
               context,
             ).textTheme.titleLarge!.copyWith(color: Colors.white),
@@ -271,13 +248,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         padding: const EdgeInsets.only(right: 5),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.deepPurple.shade700,
+            backgroundColor: Colors.blueAccent.shade700,
           ),
           onPressed: () => _navigateTo(
-            DJMatchDayViewPage(refreshCallback: () => setState(() {})),
+            DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
           ),
           child: Text(
-            'djMatchDay',
+            '..old center',
             style: Theme.of(
               context,
             ).textTheme.titleLarge!.copyWith(color: Colors.white),
@@ -302,14 +279,19 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
       if (hasToken)
-        IconButton(
-          onPressed: () => setState(() {
-            pausePlayer();
-          }),
-          icon: Icon(
-            Icons.pause,
-            size: 22,
-            color: isPlaying ? Colors.green : Colors.grey,
+        ValueListenableBuilder<bool>(
+          valueListenable: ref
+              .read(spotifyRemoteRepositoryProvider)
+              .silencePlayingNotifier,
+          builder: (context, isSilence, _) => IconButton(
+            onPressed: () => setState(() { pausePlayer(); }),
+            icon: Icon(
+              Icons.pause,
+              size: 22,
+              color: isSilence
+                  ? Colors.orange
+                  : (isPlaying ? Colors.green : Colors.grey),
+            ),
           ),
         ),
       IconButton(
@@ -327,16 +309,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         icon: const Icon(Icons.more_vert, color: Colors.black),
         onSelected: _handlePopupAction,
         itemBuilder: (context) => [
-          PopupMenuItem(
-            value: 'matchcenter',
-            child: Row(
-              children: [
-                Icon(Icons.grid_view, color: Colors.blueAccent.shade700),
-                const SizedBox(width: 10),
-                const Text('djMatchCenter'),
-              ],
-            ),
-          ),
           PopupMenuItem(
             value: 'matchday',
             child: Row(
@@ -367,6 +339,16 @@ class _HomePageState extends ConsumerState<HomePage> {
               ],
             ),
           ),
+          PopupMenuItem(
+            value: 'matchcenter',
+            child: Row(
+              children: [
+                Icon(Icons.grid_view, color: Colors.blueAccent.shade700),
+                const SizedBox(width: 10),
+                const Text('djMatchCenter'),
+              ],
+            ),
+          ),
         ],
       ),
     ];
@@ -379,8 +361,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     isPlaying = ref.read(spotifyRemoteRepositoryProvider).isPlaying;
 
     final isWide = MediaQuery.of(context).size.width >= 1000;
-    final hasToken =
-        ref.read(spotifyRemoteRepositoryProvider).hasSpotifyAccessToken;
+    final hasToken = ref
+        .read(spotifyRemoteRepositoryProvider)
+        .hasSpotifyAccessToken;
     final version = packageInfo.data?.version;
 
     return MaterialApp(
@@ -399,9 +382,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'v${version ?? '...'}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.black54,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                     ),
                   ),
                 )
@@ -428,9 +411,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     if (version != null)
                       Text(
                         'v$version',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.black54,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                       ),
                   ],
                 ),
@@ -444,9 +427,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 12),
             playlistList.isEmpty
                 ? const Center(
-                    child: Text(
-                      'Make some playlists, and let the game begin!',
-                    ),
+                    child: Text('Make some playlists, and let the game begin!'),
                   )
                 : Expanded(
                     flex: 10,

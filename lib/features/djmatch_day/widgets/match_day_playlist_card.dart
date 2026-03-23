@@ -112,14 +112,25 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     final lower = response.toLowerCase();
     return lower.contains('not connected') ||
         lower.contains('disconnected') ||
-        lower.contains('connection');
+        lower.contains('connection') ||
+        lower.contains('404') ||
+        lower.contains('401') ||
+        lower.contains('unauthorized');
   }
 
   bool _isNoActiveDeviceError(String response) {
     if (!response.contains('[Error]')) return false;
+    // Exclude genuine disconnects — those go to the reconnect dialog instead.
+    if (response.contains('SpotifyDisconnectedException')) return false;
     final lower = response.toLowerCase();
-    return lower.contains('no active device') ||
-        lower.contains('player command failed');
+    // macOS Web API: no active device
+    if (lower.contains('no active device') ||
+        lower.contains('player command failed')) {
+      return true;
+    }
+    // iOS SPTAppRemote: connected but Spotify not yet active/playing
+    if (lower.contains('app-remote')) return true;
+    return false;
   }
 
   void _showToast(String message, {Widget? description}) {
@@ -138,13 +149,26 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     int idx,
     int trackCount,
     bool shuffleAtEnd,
+    String errorMessage,
   ) async {
     final reconnect = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Spotify Disconnected'),
-        content: const Text(
-          'Lost connection to Spotify.\nReconnect and try again?',
+        title: const Text('Spotify Connection Error'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Lost connection to Spotify.\nReconnect and try again?'),
+            const SizedBox(height: 8),
+            SelectableText(
+              errorMessage,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.red,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -153,7 +177,7 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reconnect'),
+            child: const Text('Force Full Reconnect'),
           ),
         ],
       ),
@@ -185,10 +209,11 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     final action = await showDialog<_NoDeviceAction>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('No Active Spotify Device'),
+        title: const Text('Spotify Not Active'),
         content: const Text(
-          'Spotify is not playing on any device.\n'
-          'Open the Spotify app and try again.',
+          'Spotify is not playing on any device.\n\n'
+          'Open Spotify, press play on any track,\n'
+          'then come back here and try again.',
         ),
         actions: [
           TextButton(
@@ -233,12 +258,26 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
         );
     if (!mounted) return;
 
-    if (_isNoActiveDeviceError(response) && retry) {
+    if (_isNoActiveDeviceError(response)) {
       await _showNoDeviceDialog(track, idx, trackCount, shuffleAtEnd);
       return;
     }
     if (_isConnectionError(response) && retry) {
-      await _showReconnectDialog(track, idx, trackCount, shuffleAtEnd);
+      // Auto-attempt full reconnect before bothering the user with a dialog.
+      // On iOS this opens Spotify briefly via initiateSession; on macOS it
+      // refreshes the token.  Only show the dialog if this also fails.
+      _showToast('Reconnecting to Spotify…');
+      final success = await ref
+          .read(spotifyRemoteRepositoryProvider)
+          .forceFullReconnect();
+      if (!mounted) return;
+      if (success) {
+        await _playTrack(track, idx, trackCount, shuffleAtEnd, retry: false);
+      } else {
+        await _showReconnectDialog(
+          track, idx, trackCount, shuffleAtEnd, response,
+        );
+      }
       return;
     }
 
@@ -340,7 +379,7 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 11,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -414,32 +453,14 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
                                       fontSize: 13,
                                     ),
                                   ),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          track.artist,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ),
-                                      if (track.startTime + track.startTimeMS >
-                                          0)
-                                        Text(
-                                          _formatMs(
-                                            track.startTime + track.startTimeMS,
-                                          ),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: borderColor,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                    ],
+                                  Text(
+                                    track.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -449,17 +470,37 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
                       ),
                     ),
                   ),
-                  // Play button
-                  IconButton(
-                    icon: Icon(Icons.play_arrow, color: borderColor),
-                    iconSize: 28,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () => _playTrack(
+                  // Play button with optional start time label
+                  GestureDetector(
+                    onTap: () => _playTrack(
                       track,
                       idx,
                       tracks.length,
                       playlist.shuffleAtEnd,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.play_arrow,
+                            color: borderColor,
+                            size: 38,
+                          ),
+                          if (track.startTime + track.startTimeMS > 0)
+                            Text(
+                              _formatMs(
+                                track.startTime + track.startTimeMS,
+                              ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: borderColor,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 2),
@@ -534,20 +575,20 @@ class _AlbumArt extends StatelessWidget {
   Widget build(BuildContext context) {
     if (uri.isEmpty) {
       return const SizedBox(
-        width: 40,
-        height: 40,
-        child: Icon(Icons.featured_play_list_outlined, size: 32),
+        width: 58,
+        height: 58,
+        child: Icon(Icons.featured_play_list_outlined, size: 40),
       );
     }
     return Image.network(
       uri,
-      width: 40,
-      height: 40,
+      width: 58,
+      height: 58,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => const SizedBox(
-        width: 40,
-        height: 40,
-        child: Icon(Icons.cloud_off_outlined, size: 32, color: Colors.black38),
+        width: 58,
+        height: 58,
+        child: Icon(Icons.cloud_off_outlined, size: 40, color: Colors.black38),
       ),
     );
   }

@@ -52,6 +52,7 @@ Future<void> main() async {
   await Hive.openBox<DJPlaylist>('djplaylist');
   await Hive.openBox<DJTrack>('djtrack');
   await Hive.openBox<TrackTime>('trackTime');
+  await Hive.openBox('settings');
 
   final audioHandler = await AudioService.init(
     builder: () => DJAudioHandler(),

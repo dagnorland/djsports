@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify/spotify.dart';
-import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 
 class SpotifyRemoteRepository {
   SpotifyRemoteRepository(this._credentials, this._spotifyRedirectUrl);
@@ -25,35 +24,27 @@ class SpotifyRemoteRepository {
   bool hasSpotifyAccessToken = false;
   String spotifyUserDisplayName = '';
   String spotifyUserEmail = '';
+  List<String> spotifyActiveDevices = [];
   bool isSpotifyPluginInstalled = false;
   bool isPlaying = false;
   bool _isConnecting = false;
-  static const numberOfRetries = 8;
+  bool get isConnecting => _isConnecting;
   double volume = 0.5;
   final ValueNotifier<double> volumeNotifier = ValueNotifier(0.5);
+  /// True on iOS when the silence keep-alive track is playing instead of
+  /// real music (i.e. the user pressed pause).
+  final ValueNotifier<bool> silencePlayingNotifier = ValueNotifier(false);
   int latestDurationStartupMS = 0;
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
 
   String spotifyLogoFileName =
       'assets/images/spotify/Spotify_Primary_Logo_RGB_Green.png';
 
-  Future<double> _getSystemVolume() async {
-    if (Platform.isMacOS) return volume;
-    return await FlutterVolumeController.getVolume() ?? volume;
-  }
-
-  void _setSystemVolume(double v) {
-    if (Platform.isMacOS) return;
-    FlutterVolumeController.setVolume(v);
-  }
-
   String volumeAsPercent() {
     return (volume * 100).toStringAsFixed(0);
   }
 
-  Future<double> getVolume() async {
-    return await _getSystemVolume();
-  }
+  Future<double> getVolume() async => _bridge.getSystemVolume();
 
   double getVolumeStatic() {
     return volume;
@@ -68,25 +59,31 @@ class SpotifyRemoteRepository {
   }
 
   Future<void> adjustVolume(double adjustment) async {
-    final currentVolume = await _getSystemVolume();
-    double newVolume;
-    if (currentVolume + adjustment > 1) {
-      newVolume = 1;
-    } else if (currentVolume + adjustment < 0) {
-      newVolume = 0;
-    } else {
-      newVolume = double.parse((currentVolume + adjustment).toStringAsFixed(2));
-    }
-    volume = newVolume;
-    volumeNotifier.value = newVolume;
-    if (Platform.isMacOS) {
-      await _bridge.setVolume((newVolume * 100).round());
-    } else {
-      _setSystemVolume(newVolume);
-    }
+    final currentVolume = await _bridge.getSystemVolume();
+    final newVolume = (currentVolume + adjustment).clamp(0.0, 1.0);
+    final rounded = double.parse(newVolume.toStringAsFixed(2));
+    volume = rounded;
+    volumeNotifier.value = rounded;
+    await _bridge.setSystemVolume(rounded);
   }
 
   Future<void> launchSpotify() => _bridge.launchSpotify();
+
+  /// Returns a key→value snapshot of native + Dart state for debugging.
+  Future<Map<String, String>> getNativeDebugInfo() async {
+    final native = await _bridge.getDebugInfo();
+    return {
+      'dart.isConnecting': _isConnecting ? 'true ⚠️' : 'false',
+      'dart.hasToken': hasSpotifyAccessToken ? 'true' : 'false',
+      'dart.isConnectedRemote': isConnectedRemote ? 'true' : 'false',
+      'dart.tokenAge': lastConnectionTime.year == 1970
+          ? 'never'
+          : '${DateTime.now().difference(lastConnectionTime).inSeconds}s ago',
+      ...native,
+    };
+  }
+
+  Future<List<String>> getActiveDevices() => _bridge.getActiveDevices();
 
   Future<bool> connect() async {
     if (_isConnecting) {
@@ -110,17 +107,18 @@ class SpotifyRemoteRepository {
 
   /// Full reconnect intended for user-triggered recovery (e.g. error dialog).
   ///
-  /// Strategy (two-step, avoids unnecessary auth dialogs):
+  /// Strategy (three-step):
   ///
   /// Step 1 – *soft reconnect*: reset only the Dart-side token cache and call
-  /// [connect].  If the native [SPTSession] is still valid the iOS SDK returns
-  /// the cached token silently and [SPTAppRemote.connect()] re-establishes the
-  /// socket.  No Spotify auth dialog is shown.
+  /// [connect].  On iOS/macOS the native side tries to refresh via the stored
+  /// refresh token silently.  No consent dialog if the grant is still valid.
   ///
-  /// Step 2 – *hard reconnect*: only when step 1 fails (e.g. Spotify app is
-  /// not running or the native session has truly expired) do we call
-  /// [clearSession] to force [SPTSessionManager.initiateSession()], which
-  /// opens the Spotify app and shows the auth dialog if needed.
+  /// Step 2 – *legacy iOS SPTAppRemote step*: no-op on Web API platforms;
+  /// left in place for Android compatibility.
+  ///
+  /// Step 3 – *full re-auth (last resort)*: clears the native token cache and
+  /// forces a new PKCE OAuth flow.  May show a consent dialog if the refresh
+  /// token is expired or revoked.
   Future<bool> forceFullReconnect() async {
     // Wait for any in-flight connect to finish (max 5 s, 100 ms steps).
     if (_isConnecting) {
@@ -149,32 +147,53 @@ class SpotifyRemoteRepository {
       return true;
     }
 
-    // Step 2: hard reconnect — clear native session so SPTSessionManager is
-    // forced to call initiateSession(), opening Spotify if needed.
+    // Step 2: open Spotify via authorizeAndPlayURI — no consent dialog when
+    // previously authorized.  Spotify redirects back → reconnectIfNeeded()
+    // fires → appRemote connects → returns the access token to Dart.
+    if (Platform.isIOS) {
+      debugPrint(
+        'forceFullReconnect: step 2 – reconnectViaSpotify '
+        '(soft failed, lastError: $lastConnectError)',
+      );
+      try {
+        final token = await _bridge.reconnectViaSpotify(
+          clientId: _credentials.clientId ?? '',
+          redirectUrl: _spotifyRedirectUrl,
+        );
+        if (token.isNotEmpty) {
+          debugPrint(
+            'forceFullReconnect: step 2 reconnectViaSpotify succeeded, '
+            'token prefix=${token.substring(0, token.length.clamp(0, 8))}',
+          );
+          lastValidAccessToken = token;
+          hasSpotifyAccessToken = true;
+          lastConnectionTime = DateTime.now();
+          isConnectedRemote = true;
+          return true;
+        }
+      } on PlatformException catch (e) {
+        debugPrint('forceFullReconnect: step 2 failed (${e.code}): ${e.message}');
+        // NO_SESSION means no storedSession → fall through to step 3.
+      } catch (e) {
+        debugPrint('forceFullReconnect: step 2 error: $e');
+      }
+    }
+
+    // Step 3 (last resort): clear native session → initiateSession() →
+    // opens Spotify, may show consent dialog if no valid grant on server.
     debugPrint(
-      'forceFullReconnect: step 2 – clearing native session '
-      '(soft failed, lastError: $lastConnectError)',
+      'forceFullReconnect: step 3 – clearing native session (last resort, '
+      'lastError: $lastConnectError)',
     );
     await _bridge.clearSession();
-    // Reset Dart-side cache so the next getSpotifyAccessToken() call goes
-    // to native (triggering initiateSession → opens Spotify app).
-    // Without this, the recent lastConnectionTime from step 1 causes
-    // getSpotifyAccessToken to return the cached token, skipping initiateSession.
     lastConnectionTime = DateTime(1970);
     lastValidAccessToken = '';
     hasSpotifyAccessToken = false;
     isConnectedRemote = false;
     if (await connect()) return true;
 
-    // initiateSession() launches Spotify but is async — the app may not be
-    // ready to accept a socket connection by the time the first connect()
-    // attempt fires.  Wait a few seconds and retry once before giving up.
-    debugPrint(
-      'forceFullReconnect: step 2 first attempt failed, '
-      'waiting 3 s for Spotify to finish starting…',
-    );
+    // Wait a few seconds in case Spotify is still starting up.
     await Future.delayed(const Duration(seconds: 3));
-    // Reset again: connect() above may have set lastConnectionTime even on failure.
     lastConnectionTime = DateTime(1970);
     lastValidAccessToken = '';
     return connect();
@@ -209,26 +228,43 @@ class SpotifyRemoteRepository {
     }
   }
 
-  Future<void> _mute() async {
-    if (Platform.isMacOS) {
-      await _bridge.setVolume(0);
-    } else {
-      _setSystemVolume(0);
+  /// Clears the stored OAuth grant (refresh token on macOS, session on iOS)
+  /// and starts a fresh login flow. Use when switching Spotify accounts.
+  Future<bool> reGrantSpotify() async {
+    _isConnecting = false;
+    lastConnectionTime = DateTime(1970);
+    lastValidAccessToken = '';
+    hasSpotifyAccessToken = false;
+    isConnectedRemote = false;
+    lastConnectError = '';
+    spotifyUserDisplayName = '';
+    spotifyUserEmail = '';
+    spotifyActiveDevices = [];
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.notConnected,
+      'reGrantSpotify: clearing grant + all caches',
+    );
+    try {
+      await _bridge.clearSession();
+    } catch (e) {
+      debugPrint('reGrantSpotify: clearSession error (non-fatal): $e');
     }
+    return connect();
+  }
+
+  Future<void> _mute() async {
+    await _bridge.setSystemVolume(0);
   }
 
   Future<void> _unMute() async {
-    if (Platform.isMacOS) {
-      await _bridge.setVolume((volume * 100).round());
-    } else {
-      _setSystemVolume(volume);
-    }
+    await _bridge.setSystemVolume(volume);
   }
 
   Future<bool> pausePlayer() async {
     try {
-      if (!Platform.isMacOS) await _mute();
+      if (Platform.isAndroid) await _mute();
       await _bridge.pause();
+      if (Platform.isIOS) silencePlayingNotifier.value = true;
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'Pause Spotify Remote App',
@@ -237,23 +273,18 @@ class SpotifyRemoteRepository {
       return isPlaying;
     } on PlatformException catch (platformException) {
       if (_needsReconnect(platformException)) {
-        hasSpotifyAccessToken = false;
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
           'Error pausing, reconnecting. ${platformException.details ?? platformException.message}',
         );
-        await connectAccessToken();
-        if (hasSpotifyAccessToken) {
-          await connectToSpotifyRemote();
-          if (isConnectedRemote) {
-            SpotifyConnectionLog().addSimpleEntry(
-              SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-              'Reconnected. Retrying pause.',
-            );
-            await _bridge.pause();
-            isPlaying = false;
-            return isPlaying;
-          }
+        if (await connect()) {
+          SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+            'Reconnected. Retrying pause.',
+          );
+          await _bridge.pause();
+          isPlaying = false;
+          return isPlaying;
         }
       }
       debugPrint('Failed to pause. ${platformException.details}');
@@ -276,23 +307,18 @@ class SpotifyRemoteRepository {
       return isPlaying;
     } on PlatformException catch (platformException) {
       if (_needsReconnect(platformException)) {
-        hasSpotifyAccessToken = false;
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
           'Error resuming, reconnecting. ${platformException.details ?? platformException.message}',
         );
-        await connectAccessToken();
-        if (hasSpotifyAccessToken) {
-          await connectToSpotifyRemote();
-          if (isConnectedRemote) {
-            SpotifyConnectionLog().addSimpleEntry(
-              SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-              'Reconnected. Retrying resume.',
-            );
-            await _bridge.resume();
-            isPlaying = true;
-            return isPlaying;
-          }
+        if (await connect()) {
+          SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+            'Reconnected. Retrying resume.',
+          );
+          await _bridge.resume();
+          isPlaying = true;
+          return isPlaying;
         }
       }
       debugPrint('Failed to resume. ${platformException.details}');
@@ -327,6 +353,7 @@ class SpotifyRemoteRepository {
     String playlistName, {
     bool retry = true,
   }) async {
+    if (Platform.isIOS) silencePlayingNotifier.value = false;
     debugPrint(
       '[PLAY] hasSpotifyAccessToken=$hasSpotifyAccessToken tokenEmpty=${lastValidAccessToken.isEmpty} uri=${track.spotifyUri} jumpStart=$jumpStart',
     );
@@ -336,12 +363,12 @@ class SpotifyRemoteRepository {
     }
     final startTime = DateTime.now();
     try {
-      debugPrint('[PLAY] Calling bridge.play uri=${track.spotifyUri}');
-      await _bridge.play(
+      debugPrint('[PLAY] Calling bridge.playWithPosition uri=${track.spotifyUri}');
+      await _bridge.playWithPosition(
         spotifyUri: track.spotifyUri,
         positionMs: jumpStart > 0 ? jumpStart : 0,
       );
-      debugPrint('[PLAY] bridge.play returned OK');
+      debugPrint('[PLAY] bridge.playWithPosition returned OK');
       if (jumpStart > 0) {
         latestDurationStartupMS = DateTime.now()
             .difference(startTime)
@@ -365,28 +392,23 @@ class SpotifyRemoteRepository {
         '  details=${platformException.details}',
       );
       if (retry && _needsReconnect(platformException)) {
-        hasSpotifyAccessToken = false;
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
           'Error playing, reconnecting. '
           '${platformException.message ?? platformException.details}',
         );
-        await connectAccessToken();
-        if (hasSpotifyAccessToken) {
-          await connectToSpotifyRemote();
-          if (isConnectedRemote) {
-            SpotifyConnectionLog().addSimpleEntry(
-              SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-              'Reconnected. Retrying play.',
-            );
-            return await playTrackAndJumpStart(
-              track,
-              jumpStart,
-              playlistType,
-              playlistName,
-              retry: false,
-            );
-          }
+        if (await connect()) {
+          SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+            'Reconnected. Retrying play.',
+          );
+          return await playTrackAndJumpStart(
+            track,
+            jumpStart,
+            playlistType,
+            playlistName,
+            retry: false,
+          );
         }
       }
       return '[Error] Failed to play. '
@@ -406,65 +428,16 @@ class SpotifyRemoteRepository {
       return '[Error] Not connected to Spotify';
     }
 
-    // make a timer to find duration between two timestamps
     final startTime = DateTime.now();
-    debugPrint('Start time: $startTime');
-    bool success = false;
-    int retryCount = 0;
     try {
-      // turn volume down
-      debugPrint('before volume: ${DateTime.now().difference(startTime)}');
-      double volume = await _getSystemVolume();
-      debugPrint('after volume: ${DateTime.now().difference(startTime)}');
-      if (volume == 0) {
-        volume = 0.5;
-        debugPrint('volume set to 0.5');
-      }
+      await _bridge.playWithPosition(
+        spotifyUri: spotifyUri,
+        positionMs: jumpStart,
+      );
       if (jumpStart > 0) {
-        _setSystemVolume(0);
+        latestDurationStartupMS =
+            DateTime.now().difference(startTime).inMilliseconds;
       }
-      debugPrint('before play: ${DateTime.now().difference(startTime)}');
-      await _bridge.play(spotifyUri: spotifyUri);
-      debugPrint('after play: ${DateTime.now().difference(startTime)}');
-      if (jumpStart > 0) {
-        try {
-          await Future.delayed(const Duration(milliseconds: 80));
-          debugPrint('after delay: ${DateTime.now().difference(startTime)}');
-          retryCount = 0;
-          success = false;
-
-          while (retryCount < numberOfRetries && !success) {
-            try {
-              await _bridge.seekTo(positionedMilliseconds: jumpStart);
-              debugPrint(
-                'success $retryCount : ${DateTime.now().difference(startTime)}',
-              );
-              success = true;
-              debugPrint('SUCCESS after $retryCount retries');
-            } catch (e) {
-              retryCount++;
-              debugPrint(
-                'retry $retryCount : ${DateTime.now().difference(startTime)}',
-              );
-              debugPrint('Retry jump start $retryCount');
-              if (retryCount >= numberOfRetries) {
-                debugPrint(
-                  'Failed to jump start after $numberOfRetries attempts. $e',
-                );
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('Failed to jump start. $e');
-        }
-        final endTime = DateTime.now();
-        final duration = endTime.difference(startTime);
-        debugPrint('Duration to jump start: $duration');
-        latestDurationStartupMS = duration.inMilliseconds;
-      }
-
-      _setSystemVolume(volume);
-
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'play track $spotifyUri',
@@ -477,26 +450,21 @@ class SpotifyRemoteRepository {
         '  details=${platformException.details}',
       );
       if (retry && _needsReconnect(platformException)) {
-        hasSpotifyAccessToken = false;
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
           'Error playing, reconnecting. '
           '${platformException.message ?? platformException.details}',
         );
-        await connectAccessToken();
-        if (hasSpotifyAccessToken) {
-          await connectToSpotifyRemote();
-          if (isConnectedRemote) {
-            SpotifyConnectionLog().addSimpleEntry(
-              SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-              'Reconnected. Retrying play.',
-            );
-            return await playSpotiyfyUriAndJumpStart(
-              spotifyUri,
-              jumpStart,
-              retry: false,
-            );
-          }
+        if (await connect()) {
+          SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+            'Reconnected. Retrying play.',
+          );
+          return await playSpotiyfyUriAndJumpStart(
+            spotifyUri,
+            jumpStart,
+            retry: false,
+          );
         }
       }
       return '[Error] Failed to play. '
@@ -523,22 +491,17 @@ class SpotifyRemoteRepository {
       debugPrint('Failed to play. code: ${platformException.code}');
       debugPrint('Failed to play. message: ${platformException.message}');
       if (_needsReconnect(platformException)) {
-        hasSpotifyAccessToken = false;
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
           'Error playing, reconnecting. '
           '${platformException.message ?? platformException.details}',
         );
-        await connectAccessToken();
-        if (hasSpotifyAccessToken) {
-          await connectToSpotifyRemote();
-          if (isConnectedRemote) {
-            SpotifyConnectionLog().addSimpleEntry(
-              SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-              'Reconnected. Retrying play.',
-            );
-            return await playTrack(spotifyUri);
-          }
+        if (await connect()) {
+          SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+            'Reconnected. Retrying play.',
+          );
+          return await playTrack(spotifyUri);
         }
       }
       return '[Error] Failed to play. '
@@ -556,12 +519,8 @@ class SpotifyRemoteRepository {
     // iOS SPTAppRemote: session was interrupted (e.g. after long background)
     if (details.contains('Request interrupted by user')) return true;
     if (message.contains('Request interrupted by user')) return true;
-    // macOS/Web API: no active Spotify device
-    if (e.code == 'API_ERROR' &&
-        (message.contains('NO_ACTIVE_DEVICE') ||
-            message.contains('No active device'))) {
-      return true;
-    }
+    // Web API: expired token — trigger re-authentication
+    if (e.code == 'API_ERROR' && message.contains('HTTP 401')) return true;
     // iOS SPTAppRemote: any player command failure (e.g. 404 from a zombie
     // connection where isConnected=true but the Spotify app is unreachable).
     // The retry:false guard in callers prevents infinite loops.
@@ -588,8 +547,8 @@ class SpotifyRemoteRepository {
         SpotifyConnectionStatus.connectedSpotify,
         'Connect to Spotify',
       );
-      // Fetch user profile in background — failure is non-fatal.
-      if (Platform.isMacOS && accessToken.isNotEmpty) {
+      // Fetch user profile + active devices in background — failure is non-fatal.
+      if ((Platform.isMacOS || Platform.isIOS) && accessToken.isNotEmpty) {
         unawaited(
           _bridge
               .getUserProfile()
@@ -599,6 +558,17 @@ class SpotifyRemoteRepository {
               })
               .catchError((error) {
                 debugPrint('Failed to get user profile: $error');
+              }),
+        );
+        unawaited(
+          _bridge
+              .getActiveDevices()
+              .then((devices) {
+                spotifyActiveDevices = devices;
+              })
+              .catchError((error) {
+                debugPrint('Failed to get active devices: $error');
+                spotifyActiveDevices = [];
               }),
         );
       }
@@ -640,9 +610,10 @@ class SpotifyRemoteRepository {
 
     try {
       _credentials.scopes = [
-        'app-remote-control',
         'streaming',
         'user-modify-playback-state',
+        'user-read-playback-state',
+        'user-read-private',
         'playlist-read-private',
         'playlist-modify-public',
         'user-read-currently-playing',
@@ -651,9 +622,10 @@ class SpotifyRemoteRepository {
         clientId: _credentials.clientId ?? '',
         redirectUrl: _spotifyRedirectUrl,
         scope:
-            'app-remote-control, '
             'streaming, '
             'user-modify-playback-state, '
+            'user-read-playback-state, '
+            'user-read-private, '
             'playlist-read-private, '
             'playlist-modify-public, '
             'user-read-currently-playing',
@@ -711,9 +683,10 @@ class SpotifyRemoteRepository {
         clientId: _credentials.clientId.toString(),
         redirectUrl: _spotifyRedirectUrl,
         scope:
-            'app-remote-control, '
             'streaming, '
             'user-modify-playback-state, '
+            'user-read-playback-state, '
+            'user-read-private, '
             'playlist-read-private, '
             'playlist-modify-public, '
             'user-read-currently-playing',
@@ -728,6 +701,7 @@ class SpotifyRemoteRepository {
       return result;
     } on PlatformException catch (e) {
       lastConnectError = '${e.code}: ${e.message ?? e.details}';
+      isConnectedRemote = false;
       // details now contains NSError domain+code and a human-readable hint
       // from SpotifyNativeChannel — log it on its own line for visibility.
       debugPrint(
@@ -743,6 +717,7 @@ class SpotifyRemoteRepository {
       return false;
     } on MissingPluginException {
       lastConnectError = 'MissingPluginException';
+      isConnectedRemote = false;
       debugPrint('[Spotify] connectToSpotifyRemote: MissingPluginException');
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.notConnected,
@@ -751,6 +726,7 @@ class SpotifyRemoteRepository {
       return false;
     } catch (e) {
       lastConnectError = 'Unknown: $e';
+      isConnectedRemote = false;
       debugPrint('[Spotify] connectToSpotifyRemote error: $e');
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.notConnected,
