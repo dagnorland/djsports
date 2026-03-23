@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
@@ -35,6 +36,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   // Diagnostic section state
   bool _diagRunning = false;
   String _diagLastResult = '';
+  Map<String, String> _nativeDebugInfo = {};
+  bool _nativeDebugLoading = false;
   final _diagTestUriController = TextEditingController(
     text: 'spotify:track:4uLU6hMCjMI75M1A2tKUQC',
   );
@@ -96,6 +99,12 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           padding: const EdgeInsets.all(10.0),
           child: Column(
             children: [
+              globalInfoBox(
+                context,
+                'DISPLAY SETTINGS',
+                _displaySettingsSection(context),
+              ),
+              const Gap(20),
               _infoSection(context),
               const Gap(20),
               globalInfoBox(context, 'PLAYLISTS', _playlistSection(context)),
@@ -136,6 +145,31 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Display settings section
+  // ---------------------------------------------------------------------------
+
+  Widget _displaySettingsSection(BuildContext context) {
+    final sidebarOnRight = AppSettings.sidebarOnRight;
+    return SwitchListTile(
+      title: const Text('Sidebar on right in landscape'),
+      subtitle: Text(
+        sidebarOnRight
+            ? 'Controls are on the right side'
+            : 'Controls are on the left side',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      secondary: Icon(
+        sidebarOnRight ? Icons.align_horizontal_right : Icons.align_horizontal_left,
+      ),
+      value: sidebarOnRight,
+      onChanged: (value) async {
+        await AppSettings.setSidebarOnRight(value);
+        setState(() {});
+      },
     );
   }
 
@@ -707,6 +741,8 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _diagStateCard(context, repo),
+          const Gap(8),
+          _nativeDebugCard(context),
           const Gap(12),
           _sectionButton(
             context,
@@ -715,6 +751,14 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             disabled: _diagRunning,
             destructive: true,
             onPressed: _diagReset,
+          ),
+          const Gap(8),
+          _sectionButton(
+            context,
+            label: 'Change Spotify account  (new login)',
+            icon: Icons.switch_account,
+            disabled: _diagRunning,
+            onPressed: _diagReGrant,
           ),
           const Gap(12),
           const Divider(),
@@ -824,6 +868,122 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     );
   }
 
+  Future<void> _fetchNativeDebugInfo() async {
+    setState(() => _nativeDebugLoading = true);
+    try {
+      final info = await ref
+          .read(spotifyRemoteRepositoryProvider)
+          .getNativeDebugInfo();
+      setState(() => _nativeDebugInfo = info);
+    } catch (e) {
+      setState(() => _nativeDebugInfo = {'error': e.toString()});
+    } finally {
+      setState(() => _nativeDebugLoading = false);
+    }
+  }
+
+  Widget _nativeDebugCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Native State Snapshot',
+                style: TextStyle(
+                  color: Colors.greenAccent,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                height: 28,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.greenAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: _nativeDebugLoading
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.greenAccent,
+                          ),
+                        )
+                      : const Icon(Icons.refresh, size: 14),
+                  label: const Text(
+                    'Refresh',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  onPressed: _nativeDebugLoading ? null : _fetchNativeDebugInfo,
+                ),
+              ),
+            ],
+          ),
+          if (_nativeDebugInfo.isEmpty && !_nativeDebugLoading)
+            const Text(
+              'Tap Refresh to snapshot native state',
+              style: TextStyle(
+                color: Colors.white54,
+                fontFamily: 'monospace',
+                fontSize: 11,
+              ),
+            )
+          else
+            ..._nativeDebugInfo.entries.map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 160,
+                      child: Text(
+                        e.key,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        e.value,
+                        style: TextStyle(
+                          color: e.value.contains('⚠️')
+                              ? Colors.orangeAccent
+                              : e.value == 'true'
+                              ? Colors.greenAccent
+                              : e.value == 'false'
+                              ? Colors.white54
+                              : Colors.cyanAccent,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _diagStateCard(BuildContext context, SpotifyRemoteRepository repo) {
     String tokenInfo;
     if (repo.lastValidAccessToken.isEmpty) {
@@ -890,6 +1050,18 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
                 if (repo.spotifyUserEmail.isNotEmpty) repo.spotifyUserEmail,
               ].join('  '),
               Colors.green.shade700,
+            ),
+          if (repo.spotifyActiveDevices.isNotEmpty)
+            _diagStateRow(
+              'devices',
+              repo.spotifyActiveDevices.join(', '),
+              Colors.blue.shade700,
+            )
+          else if (repo.spotifyUserEmail.isNotEmpty)
+            _diagStateRow(
+              'devices',
+              '⚠️ none found — Spotify may be logged in on a different account',
+              Colors.orange.shade800,
             ),
           if (repo.lastConnectError.isNotEmpty)
             _diagStateRow(
@@ -1102,6 +1274,22 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
     try {
       final repo = ref.read(spotifyRemoteRepositoryProvider);
       _diagDone(await repo.resetAll());
+    } catch (e) {
+      _diagDone('Error: $e');
+    }
+  }
+
+  Future<void> _diagReGrant() async {
+    if (_diagRunning) return;
+    setState(() => _diagRunning = true);
+    try {
+      final repo = ref.read(spotifyRemoteRepositoryProvider);
+      final ok = await repo.reGrantSpotify();
+      _diagDone(
+        ok
+            ? 'Re-granted OK — account: ${repo.spotifyUserDisplayName} ${repo.spotifyUserEmail}'
+            : 'Re-grant FAILED  error=${repo.lastConnectError}',
+      );
     } catch (e) {
       _diagDone('Error: $e');
     }

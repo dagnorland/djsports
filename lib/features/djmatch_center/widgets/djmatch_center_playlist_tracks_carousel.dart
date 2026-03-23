@@ -195,7 +195,68 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                 await ref.read(spotifyRemoteRepositoryProvider).launchSpotify();
               }
             } else if (response.contains('[Error]')) {
-              showMessageToast(context, response);
+              final lower = response.toLowerCase();
+              final isReconnectError = lower.contains('not connected') ||
+                  lower.contains('disconnected') ||
+                  lower.contains('connection') ||
+                  lower.contains('404') ||
+                  lower.contains('401') ||
+                  lower.contains('unauthorized');
+              if (isReconnectError) {
+                final reconnect = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Spotify Connection Error'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Lost connection to Spotify.\n'
+                          'Reconnect and try again?',
+                        ),
+                        const SizedBox(height: 8),
+                        SelectableText(
+                          response,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Force Full Reconnect'),
+                      ),
+                    ],
+                  ),
+                );
+                if (reconnect == true) {
+                  showMessageToast(context, 'Reconnecting to Spotify…');
+                  final success = await ref
+                      .read(spotifyRemoteRepositoryProvider)
+                      .forceFullReconnect();
+                  if (success) {
+                    showMessageToast(context, 'Reconnected. Tap to retry.');
+                  } else {
+                    final err = ref
+                        .read(spotifyRemoteRepositoryProvider)
+                        .lastConnectError;
+                    showMessageToast(
+                      context,
+                      'Failed to reconnect${err.isNotEmpty ? ': $err' : ''}',
+                    );
+                  }
+                }
+              } else {
+                showMessageToast(context, response);
+              }
             } else {
               track.playCount = track.playCount + 1;
               ref.read(hiveTrackData.notifier).updateDJTrack(track);

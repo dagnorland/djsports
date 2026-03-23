@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - Release 2026-03-23
+
+### Changed
+- **iOS Spotify integration rewritten to Spotify Web API** — removed SPTAppRemote/SPTSessionManager entirely; iOS now uses the same PKCE OAuth + Web API approach as macOS, eliminating socket-based connection drops and the need for the SpotifyiOS SDK framework
+  - No more idle disconnects, Control Center disconnects, or zombie connections
+  - Token refresh is fully automatic via stored refresh token in UserDefaults
+  - Auto-device fallback: 404 → `GET /v1/me/player/devices` → retry with explicit `device_id`
+- **Unified cross-platform bridge** — iOS, macOS share the same Web API playback path; Android retains `spotify_sdk`
+- **Tested on iPhone, iPad and macOS** — first release with verified cross-platform Web API playback
+
+### Added
+- **iOS: `launchSpotify`** — opens Spotify app via `spotify:` URL scheme when no active device is found
+- **iOS: `getDebugInfo`** — returns token/refresh-token state for diagnostics
+- **iOS: `getActiveDevices`** — exposes available Spotify devices to Dart layer
+
+### Removed
+- **SpotifyiOS SDK framework** — `SpotifyiOS.xcframework` and all SPTAppRemote/SPTSessionManager code removed from iOS target; no Podfile changes required
+- **`app-remote-control` OAuth scope** — no longer needed without AppRemote
+
 ## [2.5.7] - Release 2026-03-19
 
 ### Changed

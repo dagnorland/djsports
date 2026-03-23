@@ -50,6 +50,12 @@ class SpotifyNativeChannel: NSObject {
             setVolumeOnDevice(percent: percent, result: result)
         case "getUserProfile":
             getUserProfile(result: result)
+        case "getActiveDevices":
+            getActiveDevices(result: result)
+        case "clearSession":
+            storedAccessToken = nil
+            UserDefaults.standard.removeObject(forKey: refreshTokenKey)
+            result(nil)
         case "launchSpotify":
             launchSpotify(result: result)
         default:
@@ -458,11 +464,107 @@ class SpotifyNativeChannel: NSObject {
         if let pos = positionMs, pos > 0 {
             body["position_ms"] = pos
         }
-        spotifyWebAPI(method: "PUT", path: "/me/player/play", body: body, result: result)
+        playWithAutoDeviceFallback(body: body, result: result)
+    }
+
+    /// Tries to play; on HTTP 404 (no active device) automatically fetches
+    /// the device list and retries with an explicit device_id.
+    private func playWithAutoDeviceFallback(
+        body: [String: Any],
+        result: @escaping FlutterResult
+    ) {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player/play")
+        else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let error = error {
+                    result(FlutterError(code: "API_ERROR",
+                                        message: error.localizedDescription,
+                                        details: nil))
+                    return
+                }
+                guard let http = response as? HTTPURLResponse else {
+                    result(nil)
+                    return
+                }
+                print("[SpotifyMacOS] play status: \(http.statusCode)")
+                if http.statusCode == 404 {
+                    // No active device — pick first available and retry
+                    print("[SpotifyMacOS] No active device, fetching devices for fallback…")
+                    self.fetchFirstDeviceId { deviceId in
+                        guard let deviceId = deviceId else {
+                            result(FlutterError(
+                                code: "API_ERROR",
+                                message: "No active device found. Open Spotify and start playing first.",
+                                details: nil
+                            ))
+                            return
+                        }
+                        print("[SpotifyMacOS] Retrying play with device_id: \(deviceId)")
+                        self.spotifyWebAPI(
+                            method: "PUT",
+                            path: "/me/player/play?device_id=\(deviceId)",
+                            body: body,
+                            result: result
+                        )
+                    }
+                    return
+                }
+                if http.statusCode >= 400 {
+                    let bodyStr = data.flatMap { String(data: $0, encoding: .utf8) } ?? "(no body)"
+                    print("[SpotifyMacOS] play error body: \(bodyStr)")
+                    result(FlutterError(code: "API_ERROR",
+                                        message: "HTTP \(http.statusCode): \(bodyStr)",
+                                        details: nil))
+                    return
+                }
+                result(nil)
+            }
+        }.resume()
+    }
+
+    /// Returns the first available Spotify device ID, or nil if none found.
+    private func fetchFirstDeviceId(completion: @escaping (String?) -> Void) {
+        guard let token = storedAccessToken,
+              let url = URL(string: "https://api.spotify.com/v1/me/player/devices")
+        else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                guard
+                    let data = data, error == nil,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let devices = json["devices"] as? [[String: Any]],
+                    let first = devices.first,
+                    let id = first["id"] as? String
+                else {
+                    completion(nil)
+                    return
+                }
+                let name = first["name"] as? String ?? "Unknown"
+                print("[SpotifyMacOS] Auto-selected device: \(name) (\(id))")
+                completion(id)
+            }
+        }.resume()
     }
 
     private func resumeOnDevice(result: @escaping FlutterResult) {
-        spotifyWebAPI(method: "PUT", path: "/me/player/play", result: result)
+        playWithAutoDeviceFallback(body: [:], result: result)
     }
 
     private func setVolumeOnDevice(percent: Int, result: @escaping FlutterResult) {
@@ -503,6 +605,42 @@ class SpotifyNativeChannel: NSObject {
                     "id": id,
                     "product": product,
                 ])
+            }
+        }.resume()
+    }
+
+    private func getActiveDevices(result: @escaping FlutterResult) {
+        guard let token = storedAccessToken else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            return
+        }
+        guard let url = URL(string: "https://api.spotify.com/v1/me/player/devices") else {
+            result(FlutterError(code: "INVALID_URL", message: "Bad URL", details: nil))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    result(FlutterError(code: "API_ERROR", message: error.localizedDescription, details: nil))
+                    return
+                }
+                guard
+                    let data = data,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let devices = json["devices"] as? [[String: Any]]
+                else {
+                    result([String]())
+                    return
+                }
+                let names: [String] = devices.map { device in
+                    let name = device["name"] as? String ?? "Unknown"
+                    let type = device["type"] as? String ?? ""
+                    let active = device["is_active"] as? Bool ?? false
+                    return "\(name) (\(type))\(active ? " ●" : "")"
+                }
+                result(names)
             }
         }.resume()
     }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
@@ -43,21 +45,75 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
               icon: const Icon(Icons.play_arrow, color: Colors.white, size: 35),
               onPressed: widget.onResume,
             ),
+            if (Platform.isIOS || Platform.isMacOS) ...[
+              const Gap(4),
+              IconButton(
+                icon: const Icon(
+                  Icons.open_in_new,
+                  color: Color(0xFF1DB954),
+                  size: 28,
+                ),
+                tooltip: 'Open Spotify',
+                onPressed: () => ref
+                    .read(spotifyRemoteRepositoryProvider)
+                    .launchSpotify(),
+              ),
+            ],
             const Gap(12),
-            IconButton(
-              icon: const Icon(Icons.pause, color: Colors.white, size: 70),
-              splashColor: Colors.blue,
-              highlightColor: Colors.black,
-              onPressed: () async {
-                await widget.onPause();
-                toastification.show(
-                  context: context,
-                  title: const Text('PAUSED'),
-                  autoCloseDuration: const Duration(seconds: 2),
-                  style: ToastificationStyle.flat,
-                  alignment: Alignment.bottomCenter,
-                );
-              },
+            ValueListenableBuilder<bool>(
+              valueListenable: ref
+                  .read(spotifyRemoteRepositoryProvider)
+                  .silencePlayingNotifier,
+              builder: (context, isSilence, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.pause,
+                      color: isSilence ? Colors.orange : Colors.white,
+                      size: 70,
+                    ),
+                    splashColor: Colors.blue,
+                    highlightColor: Colors.black,
+                    onPressed: () async {
+                      await widget.onPause();
+                      final label = ref
+                              .read(spotifyRemoteRepositoryProvider)
+                              .silencePlayingNotifier
+                              .value
+                          ? 'SILENCE 🔇'
+                          : 'PAUSED';
+                      if (!context.mounted) return;
+                      toastification.show(
+                        context: context,
+                        title: Text(label),
+                        autoCloseDuration: const Duration(seconds: 2),
+                        style: ToastificationStyle.flat,
+                        alignment: Alignment.bottomCenter,
+                      );
+                    },
+                  ),
+                  if (isSilence)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        '🔇 SILENCE',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const Gap(12),
             IconButton(

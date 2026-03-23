@@ -6,10 +6,18 @@
     "configurations": [
 
         {
-            "name": "djsports macOs",
+            "name": "djsports macOs debug",
             "request": "launch",
             "type": "dart",
-            "deviceId": "macos"
+            "deviceId": "macos",
+            "flutterMode": "debug"
+        },
+        {
+            "name": "djsports macOs release",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "macos",
+            "flutterMode": "release"
         },
         {
             "name": "djsports iPhone15 debug",
@@ -34,9 +42,24 @@
         },             
         
         {
-            "name": "djsports iPadden",
+            "name": "djsports iPadden debug",
             "request": "launch",
             "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
+        },                     
+        {
+            "name": "djsports iPadden release",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
+        },                     
+        {
+            "name": "djsports iPadden profile",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
             "deviceId": "5a9fd233dd98bdff73f7a1270b7385aeb6da5a32"
         },                     
         {
