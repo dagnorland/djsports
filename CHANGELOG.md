@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - Release 2026-03-24
+
+### Added
+- **Android: "Open Spotify" button in match center control panel** — tapping the green `open_in_new` icon launches the Spotify app directly via `spotify:` URI (`url_launcher`); previously the button was iOS/macOS only
+- **Android: volume initialised from platform on startup** — `SpotifyRemoteRepository` now reads the real system volume immediately on construction instead of defaulting to 50%
+- **Android: auto-set volume to 85% when muted on startup** — if the device volume is 0 when the app launches, it is automatically raised to 85% and a toast "Volume auto-set to 85%" is shown
+
+### Fixed
+- **Android: volume not restored after pause → play (no start time)** — `pausePlayer()` now saves the pre-mute volume in `_preMuteVolume`; `_unMute()` restores from that value so the volume listener overwriting `repo.volume` to 0 no longer causes silent playback
+- **Android: volume stuck when increasing** — Android media volume uses discrete integer steps (~15); adding 0.05 often floor-truncates to the same step. Now detects a no-change and retries with a 0.07 bump (> 1/15 step size) to guarantee advancement
+- **Android: incorrect volume restore after pause → play with start time** — introduced `_isMuted` flag; repo-level `_unMute()` is now only called after `playWithPosition` when we explicitly muted on pause, preventing stale `_preMuteVolume` from overriding the bridge's correct restore when switching tracks without pausing first
+- **Android build: upgraded AGP 8.6.0 → 8.9.1 and Gradle wrapper 8.7 → 8.11.1** — required by `url_launcher_android 6.3.x` / `androidx.browser 1.9.0`
+
 ## [3.0.0] - Release 2026-03-23
 
 ### Changed

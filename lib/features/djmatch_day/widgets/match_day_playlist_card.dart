@@ -19,12 +19,16 @@ class MatchDayPlaylistCard extends ConsumerStatefulWidget {
     required this.playlistName,
     required this.playlistType,
     required this.initialTrackIndex,
+    this.shortcutKey,
+    this.playTrigger,
   });
 
   final String playlistId;
   final String playlistName;
   final DJPlaylistType playlistType;
   final int initialTrackIndex;
+  final String? shortcutKey;
+  final ValueNotifier<int>? playTrigger;
 
   @override
   ConsumerState<MatchDayPlaylistCard> createState() =>
@@ -47,13 +51,34 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
       duration: const Duration(milliseconds: 700),
       value: 1.0, // start fully faded — no overlay until first play
     );
+    widget.playTrigger?.addListener(_onKeyboardTrigger);
+  }
+
+  @override
+  void didUpdateWidget(MatchDayPlaylistCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playTrigger != widget.playTrigger) {
+      oldWidget.playTrigger?.removeListener(_onKeyboardTrigger);
+      widget.playTrigger?.addListener(_onKeyboardTrigger);
+    }
   }
 
   @override
   void dispose() {
+    widget.playTrigger?.removeListener(_onKeyboardTrigger);
     _autoNextTimer?.cancel();
     _flashController.dispose();
     super.dispose();
+  }
+
+  void _onKeyboardTrigger() {
+    if (!mounted) return;
+    final playlist = ref.read(djPlaylistByIdProvider(widget.playlistId));
+    final tracks =
+        ref.read(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
+    if (tracks.isEmpty) return;
+    final idx = _currentIndex.clamp(0, tracks.length - 1);
+    _playTrack(tracks[idx], idx, tracks.length, playlist.shuffleAtEnd);
   }
 
   String _truncate(String text, int max) {
@@ -342,6 +367,38 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
                   ),
                 ),
               ),
+              if (widget.shortcutKey != null)
+                Positioned(
+                  top: 3,
+                  right: 3,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.shortcutKey!.toUpperCase(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          color: Colors.white,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );

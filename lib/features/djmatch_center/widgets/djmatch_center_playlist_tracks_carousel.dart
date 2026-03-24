@@ -21,6 +21,8 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   final String spotifyUri;
   final int currentTrack;
   final int parentWidthSize;
+  final String? shortcutKey;
+  final ValueNotifier<int>? playTrigger;
 
   const DJCenterPlaylistTracksCarousel({
     super.key,
@@ -30,6 +32,8 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
     required this.spotifyUri,
     required this.currentTrack,
     required this.parentWidthSize,
+    this.shortcutKey,
+    this.playTrigger,
   });
 
   String printDurationWithMS(Duration duration, int ms) {
@@ -132,13 +136,181 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     DJPlaylist playlist = ref.watch(djPlaylistByIdProvider(playlistId));
-    //playlist =
-    //    ref.read(hivePlaylistData.notifier).shuffleTracksInPlaylist(playlistId);
     List<DJTrack> tracks =
         ref.watch(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
 
     final carouselController = useMemoized(() => CarouselController());
     final isShowingPLAYFlame = useState(false);
+
+    // Refs so the keyboard effect always calls the latest playTrack version
+    final playTrackRef =
+        useRef<Future<void> Function(int)>((_) async {});
+    final tracksLengthRef = useRef(tracks.length);
+    tracksLengthRef.value = tracks.length;
+
+    Future<void> playTrack(int value) async {
+      DJTrack track = tracks[value];
+      String response = await ref
+          .read(spotifyRemoteRepositoryProvider)
+          .playTrackAndJumpStart(
+              track,
+              track.startTime + track.startTimeMS,
+              playlistType,
+              playlistName);
+
+      final isNoDevice = response.contains('[Error]') &&
+          (response.toLowerCase().contains('no active device') ||
+              response.toLowerCase().contains('player command failed'));
+      if (isNoDevice) {
+        final action = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('No Active Spotify Device'),
+            content: const Text(
+              'Spotify is not playing on any device.\n'
+              'Open the Spotify app and try again.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('Open Spotify'),
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+            ],
+          ),
+        );
+        if (action == true) {
+          await ref.read(spotifyRemoteRepositoryProvider).launchSpotify();
+        }
+      } else if (response.contains('[Error]')) {
+        final lower = response.toLowerCase();
+        final isReconnectError = lower.contains('not connected') ||
+            lower.contains('disconnected') ||
+            lower.contains('connection') ||
+            lower.contains('404') ||
+            lower.contains('401') ||
+            lower.contains('unauthorized');
+        if (isReconnectError) {
+          final reconnect = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Spotify Connection Error'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Lost connection to Spotify.\n'
+                    'Reconnect and try again?',
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    response,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Force Full Reconnect'),
+                ),
+              ],
+            ),
+          );
+          if (reconnect == true) {
+            showMessageToast(context, 'Reconnecting to Spotify…');
+            final success = await ref
+                .read(spotifyRemoteRepositoryProvider)
+                .forceFullReconnect();
+            if (success) {
+              showMessageToast(context, 'Reconnected. Tap to retry.');
+            } else {
+              final err =
+                  ref.read(spotifyRemoteRepositoryProvider).lastConnectError;
+              showMessageToast(
+                context,
+                'Failed to reconnect${err.isNotEmpty ? ': $err' : ''}',
+              );
+            }
+          }
+        } else {
+          showMessageToast(context, response);
+        }
+      } else {
+        track.playCount = track.playCount + 1;
+        ref.read(hiveTrackData.notifier).updateDJTrack(track);
+        showMessageToast(context, response);
+      }
+
+      double newPosition =
+          (value * carouselController.position.viewportDimension) +
+              carouselController.position.viewportDimension;
+      isShowingPLAYFlame.value = true;
+      if (value == playlist.trackIds.length - 1) {
+        if (playlist.shuffleAtEnd) {
+          playlist = ref
+              .read(hivePlaylistData.notifier)
+              .shuffleTracksInPlaylist(playlistId);
+          tracks = ref
+              .watch(hiveTrackData.notifier)
+              .getDJTracks(playlist.trackIds);
+          newPosition = 0;
+          isShowingPLAYFlame.value = false;
+          await carouselController.position.animateTo(newPosition,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOutCubicEmphasized);
+        }
+      } else {
+        await carouselController.position.animateTo(newPosition,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOutCubicEmphasized);
+        Future.delayed(const Duration(milliseconds: 800), () {
+          isShowingPLAYFlame.value = false;
+        });
+        await ref
+            .read(lastDjTrackPlayedProvider.notifier)
+            .updateLastPlayedTrack(track);
+      }
+    }
+
+    // Always point to the latest playTrack (captures current tracks/playlist)
+    playTrackRef.value = playTrack;
+
+    // Keyboard shortcut trigger via ValueNotifier
+    useEffect(() {
+      final trigger = playTrigger;
+      if (trigger == null) return null;
+      void onTriggered() {
+        if (!context.mounted) return;
+        final length = tracksLengthRef.value;
+        if (length == 0) return;
+        int idx = 0;
+        if (carouselController.hasClients &&
+            carouselController.position.hasPixels &&
+            carouselController.position.viewportDimension > 0) {
+          idx = (carouselController.offset /
+                  carouselController.position.viewportDimension)
+              .round();
+        }
+        idx = idx.clamp(0, length - 1);
+        playTrackRef.value(idx);
+      }
+
+      trigger.addListener(onTriggered);
+      return () => trigger.removeListener(onTriggered);
+    }, const []);
 
     return Stack(children: [
       ScrollConfiguration(
@@ -153,146 +325,9 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
           scrollDirection: Axis.horizontal,
           itemExtent: double.infinity,
           controller: carouselController,
-          //itemExtent: 305,
           shrinkExtent: 200,
           backgroundColor: Colors.white,
-          onTap: (value) async {
-            DJTrack track = tracks[value];
-            String response = await ref
-                .read(spotifyRemoteRepositoryProvider)
-                .playTrackAndJumpStart(
-                    track,
-                    track.startTime + track.startTimeMS,
-                    playlistType,
-                    playlistName);
-
-            final isNoDevice = response.contains('[Error]') &&
-                (response.toLowerCase().contains('no active device') ||
-                    response.toLowerCase().contains('player command failed'));
-            if (isNoDevice) {
-              final action = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('No Active Spotify Device'),
-                  content: const Text(
-                    'Spotify is not playing on any device.\n'
-                    'Open the Spotify app and try again.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.open_in_new, size: 16),
-                      label: const Text('Open Spotify'),
-                      onPressed: () => Navigator.pop(ctx, true),
-                    ),
-                  ],
-                ),
-              );
-              if (action == true) {
-                await ref.read(spotifyRemoteRepositoryProvider).launchSpotify();
-              }
-            } else if (response.contains('[Error]')) {
-              final lower = response.toLowerCase();
-              final isReconnectError = lower.contains('not connected') ||
-                  lower.contains('disconnected') ||
-                  lower.contains('connection') ||
-                  lower.contains('404') ||
-                  lower.contains('401') ||
-                  lower.contains('unauthorized');
-              if (isReconnectError) {
-                final reconnect = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Spotify Connection Error'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Lost connection to Spotify.\n'
-                          'Reconnect and try again?',
-                        ),
-                        const SizedBox(height: 8),
-                        SelectableText(
-                          response,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Force Full Reconnect'),
-                      ),
-                    ],
-                  ),
-                );
-                if (reconnect == true) {
-                  showMessageToast(context, 'Reconnecting to Spotify…');
-                  final success = await ref
-                      .read(spotifyRemoteRepositoryProvider)
-                      .forceFullReconnect();
-                  if (success) {
-                    showMessageToast(context, 'Reconnected. Tap to retry.');
-                  } else {
-                    final err = ref
-                        .read(spotifyRemoteRepositoryProvider)
-                        .lastConnectError;
-                    showMessageToast(
-                      context,
-                      'Failed to reconnect${err.isNotEmpty ? ': $err' : ''}',
-                    );
-                  }
-                }
-              } else {
-                showMessageToast(context, response);
-              }
-            } else {
-              track.playCount = track.playCount + 1;
-              ref.read(hiveTrackData.notifier).updateDJTrack(track);
-              showMessageToast(context, response);
-            }
-
-            double newPosition =
-                (value * carouselController.position.viewportDimension) +
-                    carouselController.position.viewportDimension;
-            isShowingPLAYFlame.value = true;
-            if (value == playlist.trackIds.length - 1) {
-              if (playlist.shuffleAtEnd) {
-                playlist = ref
-                    .read(hivePlaylistData.notifier)
-                    .shuffleTracksInPlaylist(playlistId);
-                tracks = ref
-                    .watch(hiveTrackData.notifier)
-                    .getDJTracks(playlist.trackIds);
-                newPosition = 0;
-                isShowingPLAYFlame.value = false;
-                await carouselController.position.animateTo(newPosition,
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeInOutCubicEmphasized);
-              }
-            } else {
-              await carouselController.position.animateTo(newPosition,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOutCubicEmphasized);
-              Future.delayed(const Duration(milliseconds: 800), () {
-                isShowingPLAYFlame.value = false;
-              });
-              await ref
-                  .read(lastDjTrackPlayedProvider.notifier)
-                  .updateLastPlayedTrack(track);
-            }
-          },
+          onTap: (value) async => playTrack(value),
           children: List<Widget>.generate(tracks.length, (int trackIdIndex) {
             DJTrack djTrack = tracks[trackIdIndex];
             return LayoutBuilder(
@@ -363,6 +398,36 @@ class DJCenterPlaylistTracksCarousel extends HookConsumerWidget {
                       ],
                     ),
                   ),
+                  if (shortcutKey != null)
+                    Positioned(
+                      top: 3,
+                      right: 3,
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: playlistType.color,
+                          borderRadius: BorderRadius.circular(7),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 3,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          shortcutKey!.toUpperCase(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            color: Colors.white,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             );
