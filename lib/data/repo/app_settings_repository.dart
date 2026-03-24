@@ -5,6 +5,7 @@ import 'package:hive_ce/hive.dart';
 class AppSettings {
   static const _boxName = 'settings';
   static const _sidebarOnRightKey = 'sidebarOnRight';
+  static const _keyboardShortcutsEnabledKey = 'keyboardShortcutsEnabled';
 
   static Box<dynamic> get _box => Hive.box<dynamic>(_boxName);
 
@@ -15,4 +16,12 @@ class AppSettings {
 
   static Future<void> setSidebarOnRight(bool value) =>
       _box.put(_sidebarOnRightKey, value);
+
+  /// Whether keyboard shortcuts are enabled in the match center.
+  /// Defaults to false.
+  static bool get keyboardShortcutsEnabled =>
+      _box.get(_keyboardShortcutsEnabledKey, defaultValue: false) as bool;
+
+  static Future<void> setKeyboardShortcutsEnabled(bool value) =>
+      _box.put(_keyboardShortcutsEnabledKey, value);
 }

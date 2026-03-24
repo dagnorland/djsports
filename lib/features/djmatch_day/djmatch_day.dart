@@ -10,6 +10,7 @@ import 'package:djsports/features/djmatch_center/widgets/center_control_widget.d
 import 'package:djsports/features/djmatch_day/widgets/debug_log_sheet.dart';
 import 'package:djsports/features/djmatch_day/widgets/match_day_playlist_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:toastification/toastification.dart';
@@ -27,8 +28,116 @@ class DJMatchDayViewPage extends StatefulHookConsumerWidget {
 class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
   bool isPlaying = false;
 
+  final Map<String, ValueNotifier<int>> _playTriggers = {};
+
+  static const _hotspotKeys = ['1', '2', '3', '4', '5', '6'];
+  static const _matchKeys = ['q', 'w', 'e', 'r', 't', 'y'];
+  static const _funStuffKeys = ['a', 's', 'd', 'f', 'g', 'h'];
+
+  static const _hotspotLogicalKeys = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+  ];
+  static const _matchLogicalKeys = [
+    LogicalKeyboardKey.keyQ,
+    LogicalKeyboardKey.keyW,
+    LogicalKeyboardKey.keyE,
+    LogicalKeyboardKey.keyR,
+    LogicalKeyboardKey.keyT,
+    LogicalKeyboardKey.keyY,
+  ];
+  static const _funStuffLogicalKeys = [
+    LogicalKeyboardKey.keyA,
+    LogicalKeyboardKey.keyS,
+    LogicalKeyboardKey.keyD,
+    LogicalKeyboardKey.keyF,
+    LogicalKeyboardKey.keyG,
+    LogicalKeyboardKey.keyH,
+  ];
+
+  ValueNotifier<int> _getTrigger(String playlistId) =>
+      _playTriggers.putIfAbsent(playlistId, () => ValueNotifier(0));
+
+  String? _shortcutKeyForType(DJPlaylistType type, int index) {
+    if (index >= 6) return null;
+    if (type == DJPlaylistType.hotspot) return _hotspotKeys[index];
+    if (type == DJPlaylistType.match) return _matchKeys[index];
+    if (type == DJPlaylistType.funStuff) return _funStuffKeys[index];
+    return null;
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (!AppSettings.keyboardShortcutsEnabled) return false;
+
+    // Consume key-repeat for all our keys to prevent OS beep on held keys
+    if (event is KeyRepeatEvent) {
+      final k = event.logicalKey;
+      return _hotspotLogicalKeys.contains(k) ||
+          _matchLogicalKeys.contains(k) ||
+          _funStuffLogicalKeys.contains(k) ||
+          k == LogicalKeyboardKey.escape ||
+          k == LogicalKeyboardKey.keyP ||
+          k == LogicalKeyboardKey.add ||
+          k == LogicalKeyboardKey.minus;
+    }
+    if (event is! KeyDownEvent) return false;
+
+    final key = event.logicalKey;
+
+    // Global transport controls
+    if (key == LogicalKeyboardKey.escape) {
+      pausePlayer();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.keyP) {
+      resumePlayer();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.add) {
+      ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.05);
+      return true;
+    }
+    if (key == LogicalKeyboardKey.minus) {
+      ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.05);
+      return true;
+    }
+
+    // Playlist shortcuts
+    DJPlaylistType? type;
+    int index = -1;
+
+    if (_hotspotLogicalKeys.contains(key)) {
+      type = DJPlaylistType.hotspot;
+      index = _hotspotLogicalKeys.indexOf(key);
+    } else if (_matchLogicalKeys.contains(key)) {
+      type = DJPlaylistType.match;
+      index = _matchLogicalKeys.indexOf(key);
+    } else if (_funStuffLogicalKeys.contains(key)) {
+      type = DJPlaylistType.funStuff;
+      index = _funStuffLogicalKeys.indexOf(key);
+    }
+
+    if (type == null || index < 0) return false;
+
+    final allPlaylists = ref.read(hivePlaylistData) ?? [];
+    final typePlaylists = allPlaylists
+        .where((p) => p.type == type!.name)
+        .toList()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    if (index < typePlaylists.length) {
+      _getTrigger(typePlaylists[index].id).value++;
+    }
+    return true;
+  }
+
   @override
   void initState() {
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     if (!Platform.isMacOS) {
       FlutterVolumeController.addListener((newVolume) {
         final repo = ref.read(spotifyRemoteRepositoryProvider);
@@ -37,11 +146,24 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
       });
       FlutterVolumeController.getVolume().then((v) {
         if (v != null && mounted) {
-          ref.read(spotifyRemoteRepositoryProvider).setVolume(v);
-          final pct = (v * 100).round();
+          final repo = ref.read(spotifyRemoteRepositoryProvider);
+          final autoSet = repo.volumeAutoSetToDefault || v == 0;
+          if (autoSet) {
+            repo.volumeAutoSetToDefault = false;
+            if (v == 0) {
+              FlutterVolumeController.setVolume(0.85);
+              repo.setVolume(0.85);
+            }
+          } else {
+            repo.setVolume(v);
+          }
           toastification.show(
             context: context,
-            title: Text('Volume: $pct%'),
+            title: Text(
+              autoSet
+                  ? 'Volume auto-set to 85%'
+                  : 'Volume: ${(v * 100).round()}%',
+            ),
             autoCloseDuration: const Duration(seconds: 3),
             style: ToastificationStyle.flat,
             alignment: Alignment.topCenter,
@@ -54,6 +176,10 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    for (final t in _playTriggers.values) {
+      t.dispose();
+    }
     if (!Platform.isMacOS) {
       FlutterVolumeController.removeListener();
     }
@@ -134,11 +260,18 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
                   (t) => t.name == playlist.type,
                   orElse: () => DJPlaylistType.match,
                 );
+                final shortcutKey = AppSettings.keyboardShortcutsEnabled
+                    ? _shortcutKeyForType(pType, i)
+                    : null;
                 return MatchDayPlaylistCard(
                   playlistId: playlist.id,
                   playlistName: playlist.name,
                   playlistType: pType,
                   initialTrackIndex: playlist.currentTrack,
+                  shortcutKey: shortcutKey,
+                  playTrigger: shortcutKey != null
+                      ? _getTrigger(playlist.id)
+                      : null,
                 );
               },
             );

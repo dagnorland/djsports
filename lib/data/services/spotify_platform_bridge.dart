@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 abstract class SpotifyPlatformBridge {
   factory SpotifyPlatformBridge() {
@@ -404,7 +405,8 @@ class _AndroidBridge implements SpotifyPlatformBridge {
       FlutterVolumeController.setVolume(volume);
 
   @override
-  Future<void> launchSpotify() async {}
+  Future<void> launchSpotify() =>
+      launchUrl(Uri.parse('spotify:'), mode: LaunchMode.externalApplication);
 
   @override
   Future<Map<String, String>> getUserProfile() async => {};

@@ -154,22 +154,45 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
 
   Widget _displaySettingsSection(BuildContext context) {
     final sidebarOnRight = AppSettings.sidebarOnRight;
-    return SwitchListTile(
-      title: const Text('Sidebar on right in landscape'),
-      subtitle: Text(
-        sidebarOnRight
-            ? 'Controls are on the right side'
-            : 'Controls are on the left side',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      secondary: Icon(
-        sidebarOnRight ? Icons.align_horizontal_right : Icons.align_horizontal_left,
-      ),
-      value: sidebarOnRight,
-      onChanged: (value) async {
-        await AppSettings.setSidebarOnRight(value);
-        setState(() {});
-      },
+    final keyboardShortcuts = AppSettings.keyboardShortcutsEnabled;
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('Sidebar on right in landscape'),
+          subtitle: Text(
+            sidebarOnRight
+                ? 'Controls are on the right side'
+                : 'Controls are on the left side',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          secondary: Icon(
+            sidebarOnRight
+                ? Icons.align_horizontal_right
+                : Icons.align_horizontal_left,
+          ),
+          value: sidebarOnRight,
+          onChanged: (value) async {
+            await AppSettings.setSidebarOnRight(value);
+            setState(() {});
+          },
+        ),
+        SwitchListTile(
+          title: const Text('Keyboard shortcuts in match center'),
+          subtitle: Text(
+            keyboardShortcuts
+                ? 'Playlists: Hotspot 1-6  •  Match Q-Y  •  Fun A-H\n'
+                    'Transport: P=play  •  ESC=pause  •  +=vol+  •  -=vol-'
+                : 'Enable to use keyboard keys to trigger playlists',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          secondary: const Icon(Icons.keyboard),
+          value: keyboardShortcuts,
+          onChanged: (value) async {
+            await AppSettings.setKeyboardShortcutsEnabled(value);
+            setState(() {});
+          },
+        ),
+      ],
     );
   }
 

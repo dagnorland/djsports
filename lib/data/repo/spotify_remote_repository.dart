@@ -12,10 +12,27 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify/spotify.dart';
 
 class SpotifyRemoteRepository {
-  SpotifyRemoteRepository(this._credentials, this._spotifyRedirectUrl);
+  SpotifyRemoteRepository(this._credentials, this._spotifyRedirectUrl) {
+    _initVolume();
+  }
   final SpotifyApiCredentials _credentials;
   final String _spotifyRedirectUrl;
   final SpotifyPlatformBridge _bridge = SpotifyPlatformBridge();
+
+  Future<void> _initVolume() async {
+    final v = await _bridge.getSystemVolume();
+    if (v == 0) {
+      await _bridge.setSystemVolume(0.85);
+      volume = 0.85;
+      _preMuteVolume = 0.85;
+      volumeNotifier.value = 0.85;
+      volumeAutoSetToDefault = true;
+    } else {
+      volume = v;
+      _preMuteVolume = v;
+      volumeNotifier.value = v;
+    }
+  }
 
   String lastValidAccessToken = '';
   Object lastAccessTokenError = Object();
@@ -30,6 +47,9 @@ class SpotifyRemoteRepository {
   bool _isConnecting = false;
   bool get isConnecting => _isConnecting;
   double volume = 0.5;
+  double _preMuteVolume = 0.5;
+  bool _isMuted = false;
+  bool volumeAutoSetToDefault = false;
   final ValueNotifier<double> volumeNotifier = ValueNotifier(0.5);
   /// True on iOS when the silence keep-alive track is playing instead of
   /// real music (i.e. the user pressed pause).
@@ -65,6 +85,21 @@ class SpotifyRemoteRepository {
     volume = rounded;
     volumeNotifier.value = rounded;
     await _bridge.setSystemVolume(rounded);
+    // Android uses discrete integer volume steps (typically 15 on the media
+    // stream). setVolume() floor-truncates the float, so adding 0.05 often
+    // maps to the same step and produces no change when increasing.
+    // If the system volume didn't advance, bump by 0.07 (> 1/15 ≈ 0.067)
+    // to guarantee crossing into the next step.
+    if (Platform.isAndroid && adjustment > 0) {
+      final actual = await _bridge.getSystemVolume();
+      if (actual <= currentVolume + 0.001) {
+        final bumped = (currentVolume + 0.07).clamp(0.0, 1.0);
+        await _bridge.setSystemVolume(bumped);
+        final finalActual = await _bridge.getSystemVolume();
+        volume = finalActual;
+        volumeNotifier.value = finalActual;
+      }
+    }
   }
 
   Future<void> launchSpotify() => _bridge.launchSpotify();
@@ -253,16 +288,21 @@ class SpotifyRemoteRepository {
   }
 
   Future<void> _mute() async {
+    _isMuted = true;
     await _bridge.setSystemVolume(0);
   }
 
   Future<void> _unMute() async {
-    await _bridge.setSystemVolume(volume);
+    _isMuted = false;
+    await _bridge.setSystemVolume(_preMuteVolume);
   }
 
   Future<bool> pausePlayer() async {
     try {
-      if (Platform.isAndroid) await _mute();
+      if (Platform.isAndroid) {
+        _preMuteVolume = volume;
+        await _mute();
+      }
       await _bridge.pause();
       if (Platform.isIOS) silencePlayingNotifier.value = true;
       SpotifyConnectionLog().addSimpleEntry(
@@ -368,6 +408,10 @@ class SpotifyRemoteRepository {
         spotifyUri: track.spotifyUri,
         positionMs: jumpStart > 0 ? jumpStart : 0,
       );
+      // Only restore volume if we explicitly muted on pause. When playing
+      // with a start time without a prior pause, the bridge handles its own
+      // mute/unmute internally using the correct pre-seek volume.
+      if (Platform.isAndroid && _isMuted) await _unMute();
       debugPrint('[PLAY] bridge.playWithPosition returned OK');
       if (jumpStart > 0) {
         latestDurationStartupMS = DateTime.now()
