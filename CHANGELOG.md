@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - Release 2026-03-24
+
+### Added
+- **Cloud Backup** — manual backup and restore of all local data (playlists, tracks, track timings) via Firebase Firestore, keyed by Spotify user ID
+  - Backs up all playlists, tracks, and track start times to the cloud
+  - Restore from any backup with live progress indicators
+  - Keeps the last 5 backups per device; oldest is auto-deleted when limit is reached
+  - Backups are labelled by user-configurable device name (persisted across sessions)
+  - Accessible from the home screen AppBar (cloud icon) and the overflow menu on narrow screens
+  - After restore, the home screen playlist list refreshes automatically
+- **Spotify user ID on Android** — the app now fetches the Spotify user profile via Web API on Android, enabling cloud backup on all platforms
+- **`tracksWithStartTime` in backup summary** — backup tiles show how many tracks have a configured start time
+
 ## [3.0.1] - Release 2026-03-24
 
 ### Added

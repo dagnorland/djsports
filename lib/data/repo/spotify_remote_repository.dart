@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
 
 class SpotifyRemoteRepository {
@@ -41,6 +43,8 @@ class SpotifyRemoteRepository {
   bool hasSpotifyAccessToken = false;
   String spotifyUserDisplayName = '';
   String spotifyUserEmail = '';
+  String spotifyUserId = '';
+  final ValueNotifier<String> spotifyUserIdNotifier = ValueNotifier('');
   List<String> spotifyActiveDevices = [];
   bool isSpotifyPluginInstalled = false;
   bool isPlaying = false;
@@ -274,6 +278,8 @@ class SpotifyRemoteRepository {
     lastConnectError = '';
     spotifyUserDisplayName = '';
     spotifyUserEmail = '';
+    spotifyUserId = '';
+    spotifyUserIdNotifier.value = '';
     spotifyActiveDevices = [];
     SpotifyConnectionLog().addSimpleEntry(
       SpotifyConnectionStatus.notConnected,
@@ -592,18 +598,25 @@ class SpotifyRemoteRepository {
         'Connect to Spotify',
       );
       // Fetch user profile + active devices in background — failure is non-fatal.
-      if ((Platform.isMacOS || Platform.isIOS) && accessToken.isNotEmpty) {
-        unawaited(
-          _bridge
-              .getUserProfile()
-              .then((profile) {
-                spotifyUserDisplayName = profile['displayName'] ?? '';
-                spotifyUserEmail = profile['email'] ?? '';
-              })
-              .catchError((error) {
-                debugPrint('Failed to get user profile: $error');
-              }),
-        );
+      if (accessToken.isNotEmpty) {
+        if (Platform.isAndroid) {
+          // Android bridge returns empty map — call Web API directly in Dart.
+          unawaited(_fetchUserProfileFromWebApi(accessToken));
+        } else {
+          unawaited(
+            _bridge
+                .getUserProfile()
+                .then((profile) {
+                  spotifyUserDisplayName = profile['displayName'] ?? '';
+                  spotifyUserEmail = profile['email'] ?? '';
+                  spotifyUserId = profile['id'] ?? '';
+                  spotifyUserIdNotifier.value = spotifyUserId;
+                })
+                .catchError((error) {
+                  debugPrint('Failed to get user profile: $error');
+                }),
+          );
+        }
         unawaited(
           _bridge
               .getActiveDevices()
@@ -628,6 +641,35 @@ class SpotifyRemoteRepository {
     }
     debugPrint('[Spotify] connectAccessToken: hasToken=$hasSpotifyAccessToken');
     return hasSpotifyAccessToken;
+  }
+
+  /// Calls GET /v1/me on the Spotify Web API using [accessToken].
+  /// Used on Android where the native bridge returns an empty profile.
+  Future<void> _fetchUserProfileFromWebApi(String accessToken) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.spotify.com/v1/me'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        spotifyUserDisplayName = data['display_name'] as String? ?? '';
+        spotifyUserEmail = data['email'] as String? ?? '';
+        spotifyUserId = data['id'] as String? ?? '';
+        spotifyUserIdNotifier.value = spotifyUserId;
+        debugPrint(
+          '[Spotify] Android user profile: '
+          'id=$spotifyUserId name=$spotifyUserDisplayName',
+        );
+      } else {
+        debugPrint(
+          '[Spotify] _fetchUserProfileFromWebApi: '
+          'HTTP ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('[Spotify] _fetchUserProfileFromWebApi error: $e');
+    }
   }
 
   Future<String> getSpotifyAccessToken() async {
