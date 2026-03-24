@@ -4,6 +4,8 @@ import 'package:djsports/data/models/track_time_model.dart';
 import 'package:djsports/hive_registrar.g.dart';
 import 'package:djsports/example/auth.dart';
 import 'package:djsports/features/djsports/djsports_home_page.dart';
+import 'package:djsports/firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 // Riverpod
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -26,6 +28,7 @@ final audioHandlerProvider =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   //FlutterNativeSplash.preserve(widgetsBinding: WidgetsBinding.instance);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await dotenv.dotenv.load(fileName: '.env');
 
   // print all elements in dotenv

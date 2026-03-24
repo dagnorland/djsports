@@ -7,6 +7,7 @@ import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
+import 'package:djsports/features/cloud_backup/cloud_backup_screen.dart';
 import 'package:djsports/features/djmatch_center/djmatch_center.dart';
 import 'package:djsports/features/djmatch_day/djmatch_day.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
@@ -148,6 +149,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         _navigateTo(
           DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
         );
+      case 'cloudbackup':
+        _navigateTo(CloudBackupScreen(refreshCallback: () => setState(() {})));
     }
   }
 
@@ -182,6 +185,15 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
         ),
+      Tooltip(
+        message: 'Cloud Backup',
+        child: IconButton(
+          icon: const Icon(Icons.cloud, color: Colors.black),
+          onPressed: () => _navigateTo(
+            CloudBackupScreen(refreshCallback: () => setState(() {})),
+          ),
+        ),
+      ),
       Tooltip(
         message: 'Utilities',
         child: IconButton(
@@ -346,6 +358,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Icon(Icons.grid_view, color: Colors.blueAccent.shade700),
                 const SizedBox(width: 10),
                 const Text('djMatchCenter'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'cloudbackup',
+            child: Row(
+              children: [
+                Icon(Icons.cloud),
+                SizedBox(width: 10),
+                Text('Cloud Backup'),
               ],
             ),
           ),

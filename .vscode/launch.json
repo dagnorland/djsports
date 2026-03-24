@@ -69,10 +69,18 @@
             "deviceId": "HA25HWGM",            
         },        
         {
-            "name": "djsports Lenovo TB X696F Liten",
+            "name": "djsports Lenovo TB X696F debug",
             "request": "launch",
             "type": "dart",
-            "deviceId": "HA15147V",            
+            "deviceId": "HA15147V",
+            "flutterMode": "debug"            
+        },
+        {
+            "name": "djsports Lenovo TB X696F release",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "HA15147V",
+            "flutterMode": "release"            
         },
         {
             "name": "djsports Samsung X200",
