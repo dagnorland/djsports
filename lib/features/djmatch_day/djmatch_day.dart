@@ -138,39 +138,32 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
   @override
   void initState() {
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    if (!Platform.isMacOS) {
-      FlutterVolumeController.addListener((newVolume) {
+    FlutterVolumeController.getVolume().then((v) {
+      if (v != null && mounted) {
         final repo = ref.read(spotifyRemoteRepositoryProvider);
-        if ((newVolume - repo.volume).abs() < 0.005) return;
-        repo.setVolume(newVolume);
-      });
-      FlutterVolumeController.getVolume().then((v) {
-        if (v != null && mounted) {
-          final repo = ref.read(spotifyRemoteRepositoryProvider);
-          final autoSet = repo.volumeAutoSetToDefault || v == 0;
-          if (autoSet) {
-            repo.volumeAutoSetToDefault = false;
-            if (v == 0) {
-              FlutterVolumeController.setVolume(0.85);
-              repo.setVolume(0.85);
-            }
-          } else {
-            repo.setVolume(v);
+        final autoSet = repo.volumeAutoSetToDefault || v == 0;
+        if (autoSet) {
+          repo.volumeAutoSetToDefault = false;
+          if (v == 0) {
+            FlutterVolumeController.setVolume(0.85);
+            repo.setVolume(0.85);
           }
-          toastification.show(
-            context: context,
-            title: Text(
-              autoSet
-                  ? 'Volume auto-set to 85%'
-                  : 'Volume: ${(v * 100).round()}%',
-            ),
-            autoCloseDuration: const Duration(seconds: 3),
-            style: ToastificationStyle.flat,
-            alignment: Alignment.topCenter,
-          );
+        } else {
+          repo.setVolume(v);
         }
-      });
-    }
+        toastification.show(
+          context: context,
+          title: Text(
+            autoSet
+                ? 'Volume auto-set to 85%'
+                : 'Volume: ${(v * 100).round()}%',
+          ),
+          autoCloseDuration: const Duration(seconds: 3),
+          style: ToastificationStyle.flat,
+          alignment: Alignment.topCenter,
+        );
+      }
+    });
     super.initState();
   }
 
@@ -180,14 +173,17 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
     for (final t in _playTriggers.values) {
       t.dispose();
     }
-    if (!Platform.isMacOS) {
-      FlutterVolumeController.removeListener();
-    }
     super.dispose();
   }
 
   Future<bool> pausePlayer() async {
     isPlaying = await ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    return isPlaying;
+  }
+
+  Future<bool> hardPausePlayer() async {
+    isPlaying =
+        await ref.read(spotifyRemoteRepositoryProvider).hardPausePlayer();
     return isPlaying;
   }
 
@@ -321,6 +317,9 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
             child: CenterControlWidget(
               onResume: () async => resumePlayer(),
               onPause: () async => pausePlayer(),
+              onHardPause: Platform.isIOS
+                  ? () async => hardPausePlayer()
+                  : null,
               onBack: () {
                 Navigator.of(context).pop();
                 widget.refreshCallback?.call();
@@ -398,14 +397,28 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
                 valueListenable: ref
                     .read(spotifyRemoteRepositoryProvider)
                     .silencePlayingNotifier,
-                builder: (context, isSilence, _) => IconButton(
-                  icon: Icon(
-                    Icons.pause,
-                    color: isSilence ? Colors.orange : Colors.white,
-                    size: 32,
+                builder: (context, isSilence, _) => GestureDetector(
+                  onLongPress: (Platform.isIOS && isSilence)
+                      ? () async {
+                          await hardPausePlayer();
+                          if (!context.mounted) return;
+                          toastification.show(
+                            context: context,
+                            title: const Text('PAUSED'),
+                            autoCloseDuration: const Duration(seconds: 2),
+                            style: ToastificationStyle.flat,
+                            alignment: Alignment.topCenter,
+                          );
+                        }
+                      : null,
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.pause,
+                      color: isSilence ? Colors.orange : Colors.white,
+                      size: 32,
+                    ),
+                    onPressed: pausePlayer,
                   ),
-                  tooltip: isSilence ? 'Silence playing' : 'Pause',
-                  onPressed: pausePlayer,
                 ),
               ),
               if (Platform.isIOS || Platform.isMacOS)

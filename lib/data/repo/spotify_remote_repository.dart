@@ -9,6 +9,7 @@ import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
@@ -22,6 +23,10 @@ class SpotifyRemoteRepository {
   final SpotifyPlatformBridge _bridge = SpotifyPlatformBridge();
 
   Future<void> _initVolume() async {
+    FlutterVolumeController.addListener((newVolume) {
+      if ((newVolume - volume).abs() < 0.005) return;
+      setVolume(newVolume);
+    });
     final v = await _bridge.getSystemVolume();
     if (v == 0) {
       await _bridge.setSystemVolume(0.85);
@@ -301,6 +306,14 @@ class SpotifyRemoteRepository {
   Future<void> _unMute() async {
     _isMuted = false;
     await _bridge.setSystemVolume(_preMuteVolume);
+  }
+
+  /// Hard pause — like [pausePlayer] but does NOT start silence keep-alive on
+  /// iOS. Icon will show white (fully paused).
+  Future<bool> hardPausePlayer() async {
+    final result = await pausePlayer();
+    silencePlayingNotifier.value = false;
+    return result;
   }
 
   Future<bool> pausePlayer() async {
