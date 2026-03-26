@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - Release 2026-03-26
+
+### Added
+- **iOS: Hard pause via long press** — long-pressing the pause button while in silence keep-alive mode does a real pause (stops silence, icon turns white); short press still enters orange silence mode as before
+- **macOS/iOS: System volume synced to app on home page** — `FlutterVolumeController` listener is now initialised in the repository constructor so the volume chip updates on all screens, not only inside djMatchDay
+- **Spotify user shown in "not active" dialog** — when Spotify has no active device the error dialog now shows the current Spotify display name (or user ID) so it is clear which account needs to be active
+
+### Changed
+- **djMatchCenter removed** — the legacy match center page and its exclusive widgets have been removed; `CenterControlWidget` and `CurrentVolumeWidget` are retained as they are shared with djMatchDay and the home page
+- **Playlist type filter replaced with dropdown** — the horizontal row of filter buttons on the home page is now a compact inline dropdown, reducing visual clutter
+- **Home page AppBar decluttered** — "New playlist" button replaced with a `+` icon; "Connected/Connect" button replaced with a wifi icon (green/red); both retain tooltips
+
+### Fixed
+- **macOS: Volume not tracked on home page** — `FlutterVolumeController.addListener` was skipped on macOS (`!Platform.isMacOS` guard removed); volume now updates in real time whenever Mac system volume changes
+- **iOS: Long-press pause showed tooltip instead of pausing** — `IconButton` tooltip was intercepting the long-press gesture and showing "Silence playing" with haptic feedback; tooltip removed and `GestureDetector` added for correct long-press handling
+
 ## [3.1.0] - Release 2026-03-24
 
 ### Added

@@ -8,7 +8,6 @@ import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:djsports/features/cloud_backup/cloud_backup_screen.dart';
-import 'package:djsports/features/djmatch_center/djmatch_center.dart';
 import 'package:djsports/features/djmatch_day/djmatch_day.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
@@ -145,10 +144,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         _navigateTo(DJPlaylistEditScreen.empty());
       case 'settings':
         _navigateTo(TrackTimeCenterScreen());
-      case 'matchcenter':
-        _navigateTo(
-          DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
-        );
       case 'cloudbackup':
         _navigateTo(CloudBackupScreen(refreshCallback: () => setState(() {})));
     }
@@ -201,42 +196,27 @@ class _HomePageState extends ConsumerState<HomePage> {
           onPressed: () => _navigateTo(TrackTimeCenterScreen()),
         ),
       ),
-      Padding(
-        padding: const EdgeInsets.only(right: 5),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).primaryColor,
-          ),
+      Tooltip(
+        message: 'New playlist',
+        child: IconButton(
+          icon: const Icon(Icons.add, color: Colors.black),
           onPressed: () {
             ref.invalidate(typeFilteredAllDataProvider);
             _navigateTo(DJPlaylistEditScreen.empty());
           },
-          child: Text(
-            'New playlist',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge!.copyWith(color: Colors.white),
-          ),
         ),
       ),
-      Padding(
-        padding: const EdgeInsets.only(right: 5),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: hasToken
-                ? Colors.green.shade700
-                : Colors.red.shade700,
+      Tooltip(
+        message: hasToken ? 'Connected' : 'Connect Spotify',
+        child: IconButton(
+          icon: Icon(
+            hasToken ? Icons.wifi : Icons.wifi_off,
+            color: hasToken ? Colors.green.shade700 : Colors.red.shade700,
           ),
           onPressed: () async {
             await _spotifyConnect(context, ref);
             if (mounted) setState(() {});
           },
-          child: Text(
-            hasToken ? 'Connected' : 'Connect',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge!.copyWith(color: Colors.white),
-          ),
         ),
       ),
       Padding(
@@ -250,23 +230,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           child: Text(
             'djMatchDay',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge!.copyWith(color: Colors.white),
-          ),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.only(right: 5),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent.shade700,
-          ),
-          onPressed: () => _navigateTo(
-            DJMatchCenterViewPage(refreshCallback: () => setState(() {})),
-          ),
-          child: Text(
-            '..old center',
             style: Theme.of(
               context,
             ).textTheme.titleLarge!.copyWith(color: Colors.white),
@@ -348,16 +311,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Icon(Icons.settings),
                 SizedBox(width: 10),
                 Text('Utilities'),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: 'matchcenter',
-            child: Row(
-              children: [
-                Icon(Icons.grid_view, color: Colors.blueAccent.shade700),
-                const SizedBox(width: 10),
-                const Text('djMatchCenter'),
               ],
             ),
           ),
@@ -445,8 +398,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         body: Column(
           children: [
-            const Flexible(child: TypeFilter()),
-            const SizedBox(height: 12),
+            const TypeFilter(),
             playlistList.isEmpty
                 ? const Center(
                     child: Text('Make some playlists, and let the game begin!'),

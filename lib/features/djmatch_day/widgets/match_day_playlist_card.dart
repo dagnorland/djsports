@@ -231,11 +231,18 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
     int trackCount,
     bool shuffleAtEnd,
   ) async {
+    final repo = ref.read(spotifyRemoteRepositoryProvider);
+    final userName = repo.spotifyUserDisplayName.isNotEmpty
+        ? repo.spotifyUserDisplayName
+        : repo.spotifyUserId.isNotEmpty
+            ? repo.spotifyUserId
+            : null;
     final action = await showDialog<_NoDeviceAction>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Spotify Not Active'),
-        content: const Text(
+        content: Text(
+          '${userName != null ? 'User: $userName\n\n' : ''}'
           'Spotify is not playing on any device.\n\n'
           'Open Spotify, press play on any track,\n'
           'then come back here and try again.',

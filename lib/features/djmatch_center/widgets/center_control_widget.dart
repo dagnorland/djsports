@@ -15,12 +15,14 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
     super.key,
     required this.onResume,
     required this.onPause,
+    this.onHardPause,
     required this.onBack,
     required this.refreshCallback,
   });
 
   final VoidCallback onResume;
   final Future<void> Function() onPause;
+  final Future<void> Function()? onHardPause;
   final VoidCallback onBack;
   final VoidCallback? refreshCallback;
 
@@ -67,31 +69,46 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
               builder: (context, isSilence, _) => Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.pause,
-                      color: isSilence ? Colors.orange : Colors.white,
-                      size: 70,
+                  GestureDetector(
+                    onLongPress: widget.onHardPause == null
+                        ? null
+                        : () async {
+                            await widget.onHardPause!();
+                            if (!context.mounted) return;
+                            toastification.show(
+                              context: context,
+                              title: const Text('PAUSED'),
+                              autoCloseDuration: const Duration(seconds: 2),
+                              style: ToastificationStyle.flat,
+                              alignment: Alignment.topCenter,
+                            );
+                          },
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.pause,
+                        color: isSilence ? Colors.orange : Colors.white,
+                        size: 70,
+                      ),
+                      splashColor: Colors.blue,
+                      highlightColor: Colors.black,
+                      onPressed: () async {
+                        await widget.onPause();
+                        final label = ref
+                                .read(spotifyRemoteRepositoryProvider)
+                                .silencePlayingNotifier
+                                .value
+                            ? 'SILENCE 🔇'
+                            : 'PAUSED';
+                        if (!context.mounted) return;
+                        toastification.show(
+                          context: context,
+                          title: Text(label),
+                          autoCloseDuration: const Duration(seconds: 2),
+                          style: ToastificationStyle.flat,
+                          alignment: Alignment.topCenter,
+                        );
+                      },
                     ),
-                    splashColor: Colors.blue,
-                    highlightColor: Colors.black,
-                    onPressed: () async {
-                      await widget.onPause();
-                      final label = ref
-                              .read(spotifyRemoteRepositoryProvider)
-                              .silencePlayingNotifier
-                              .value
-                          ? 'SILENCE 🔇'
-                          : 'PAUSED';
-                      if (!context.mounted) return;
-                      toastification.show(
-                        context: context,
-                        title: Text(label),
-                        autoCloseDuration: const Duration(seconds: 2),
-                        style: ToastificationStyle.flat,
-                        alignment: Alignment.bottomCenter,
-                      );
-                    },
                   ),
                   if (isSilence)
                     Container(
