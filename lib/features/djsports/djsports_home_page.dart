@@ -8,11 +8,11 @@ import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:djsports/features/cloud_backup/cloud_backup_screen.dart';
-import 'package:djsports/features/djmatch_day/djmatch_day.dart';
+import 'package:djsports/features/djletsplay/djletsplay.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
-import 'package:djsports/features/track_time/track_time_center_screen.dart';
+import 'package:djsports/features/track_time/settings_center_screen.dart';
 import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -139,8 +139,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   void _handlePopupAction(String value) {
     switch (value) {
-      case 'matchday':
-        _navigateTo(DJMatchDayViewPage(refreshCallback: () => setState(() {})));
+      case 'letsplay':
+        _navigateTo(DJLetsPlayViewPage(refreshCallback: () => setState(() {})));
       case 'newplaylist':
         _navigateTo(DJPlaylistEditScreen.empty());
       case 'settings':
@@ -226,7 +226,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         child: DJPrimaryButton(
           label: _kMatchModeLabel,
           onPressed: () => _navigateTo(
-            DJMatchDayViewPage(refreshCallback: () => setState(() {})),
+            DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
           ),
         ),
       ),
@@ -281,7 +281,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         onSelected: _handlePopupAction,
         itemBuilder: (context) => [
           PopupMenuItem(
-            value: 'matchday',
+            value: 'letsplay',
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
@@ -319,7 +319,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               children: [
                 Icon(Icons.settings),
                 SizedBox(width: 10),
-                Text('Utilities'),
+                Text('Settings'),
               ],
             ),
           ),
@@ -354,7 +354,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateTo(
-          DJMatchDayViewPage(refreshCallback: () => setState(() {})),
+          DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
         ),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
