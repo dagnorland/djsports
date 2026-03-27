@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - Release 2026-03-27
+
+### Added
+- **Start-time slider** — the track edit screen now uses a `CupertinoSlider`-based
+  start-time picker with 10 ms step precision; a floating `MM:SS.mmm` label tracks
+  the thumb in real time; `±` nudge buttons allow fine adjustment
+- **Live playback position on slider** — while previewing a track the slider updates
+  every 500 ms to show the current Spotify playback position, making it easy to
+  set the exact start time by ear
+- **`getPlaybackPositionMs()`** — new method on `SpotifyRemoteRepository`; polls
+  `GET /v1/me/player` (`progress_ms`) on iOS/macOS and delegates to the SDK on Android
+- **Cupertino button widgets** (`dj_buttons.dart`) — shared `DJPrimaryButton`,
+  `DJCancelButton`, `DJIconActionButton`, and `DJTextIconButton` replace ad-hoc
+  `ElevatedButton`/`TextButton` usages throughout the app
+- **Dynamic app theme color** — primary color can be changed from 7 curated options
+  (Black, Electric Blue, Spotify Green, Sun Yellow, Amber, Purple, Red); choice is
+  persisted across sessions via a new `themeColor` Hive settings key
+- **Theme color picker in Settings** — circular color swatches with a selection ring
+  appear in the Display Settings section
+
+### Changed
+- **`AppTheme.themeFor(Color)`** — theme is now built from the persisted primary color
+  instead of being hardcoded to Spotify green; `lightTheme` getter retained as default
+- **Home page "Let's Play!" button** — the djMatchDay launch button uses
+  `DJPrimaryButton` and is renamed from "djMatchDay" to "Let's Play!"
+- **Playlist track view** — album-art error fallback now shows the Spotify logo;
+  `playlistType` passed explicitly to each track row
+
 ## [3.2.0] - Release 2026-03-26
 
 ### Added

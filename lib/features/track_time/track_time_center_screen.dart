@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:djsports/data/provider/theme_color_provider.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
@@ -155,8 +156,15 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
   Widget _displaySettingsSection(BuildContext context) {
     final sidebarOnRight = AppSettings.sidebarOnRight;
     final keyboardShortcuts = AppSettings.keyboardShortcutsEnabled;
+    final currentColor = ref.watch(themeColorProvider);
     return Column(
       children: [
+        _ThemeColorPicker(
+          currentColor: currentColor,
+          onColorSelected: (Color color) =>
+              ref.read(themeColorProvider.notifier).setColor(color),
+        ),
+        const Divider(height: 1),
         SwitchListTile(
           title: const Text('Sidebar on right in landscape'),
           subtitle: Text(
@@ -1512,6 +1520,76 @@ class _EditScreenState extends ConsumerState<TrackTimeCenterScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Standalone color-picker widget (no state needed)
+// ---------------------------------------------------------------------------
+
+class _ThemeColorPicker extends StatelessWidget {
+  const _ThemeColorPicker({
+    required this.currentColor,
+    required this.onColorSelected,
+  });
+
+  final Color currentColor;
+  final ValueChanged<Color> onColorSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          const Icon(Icons.palette_outlined, size: 22),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'App color',
+              style: TextStyle(fontSize: 15),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: kThemeColors.map((entry) {
+              final selected = currentColor.value == entry.color.value;
+              return Tooltip(
+                message: entry.name,
+                child: GestureDetector(
+                  onTap: () => onColorSelected(entry.color),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: entry.color,
+                      shape: BoxShape.circle,
+                      border: selected
+                          ? Border.all(
+                              color: Colors.black,
+                              width: 2.5,
+                            )
+                          : Border.all(
+                              color: Colors.black12,
+                              width: 1,
+                            ),
+                    ),
+                    child: selected
+                        ? const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 16,
+                          )
+                        : null,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }

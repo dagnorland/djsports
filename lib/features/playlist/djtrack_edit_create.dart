@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/features/playlist/start_time_slider.dart';
+import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 // Riverpod
@@ -25,6 +29,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
     required this.isNew,
     required this.id,
     required this.shortcut,
+    required this.trackCount,
     this.initialAutoPreview = false,
   });
   final String playlistName;
@@ -43,6 +48,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
   final bool isNew;
   final int index;
   final String shortcut;
+  final int trackCount;
   final bool initialAutoPreview;
 
   @override
@@ -65,18 +71,19 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   String trackDurationFormatted = '--:--';
   late bool autoPreview;
 
+  Timer? _positionTimer;
+  int _livePositionMs = 0;
+  bool _isPolling = false;
+
   int get _totalStartMs => editStartTime + editStartTimeMS;
 
-  double get _maxMs =>
-      widget.duration > 0 ? widget.duration.toDouble() : 300000.0;
+  int get _effectiveMaxMs =>
+      widget.duration > 0 ? widget.duration : 300000;
 
-  String _formatMs(int ms) {
-    final minutes = ms ~/ 60000;
-    final seconds = (ms % 60000) ~/ 1000;
-    final tenths = (ms % 1000) ~/ 100;
-    return '${minutes.toString().padLeft(2, '0')}:'
-        '${seconds.toString().padLeft(2, '0')}.'
-        '$tenths';
+  void _navigateTo(int targetIndex) {
+    ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    _stopPositionPolling();
+    Navigator.pop(context, (targetIndex, autoPreview));
   }
 
   @override
@@ -143,12 +150,13 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                 : spotifyUriController.text,
             parseStartTime(),
           );
+      _startPositionPolling();
     }
   }
 
   void _nudgeStart(int deltaMs) {
     _onSliderChanged(
-      (_totalStartMs + deltaMs).clamp(0, _maxMs.toInt()).toDouble(),
+      (_totalStartMs + deltaMs).clamp(0, _effectiveMaxMs).toDouble(),
     );
     _onSliderChangeEnd(_totalStartMs.toDouble());
   }
@@ -160,10 +168,48 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               : spotifyUriController.text,
           parseStartTime(),
         );
+    _startPositionPolling();
   }
 
   void _pausePreview() {
     ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    _stopPositionPolling();
+  }
+
+  void _startPositionPolling() {
+    _positionTimer?.cancel();
+    _isPolling = true;
+    _positionTimer = Timer.periodic(
+      const Duration(milliseconds: 500),
+      (_) async {
+        if (!mounted || !_isPolling) return;
+        final ms = await ref
+            .read(spotifyRemoteRepositoryProvider)
+            .getPlaybackPositionMs();
+        if (mounted) setState(() => _livePositionMs = ms);
+      },
+    );
+  }
+
+  void _stopPositionPolling() {
+    _positionTimer?.cancel();
+    _positionTimer = null;
+    _isPolling = false;
+    // Keep _livePositionMs so the paused position stays visible.
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _positionTimer?.cancel();
+    nameController.dispose();
+    spotifyUriController.dispose();
+    albumController.dispose();
+    artistController.dispose();
+    mp3UriController.dispose();
+    networkImageUriController.dispose();
+    startTimeController.dispose();
+    super.dispose();
   }
 
   void updateTrack({bool goToNextTrack = false}) {
@@ -261,28 +307,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   }
 
   Widget _buildStartTimeSection(bool isWide, Color primary) {
-    final timeDisplay = Text(
-      _formatMs(_totalStartMs),
-      style: TextStyle(
-        color: primary,
-        fontSize: 22,
-        fontWeight: FontWeight.w700,
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
-    );
 
-    final nudgeMinus = IconButton(
-      icon: const Icon(Icons.remove),
-      tooltip: '-1 second',
-      color: primary,
-      onPressed: () => _nudgeStart(-1000),
-    );
-    final nudgePlus = IconButton(
-      icon: const Icon(Icons.add),
-      tooltip: '+1 second',
-      color: primary,
-      onPressed: () => _nudgeStart(1000),
-    );
     final playBtn = IconButton(
       icon: const Icon(Icons.play_arrow),
       color: primary,
@@ -337,39 +362,67 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
       ),
     );
 
-    final slider = Row(
-      children: [
-        Text(
-          '0:00',
-          style: TextStyle(
-            color: primary.withOpacity(0.5),
-            fontSize: 12,
-          ),
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 6,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-            ),
-            child: Slider(
-              min: 0,
-              max: _maxMs,
-              divisions: _maxMs.toInt() ~/ 100,
-              value: _totalStartMs.clamp(0, _maxMs.toInt()).toDouble(),
-              label: _formatMs(_totalStartMs),
-              activeColor: primary,
-              onChanged: _onSliderChanged,
-              onChangeEnd: _onSliderChangeEnd,
-            ),
-          ),
-        ),
-        Text(
-          trackDurationFormatted,
-          style: TextStyle(color: primary.withOpacity(0.5), fontSize: 12),
-        ),
-      ],
+    final cupertinoSlider = StartTimeSlider(
+      valueMs: _totalStartMs,
+      maxMs: _effectiveMaxMs,
+      color: primary,
+      onChanged: _onSliderChanged,
+      onChangeEnd: _onSliderChangeEnd,
+      onNudgeMinus: () => _nudgeStart(-500),
+      onNudgePlus: () => _nudgeStart(500),
     );
+
+    final livePosition = _livePositionMs > 0
+        ? Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 8,
+                  color: _isPolling ? Colors.green : Colors.grey,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  StartTimeSlider.formatMs(_livePositionMs),
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isPolling ? 'now playing' : 'paused at',
+                  style: TextStyle(
+                    color: primary.withOpacity(0.55),
+                    fontSize: 11,
+                  ),
+                ),
+                if (!_isPolling) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 26,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () =>
+                          _onSliderChanged(_livePositionMs.toDouble()),
+                      child: Text(
+                        'Set as start',
+                        style: TextStyle(fontSize: 12, color: primary),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          )
+        : const SizedBox.shrink();
 
     if (isWide) {
       return _sectionContainer(
@@ -378,18 +431,6 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           children: [
             Row(
               children: [
-                Text(
-                  'Start time',
-                  style: TextStyle(
-                    color: primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Gap(16),
-                timeDisplay,
-                const Gap(4),
-                nudgeMinus,
-                nudgePlus,
                 playBtn,
                 pauseBtn,
                 const Spacer(),
@@ -398,7 +439,8 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                 volumeControls,
               ],
             ),
-            slider,
+            cupertinoSlider,
+            livePosition,
           ],
         ),
       );
@@ -409,26 +451,9 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: label + time
+          // Play/pause + auto preview
           Row(
             children: [
-              Text(
-                'Start time',
-                style: TextStyle(
-                  color: primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Gap(12),
-              timeDisplay,
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Row 2: nudge + play/pause + auto preview
-          Row(
-            children: [
-              nudgeMinus,
-              nudgePlus,
               playBtn,
               pauseBtn,
               const Spacer(),
@@ -444,8 +469,8 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          // Row 4: slider
-          slider,
+          cupertinoSlider,
+          livePosition,
         ],
       ),
     );
@@ -456,9 +481,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     final primary = Theme.of(context).primaryColor;
     final isWide = MediaQuery.of(context).size.width >= 600;
 
-    final titleText = widget.id.isEmpty
-        ? 'Create Track'
-        : '#${widget.index + 1} · ${widget.name}';
+    final titleText = widget.id.isEmpty ? 'Create Track' : widget.name;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -470,6 +493,57 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
         ),
+        actions: [
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.id.isNotEmpty)
+                Text(
+                  '#${widget.index + 1} of ${widget.trackCount}',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous),
+                    tooltip: 'Previous track',
+                    color: primary,
+                    iconSize: 22,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: widget.index > 0
+                        ? () => _navigateTo(widget.index - 1)
+                        : null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_next),
+                    tooltip: 'Next track',
+                    color: primary,
+                    iconSize: 22,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: widget.index < widget.trackCount - 1
+                        ? () => _navigateTo(widget.index + 1)
+                        : null,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -515,32 +589,21 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  OutlinedButton(
+                  DJCancelButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                    ),
+                  const SizedBox(width: 4),
+                  DJPrimaryButton(
+                    label: widget.id.isEmpty ? 'Create' : 'Update',
                     onPressed: () => updateTrack(goToNextTrack: false),
-                    child: Text(
-                      widget.id.isEmpty ? 'Create' : 'Update',
-                      style: const TextStyle(color: Colors.white),
-                    ),
                   ),
                   if (widget.id.isNotEmpty) ...[
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                      ),
+                    const SizedBox(width: 4),
+                    DJPrimaryButton(
+                      label: isWide
+                          ? 'Update & next track'
+                          : 'Update & next',
                       onPressed: () => updateTrack(goToNextTrack: true),
-                      child: Text(
-                        isWide ? 'Update & next track' : 'Update & next',
-                        style: const TextStyle(color: Colors.white),
-                      ),
                     ),
                   ],
                 ],

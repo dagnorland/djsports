@@ -8,12 +8,14 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 class DJPlaylistTrackView extends HookConsumerWidget {
   final DJTrack track;
   final int counter;
+  final DJPlaylistType playlistType;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   const DJPlaylistTrackView({
     super.key,
     required this.track,
     this.counter = 1,
+    required this.playlistType,
     required this.onEdit,
     required this.onDelete,
   });
@@ -61,7 +63,9 @@ class DJPlaylistTrackView extends HookConsumerWidget {
     }
 
     void playTrack() {
-      ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(
+      ref
+          .read(spotifyRemoteRepositoryProvider)
+          .playTrackAndJumpStart(
             track,
             track.startTime + track.startTimeMS,
             DJPlaylistType.hotspot,
@@ -69,64 +73,36 @@ class DJPlaylistTrackView extends HookConsumerWidget {
           );
     }
 
-    Widget trackImage(double size) => track.networkImageUri.isEmpty
-        ? SizedBox(
-            width: size,
-            height: size,
-            child: Icon(
-              Icons.music_note,
-              size: size * 0.65,
-              color: Colors.grey.shade400,
-            ),
-          )
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              track.networkImageUri,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  SizedBox(
+    Widget spotifySourceImage(double size) => Stack(
+      alignment: Alignment.center,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: track.networkImageUri.isNotEmpty
+              ? Image.network(
+                  track.networkImageUri,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    ref
+                        .read(spotifyRemoteRepositoryProvider)
+                        .spotifyLogoFileName,
                     width: size,
                     height: size,
-                    child: Icon(
-                      Icons.cloud_off_outlined,
-                      size: size,
-                      color: Colors.grey.shade400,
-                    ),
+                    fit: BoxFit.cover,
                   ),
-            ),
-          );
-
-    Widget spotifySourceImage(double size) => track.networkImageUri.isEmpty
-        ? SizedBox(
-            width: size,
-            height: size,
-            child: Icon(
-              Icons.play_arrow,
-              size: size * 0.9,
-              color: Colors.black38,
-            ),
-          )
-        : Stack(alignment: Alignment.center, children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .spotifyLogoFileName,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Icon(
-              Icons.play_arrow,
-              size: size * 0.9,
-              color: Colors.black38,
-            ),
-          ]);
+                )
+              : Image.asset(
+                  ref.read(spotifyRemoteRepositoryProvider).spotifyLogoFileName,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                ),
+        ),
+        Icon(Icons.play_arrow, size: size * 0.9, color: Colors.white),
+      ],
+    );
 
     final counterBadge = Container(
       width: 34,
@@ -183,7 +159,9 @@ class DJPlaylistTrackView extends HookConsumerWidget {
               subtitle: Text(
                 subtitleText,
                 style: TextStyle(
-                  color: Colors.grey.shade600,
+                  color: track.startTime + track.startTimeMS == 0
+                      ? playlistType.color
+                      : Colors.grey.shade600,
                   fontSize: 12,
                 ),
               ),
@@ -191,39 +169,26 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                   ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        InkWell(onTap: playTrack, child: trackImage(44)),
-                        const SizedBox(width: 6),
                         InkWell(
                           onTap: playTrack,
                           child: spotifySourceImage(44),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                          ),
-                          onPressed: onEdit,
-                          child: Text(
-                            'Edit',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall!
-                                .copyWith(color: Colors.white),
-                          ),
-                        ),
                         const SizedBox(width: 6),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          onPressed: onEdit,
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            size: 18,
+                            color: Colors.red,
                           ),
                           onPressed: () => confirmDelete(context),
-                          child: Text(
-                            'Delete',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall!
-                                .copyWith(color: Colors.white),
-                          ),
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
                         ),
                       ],
                     )
@@ -233,24 +198,23 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                         InkWell(
                           onTap: playTrack,
                           borderRadius: BorderRadius.circular(8),
-                          child: trackImage(36),
+                          child: spotifySourceImage(36),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.edit, size: 20),
+                          icon: const Icon(Icons.edit, size: 18),
                           onPressed: onEdit,
-                          color: primary,
+                          padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
-                          tooltip: 'Edit',
                         ),
                         IconButton(
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.delete,
-                            size: 20,
-                            color: Colors.red.shade400,
+                            size: 18,
+                            color: Colors.red,
                           ),
                           onPressed: () => confirmDelete(context),
+                          padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
-                          tooltip: 'Delete',
                         ),
                       ],
                     ),

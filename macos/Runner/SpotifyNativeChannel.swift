@@ -58,6 +58,8 @@ class SpotifyNativeChannel: NSObject {
             result(nil)
         case "launchSpotify":
             launchSpotify(result: result)
+        case "openUri":
+            openUri(args: args, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -389,6 +391,29 @@ class SpotifyNativeChannel: NSObject {
                     result(true)
                 }
             }
+        }
+    }
+
+    private func openUri(args: [String: Any], result: @escaping FlutterResult) {
+        guard let uriString = args["uri"] as? String, !uriString.isEmpty else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Missing uri", details: nil))
+            return
+        }
+        guard let url = URL(string: uriString) else {
+            result(FlutterError(code: "INVALID_URI", message: "Cannot parse: \(uriString)", details: nil))
+            return
+        }
+        print("[openUri] trying NSWorkspace.open(\(uriString))")
+        let ok = NSWorkspace.shared.open(url)
+        print("[openUri] NSWorkspace.open → \(ok)")
+        if ok {
+            result(nil)
+        } else {
+            result(FlutterError(
+                code: "OPEN_FAILED",
+                message: "NSWorkspace could not open: \(uriString)",
+                details: nil
+            ))
         }
     }
 

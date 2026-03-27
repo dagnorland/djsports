@@ -83,7 +83,14 @@ abstract class SpotifyPlatformBridge {
   /// Returns an empty map on platforms that don't implement this.
   Future<Map<String, String>> getDebugInfo();
 
+  /// Returns the current Spotify playback position in milliseconds.
+  /// Returns 0 when nothing is playing or on error.
+  Future<int> getPlaybackPositionMs();
+
   Stream<bool> subscribeConnectionStatus();
+
+  /// Opens the Spotify app to the given Spotify URI (e.g. spotify:playlist:xxx).
+  Future<void> openSpotifyUri(String spotifyUri);
 }
 
 class _IosBridge implements SpotifyPlatformBridge {
@@ -95,14 +102,13 @@ class _IosBridge implements SpotifyPlatformBridge {
     required String clientId,
     required String redirectUrl,
     required String scope,
-  }) =>
-      _mc
-          .invokeMethod<String>('getAccessToken', {
-            'clientId': clientId,
-            'redirectUrl': redirectUrl,
-            'scope': scope,
-          })
-          .then((v) => v ?? '');
+  }) => _mc
+      .invokeMethod<String>('getAccessToken', {
+        'clientId': clientId,
+        'redirectUrl': redirectUrl,
+        'scope': scope,
+      })
+      .then((v) => v ?? '');
 
   @override
   Future<bool> connectToSpotifyRemote({
@@ -110,15 +116,14 @@ class _IosBridge implements SpotifyPlatformBridge {
     required String redirectUrl,
     required String scope,
     required String accessToken,
-  }) =>
-      _mc
-          .invokeMethod<bool>('connect', {
-            'clientId': clientId,
-            'redirectUrl': redirectUrl,
-            'scope': scope,
-            'accessToken': accessToken,
-          })
-          .then((v) => v ?? false);
+  }) => _mc
+      .invokeMethod<bool>('connect', {
+        'clientId': clientId,
+        'redirectUrl': redirectUrl,
+        'scope': scope,
+        'accessToken': accessToken,
+      })
+      .then((v) => v ?? false);
 
   @override
   Future<void> play({required String spotifyUri, int positionMs = 0}) =>
@@ -148,11 +153,10 @@ class _IosBridge implements SpotifyPlatformBridge {
   Future<void> playWithPosition({
     required String spotifyUri,
     int positionMs = 0,
-  }) =>
-      _mc.invokeMethod('play', {
-        'spotifyUri': spotifyUri,
-        if (positionMs > 0) 'positionMs': positionMs,
-      });
+  }) => _mc.invokeMethod('play', {
+    'spotifyUri': spotifyUri,
+    if (positionMs > 0) 'positionMs': positionMs,
+  });
 
   @override
   Future<double> getSystemVolume() async =>
@@ -182,8 +186,9 @@ class _IosBridge implements SpotifyPlatformBridge {
   Future<String> reconnectViaSpotify({
     required String clientId,
     required String redirectUrl,
-  }) =>
-      throw UnsupportedError('reconnectViaSpotify is not supported on iOS Web API');
+  }) => throw UnsupportedError(
+    'reconnectViaSpotify is not supported on iOS Web API',
+  );
 
   @override
   Future<Map<String, String>> getDebugInfo() async {
@@ -191,12 +196,20 @@ class _IosBridge implements SpotifyPlatformBridge {
     return (raw ?? {}).map((k, v) => MapEntry(k, v?.toString() ?? ''));
   }
 
+  // Handled via Web API in SpotifyRemoteRepository (needs access token).
+  @override
+  Future<int> getPlaybackPositionMs() async => 0;
+
   @override
   Stream<bool> subscribeConnectionStatus() =>
       _ec.receiveBroadcastStream().map((event) {
         final map = event as Map<dynamic, dynamic>;
         return map['connected'] as bool? ?? false;
       });
+
+  @override
+  Future<void> openSpotifyUri(String spotifyUri) =>
+      launchUrl(Uri.parse(spotifyUri), mode: LaunchMode.externalApplication);
 }
 
 class _MacOSBridge implements SpotifyPlatformBridge {
@@ -209,14 +222,13 @@ class _MacOSBridge implements SpotifyPlatformBridge {
     required String clientId,
     required String redirectUrl,
     required String scope,
-  }) =>
-      _mc
-          .invokeMethod<String>('getAccessToken', {
-            'clientId': clientId,
-            'redirectUrl': redirectUrl,
-            'scope': scope,
-          })
-          .then((v) => v ?? '');
+  }) => _mc
+      .invokeMethod<String>('getAccessToken', {
+        'clientId': clientId,
+        'redirectUrl': redirectUrl,
+        'scope': scope,
+      })
+      .then((v) => v ?? '');
 
   @override
   Future<bool> connectToSpotifyRemote({
@@ -224,15 +236,14 @@ class _MacOSBridge implements SpotifyPlatformBridge {
     required String redirectUrl,
     required String scope,
     required String accessToken,
-  }) =>
-      _mc
-          .invokeMethod<bool>('connect', {
-            'clientId': clientId,
-            'redirectUrl': redirectUrl,
-            'scope': scope,
-            'accessToken': accessToken,
-          })
-          .then((v) => v ?? false);
+  }) => _mc
+      .invokeMethod<bool>('connect', {
+        'clientId': clientId,
+        'redirectUrl': redirectUrl,
+        'scope': scope,
+        'accessToken': accessToken,
+      })
+      .then((v) => v ?? false);
 
   @override
   Future<void> play({required String spotifyUri, int positionMs = 0}) =>
@@ -262,20 +273,19 @@ class _MacOSBridge implements SpotifyPlatformBridge {
   Future<void> playWithPosition({
     required String spotifyUri,
     int positionMs = 0,
-  }) =>
-      _mc.invokeMethod('play', {
-        'spotifyUri': spotifyUri,
-        if (positionMs > 0) 'positionMs': positionMs,
-      });
+  }) => _mc.invokeMethod('play', {
+    'spotifyUri': spotifyUri,
+    if (positionMs > 0) 'positionMs': positionMs,
+  });
 
-  // Volume is controlled via Web API; cache locally since there's no system
-  // listener (same limitation as the old repository.volume field).
   @override
-  Future<double> getSystemVolume() async => _cachedVolume;
+  Future<double> getSystemVolume() async =>
+      await FlutterVolumeController.getVolume() ?? _cachedVolume;
 
   @override
   Future<void> setSystemVolume(double volume) async {
     _cachedVolume = volume;
+    await FlutterVolumeController.setVolume(volume);
     await _mc.invokeMethod('setVolume', {
       'volumePercent': (volume * 100).round(),
     });
@@ -301,11 +311,14 @@ class _MacOSBridge implements SpotifyPlatformBridge {
   Future<String> reconnectViaSpotify({
     required String clientId,
     required String redirectUrl,
-  }) =>
-      throw UnsupportedError('reconnectViaSpotify is iOS-only');
+  }) => throw UnsupportedError('reconnectViaSpotify is iOS-only');
 
   @override
   Future<Map<String, String>> getDebugInfo() async => {};
+
+  // Handled via Web API in SpotifyRemoteRepository (needs access token).
+  @override
+  Future<int> getPlaybackPositionMs() async => 0;
 
   @override
   Stream<bool> subscribeConnectionStatus() =>
@@ -313,6 +326,10 @@ class _MacOSBridge implements SpotifyPlatformBridge {
         final map = event as Map<dynamic, dynamic>;
         return map['connected'] as bool? ?? false;
       });
+
+  @override
+  Future<void> openSpotifyUri(String spotifyUri) =>
+      _mc.invokeMethod('openUri', {'uri': spotifyUri});
 }
 
 class _AndroidBridge implements SpotifyPlatformBridge {
@@ -323,13 +340,12 @@ class _AndroidBridge implements SpotifyPlatformBridge {
     required String clientId,
     required String redirectUrl,
     required String scope,
-  }) =>
-      SpotifySdk.getAccessToken(
-        clientId: clientId,
-        redirectUrl: redirectUrl,
-        scope: scope,
-        asRadio: false,
-      );
+  }) => SpotifySdk.getAccessToken(
+    clientId: clientId,
+    redirectUrl: redirectUrl,
+    scope: scope,
+    asRadio: false,
+  );
 
   @override
   Future<bool> connectToSpotifyRemote({
@@ -337,13 +353,12 @@ class _AndroidBridge implements SpotifyPlatformBridge {
     required String redirectUrl,
     required String scope,
     required String accessToken,
-  }) =>
-      SpotifySdk.connectToSpotifyRemote(
-        clientId: clientId,
-        redirectUrl: redirectUrl,
-        scope: scope,
-        accessToken: accessToken,
-      );
+  }) => SpotifySdk.connectToSpotifyRemote(
+    clientId: clientId,
+    redirectUrl: redirectUrl,
+    scope: scope,
+    accessToken: accessToken,
+  );
 
   @override
   Future<void> play({required String spotifyUri, int positionMs = 0}) =>
@@ -373,8 +388,7 @@ class _AndroidBridge implements SpotifyPlatformBridge {
       await SpotifySdk.play(spotifyUri: spotifyUri);
       return;
     }
-    double savedVolume =
-        await FlutterVolumeController.getVolume() ?? 0.5;
+    double savedVolume = await FlutterVolumeController.getVolume() ?? 0.5;
     if (savedVolume == 0) savedVolume = 0.5;
     await FlutterVolumeController.setVolume(0); // mute
     try {
@@ -421,14 +435,26 @@ class _AndroidBridge implements SpotifyPlatformBridge {
   Future<String> reconnectViaSpotify({
     required String clientId,
     required String redirectUrl,
-  }) =>
-      throw UnsupportedError('reconnectViaSpotify is iOS-only');
+  }) => throw UnsupportedError('reconnectViaSpotify is iOS-only');
 
   @override
   Future<Map<String, String>> getDebugInfo() async => {};
 
   @override
+  Future<int> getPlaybackPositionMs() async {
+    try {
+      final state = await SpotifySdk.getPlayerState();
+      return state?.playbackPosition ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  @override
   Stream<bool> subscribeConnectionStatus() =>
-      SpotifySdk.subscribeConnectionStatus()
-          .map((status) => status.connected);
+      SpotifySdk.subscribeConnectionStatus().map((status) => status.connected);
+
+  @override
+  Future<void> openSpotifyUri(String spotifyUri) =>
+      launchUrl(Uri.parse(spotifyUri), mode: LaunchMode.externalApplication);
 }
