@@ -1,39 +1,44 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  /// Builds the app theme from a dynamic primary color.
+  static ThemeData themeFor(Color primary) {
+    final light = Color.lerp(primary, Colors.white, 0.3)!;
+    final dark = Color.lerp(primary, Colors.black, 0.15)!;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: primary,
+      primary: primary,
+    );
     return ThemeData(
-      primaryColor: const Color(0xFF1DB954), // Spotify grønn
-      primaryColorLight: const Color(0xFF1ED760), // Lysere Spotify grønn
-      primaryColorDark: const Color(0xFF1AA34A), // Mørkere Spotify grønn
-
-      // Andre farger og tema-innstillinger
+      colorScheme: scheme,
+      primaryColor: primary,
+      primaryColorLight: light,
+      primaryColorDark: dark,
       scaffoldBackgroundColor: Colors.white,
       disabledColor: Colors.grey,
-
-      // Text themes
       textTheme: const TextTheme(
         titleLarge: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
-        // Andre tekststiler...
       ),
-
-      // Input decoration
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF1DB954), width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF1DB954), width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
       ),
     );
   }
+
+  /// Convenience getter — Spotify green default.
+  static ThemeData get lightTheme =>
+      themeFor(const Color(0xFF1DB954));
 }

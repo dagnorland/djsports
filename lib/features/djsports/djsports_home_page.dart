@@ -12,13 +12,15 @@ import 'package:djsports/features/djmatch_day/djmatch_day.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
-import 'package:djsports/features/playlist/widgets/type_filter.dart';
 import 'package:djsports/features/track_time/track_time_center_screen.dart';
+import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
+
+const _kMatchModeLabel = "Let's Play!";
 
 class HomePage extends StatefulHookConsumerWidget {
   const HomePage({super.key});
@@ -140,7 +142,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       case 'matchday':
         _navigateTo(DJMatchDayViewPage(refreshCallback: () => setState(() {})));
       case 'newplaylist':
-        ref.invalidate(typeFilteredAllDataProvider);
         _navigateTo(DJPlaylistEditScreen.empty());
       case 'settings':
         _navigateTo(TrackTimeCenterScreen());
@@ -170,7 +171,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           builder: (context, isSilence, _) => Tooltip(
             message: isSilence ? 'Silence playing' : 'Pause',
             child: IconButton(
-              onPressed: () => setState(() { pausePlayer(); }),
+              onPressed: () => setState(() {
+                pausePlayer();
+              }),
               icon: Icon(
                 Icons.pause,
                 color: isSilence
@@ -201,7 +204,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         child: IconButton(
           icon: const Icon(Icons.add, color: Colors.black),
           onPressed: () {
-            ref.invalidate(typeFilteredAllDataProvider);
             _navigateTo(DJPlaylistEditScreen.empty());
           },
         ),
@@ -221,18 +223,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       Padding(
         padding: const EdgeInsets.only(right: 5),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.deepPurple.shade700,
-          ),
+        child: DJPrimaryButton(
+          label: _kMatchModeLabel,
           onPressed: () => _navigateTo(
             DJMatchDayViewPage(refreshCallback: () => setState(() {})),
-          ),
-          child: Text(
-            'djMatchDay',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge!.copyWith(color: Colors.white),
           ),
         ),
       ),
@@ -259,7 +253,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               .read(spotifyRemoteRepositoryProvider)
               .silencePlayingNotifier,
           builder: (context, isSilence, _) => IconButton(
-            onPressed: () => setState(() { pausePlayer(); }),
+            onPressed: () => setState(() {
+              pausePlayer();
+            }),
             icon: Icon(
               Icons.pause,
               size: 22,
@@ -286,12 +282,25 @@ class _HomePageState extends ConsumerState<HomePage> {
         itemBuilder: (context) => [
           PopupMenuItem(
             value: 'matchday',
-            child: Row(
-              children: [
-                Icon(Icons.event, color: Colors.deepPurple.shade700),
-                const SizedBox(width: 10),
-                const Text('djMatchDay'),
-              ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.shade700,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.sports_handball, color: Colors.white),
+                  SizedBox(width: 10),
+                  Text(
+                    _kMatchModeLabel,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const PopupMenuItem(
@@ -331,7 +340,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final playlistList = ref.watch(typeFilteredAllDataProvider);
+    final allPlaylists = ref.watch(hivePlaylistData) ?? <DJPlaylist>[];
     final packageInfo = useFuture(useMemoized(PackageInfo.fromPlatform));
     isPlaying = ref.read(spotifyRemoteRepositoryProvider).isPlaying;
 
@@ -341,130 +350,196 @@ class _HomePageState extends ConsumerState<HomePage> {
         .hasSpotifyAccessToken;
     final version = packageInfo.data?.version;
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _navigateTo(
+          DJMatchDayViewPage(refreshCallback: () => setState(() {})),
+        ),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.sports_handball),
+        label: const Text(
+          _kMatchModeLabel,
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      appBar: AppBar(
+        centerTitle: true,
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          leading: isWide
-              ? Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'v${version ?? '...'}',
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: isWide
+            ? Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'v${version ?? '...'}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                  ),
+                ),
+              )
+            : null,
+        title: isWide
+            ? const Text(
+                'djsports',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'djsports',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (version != null)
+                    Text(
+                      'v$version',
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                     ),
-                  ),
-                )
-              : null,
-          title: isWide
-              ? const Text(
-                  'djsports',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'djsports',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    if (version != null)
-                      Text(
-                        'v$version',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                      ),
-                  ],
-                ),
-          actions: isWide
-              ? _buildWideActions(context, hasToken)
-              : _buildNarrowActions(context, hasToken),
-        ),
-        body: Column(
-          children: [
-            const TypeFilter(),
-            playlistList.isEmpty
-                ? const Center(
-                    child: Text('Make some playlists, and let the game begin!'),
-                  )
-                : Expanded(
-                    flex: 10,
-                    child: ListView.builder(
-                      itemCount: playlistList.length,
-                      itemBuilder: (context, index) {
-                        return DJPlaylistView(
-                          name: playlistList[index].name,
-                          type: playlistList[index].type,
-                          spotifyUri: playlistList[index].spotifyUri,
-                          trackIds: playlistList[index].trackIds,
-                          shuffleAtEnd: playlistList[index].shuffleAtEnd,
-                          autoNext: playlistList[index].autoNext,
-                          currentTrack: playlistList[index].currentTrack,
-                          onTypeChanged: (newType) {
-                            final playlist = playlistList[index];
-                            ref
-                                .read(hivePlaylistData.notifier)
-                                .updateDJPlaylist(
-                                  DJPlaylist(
-                                    id: playlist.id,
-                                    name: playlist.name,
-                                    type: newType,
-                                    spotifyUri: playlist.spotifyUri,
-                                    shuffleAtEnd: playlist.shuffleAtEnd,
-                                    trackIds: playlist.trackIds,
-                                    currentTrack: playlist.currentTrack,
-                                    playCount: playlist.playCount,
-                                    autoNext: playlist.autoNext,
-                                    position: playlist.position,
-                                  ),
-                                );
-                            setState(() {});
-                          },
-                          onEdit: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    DJPlaylistEditScreen.fromDJPlaylist(
-                                      playlistList[index],
-                                      refreshCallback: () {
-                                        setState(() {});
-                                      },
-                                    ),
+                ],
+              ),
+        actions: isWide
+            ? _buildWideActions(context, hasToken)
+            : _buildNarrowActions(context, hasToken),
+      ),
+      body: allPlaylists.isEmpty
+          ? const Center(
+              child: Text('Make some playlists, and let the game begin!'),
+            )
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 88),
+              children: DJPlaylistType.values
+                  .where((t) => t != DJPlaylistType.all)
+                  .map((type) {
+                    final typePlaylists = allPlaylists
+                        .where((p) => p.type == type.name)
+                        .toList();
+                    if (typePlaylists.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return _TypeSection(
+                      type: type,
+                      playlists: typePlaylists,
+                      onEdit: (playlist) => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              DJPlaylistEditScreen.fromDJPlaylist(
+                                playlist,
+                                refreshCallback: () => setState(() {}),
                               ),
-                            );
-                          },
-                          onDelete: () {
-                            ref
-                                .read(hivePlaylistData.notifier)
-                                .removeDJPlaylist(
-                                  ref.read(hiveTrackData.notifier),
-                                  playlistList[index].id,
-                                );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-          ],
+                        ),
+                      ),
+                      onDelete: (playlist) => ref
+                          .read(hivePlaylistData.notifier)
+                          .removeDJPlaylist(
+                            ref.read(hiveTrackData.notifier),
+                            playlist.id,
+                          ),
+                    );
+                  })
+                  .toList(),
+            ),
+    );
+  }
+}
+
+class _TypeSection extends StatefulWidget {
+  const _TypeSection({
+    required this.type,
+    required this.playlists,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final DJPlaylistType type;
+  final List<DJPlaylist> playlists;
+  final void Function(DJPlaylist) onEdit;
+  final void Function(DJPlaylist) onDelete;
+
+  @override
+  State<_TypeSection> createState() => _TypeSectionState();
+}
+
+class _TypeSectionState extends State<_TypeSection> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.type.color;
+    return ExpansionTile(
+      initiallyExpanded: true,
+      onExpansionChanged: (v) => setState(() => _expanded = v),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      title: Text(
+        widget.type.type.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+          letterSpacing: 0.5,
         ),
       ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!_expanded)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${widget.playlists.length}',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          const SizedBox(width: 4),
+          Icon(
+            _expanded ? Icons.expand_less : Icons.expand_more,
+            color: Colors.black45,
+          ),
+        ],
+      ),
+      children: [
+        for (final playlist in widget.playlists)
+          DJPlaylistView(
+            name: playlist.name,
+            type: playlist.type,
+            spotifyUri: playlist.spotifyUri,
+            trackIds: playlist.trackIds,
+            shuffleAtEnd: playlist.shuffleAtEnd,
+            autoNext: playlist.autoNext,
+            currentTrack: playlist.currentTrack,
+            onEdit: () => widget.onEdit(playlist),
+            onDelete: () => widget.onDelete(playlist),
+          ),
+      ],
     );
   }
 }

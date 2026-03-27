@@ -1,7 +1,7 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
-import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -16,7 +16,6 @@ class DJPlaylistView extends HookConsumerWidget {
   final List<String> trackIds;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final void Function(String) onTypeChanged;
   const DJPlaylistView({
     super.key,
     required this.name,
@@ -28,14 +27,10 @@ class DJPlaylistView extends HookConsumerWidget {
     required this.currentTrack,
     required this.onEdit,
     required this.onDelete,
-    required this.onTypeChanged,
   });
 
   Color get _typeColor => DJPlaylistType.values
-      .firstWhere(
-        (e) => e.name == type,
-        orElse: () => DJPlaylistType.hotspot,
-      )
+      .firstWhere((e) => e.name == type, orElse: () => DJPlaylistType.hotspot)
       .color;
 
   @override
@@ -46,6 +41,13 @@ class DJPlaylistView extends HookConsumerWidget {
     final networkImageUri = ref.read(hiveTrackData) != null
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
         : '';
+
+    final allTracks = ref.read(hiveTrackData) ?? [];
+    final trackDots = trackIds.map((id) {
+      final idx = allTracks.indexWhere((t) => t.id == id);
+      final startTime = allTracks[idx].startTime + (allTracks[idx].startTimeMS);
+      return idx >= 0 && startTime > 0;
+    }).toList();
 
     Widget albumArt(double size) => networkImageUri.isEmpty
         ? SizedBox(
@@ -64,70 +66,14 @@ class DJPlaylistView extends HookConsumerWidget {
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) => SizedBox(
               width: size,
-            height: size,
-            child: Icon(
-              Icons.cloud_off_outlined,
-              size: size,
-              color: Colors.grey.shade400,
+              height: size,
+              child: Icon(
+                Icons.cloud_off_outlined,
+                size: size,
+                color: Colors.grey.shade400,
+              ),
             ),
-          ),
           );
-
-    Widget spotifySourceImage(double size) => networkImageUri.isEmpty
-        ? SizedBox(
-            width: size,
-            height: size,
-            child: Icon(Icons.play_arrow, size: size, color: Colors.black38),
-          )
-        : Stack(alignment: Alignment.center, children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .spotifyLogoFileName,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Icon(Icons.play_arrow, size: size, color: Colors.black38),
-          ]);
-
-    final typeDropdown = Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: DropdownButton<String>(
-        value: type,
-        isDense: true,
-        underline: const SizedBox(),
-        isExpanded: true,
-        items: DJPlaylistType.values
-            .where((t) => t != DJPlaylistType.all)
-            .map(
-              (t) => DropdownMenuItem(
-                value: t.name,
-                child: Text(
-                  t.name.toUpperCase(),
-                  style: TextStyle(
-                    color: t.color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-        onChanged: (v) {
-          if (v != null) onTypeChanged(v);
-        },
-      ),
-    );
 
     final trackCountBadge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -179,21 +125,21 @@ class DJPlaylistView extends HookConsumerWidget {
                 name: name,
                 spotifyUri: spotifyUri,
                 albumArt: albumArt(46),
-                spotifySource: spotifySourceImage(40),
-                typeDropdown: typeDropdown,
                 trackCountBadge: trackCountBadge,
+                trackDots: trackDots,
+                dotColor: typeColor,
                 onEdit: onEdit,
                 onDelete: () => confirmDelete(context),
-                primary: primary,
               )
             : _NarrowContent(
                 name: name,
+                spotifyUri: spotifyUri,
                 albumArt: albumArt(44),
-                typeDropdown: typeDropdown,
                 trackCountBadge: trackCountBadge,
+                trackDots: trackDots,
+                dotColor: typeColor,
                 onEdit: onEdit,
                 onDelete: () => confirmDelete(context),
-                primary: primary,
               );
 
         return Padding(
@@ -225,21 +171,23 @@ class DJPlaylistView extends HookConsumerWidget {
 
 class _NarrowContent extends StatelessWidget {
   final String name;
+  final String spotifyUri;
   final Widget albumArt;
-  final Widget typeDropdown;
   final Widget trackCountBadge;
+  final List<bool> trackDots;
+  final Color dotColor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final Color primary;
 
   const _NarrowContent({
     required this.name,
+    required this.spotifyUri,
     required this.albumArt,
-    required this.typeDropdown,
     required this.trackCountBadge,
+    required this.trackDots,
+    required this.dotColor,
     required this.onEdit,
     required this.onDelete,
-    required this.primary,
   });
 
   @override
@@ -248,15 +196,12 @@ class _NarrowContent extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: albumArt,
-          ),
+          ClipRRect(borderRadius: BorderRadius.circular(8), child: albumArt),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   name,
@@ -267,40 +212,20 @@ class _NarrowContent extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(child: typeDropdown),
-                    const SizedBox(width: 6),
-                    trackCountBadge,
-                  ],
-                ),
+                const SizedBox(height: 4),
+                _TrackDots(dots: trackDots, color: dotColor),
               ],
             ),
           ),
-          const SizedBox(width: 4),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit, size: 20),
-                onPressed: onEdit,
-                color: primary,
-                visualDensity: VisualDensity.compact,
-                tooltip: 'Edit',
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.delete,
-                  size: 20,
-                  color: Colors.red.shade400,
-                ),
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
-                tooltip: 'Delete',
-              ),
-            ],
+          const SizedBox(width: 6),
+          trackCountBadge,
+          IconButton(
+            icon: const Icon(Icons.edit, size: 18),
+            onPressed: onEdit,
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
           ),
+          _ActionsMenu(spotifyUri: spotifyUri, onDelete: onDelete),
         ],
       ),
     );
@@ -311,44 +236,35 @@ class _WideContent extends StatelessWidget {
   final String name;
   final String spotifyUri;
   final Widget albumArt;
-  final Widget spotifySource;
-  final Widget typeDropdown;
   final Widget trackCountBadge;
+  final List<bool> trackDots;
+  final Color dotColor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final Color primary;
 
   const _WideContent({
     required this.name,
     required this.spotifyUri,
     required this.albumArt,
-    required this.spotifySource,
-    required this.typeDropdown,
     required this.trackCountBadge,
+    required this.trackDots,
+    required this.dotColor,
     required this.onEdit,
     required this.onDelete,
-    required this.primary,
   });
 
   @override
   Widget build(BuildContext context) {
-    final uriDisplay = spotifyUri.length > 50
-        ? spotifyUri.substring(0, 50)
-        : spotifyUri;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: albumArt,
-          ),
+          ClipRRect(borderRadius: BorderRadius.circular(8), child: albumArt),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   name,
@@ -359,55 +275,98 @@ class _WideContent extends StatelessWidget {
                     fontSize: 15,
                   ),
                 ),
-                if (uriDisplay.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    uriDisplay,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+                const SizedBox(height: 4),
+                _TrackDots(dots: trackDots, color: dotColor),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          spotifySource,
-          const SizedBox(width: 8),
-          SizedBox(width: 150, child: typeDropdown),
-          const SizedBox(width: 8),
           trackCountBadge,
-          const SizedBox(width: 10),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-            ),
+          IconButton(
+            icon: const Icon(Icons.edit, size: 18),
             onPressed: onEdit,
-            child: Text(
-              'Edit',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall!.copyWith(color: Colors.white),
-            ),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
           ),
-          const SizedBox(width: 6),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-            ),
-            onPressed: onDelete,
-            child: Text(
-              'Delete',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall!.copyWith(color: Colors.white),
-            ),
-          ),
+          _ActionsMenu(spotifyUri: spotifyUri, onDelete: onDelete),
         ],
       ),
+    );
+  }
+}
+
+class _TrackDots extends StatelessWidget {
+  const _TrackDots({required this.dots, required this.color});
+
+  final List<bool> dots;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (dots.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 3,
+      runSpacing: 3,
+      children: dots
+          .map(
+            (hasTime) => Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: hasTime ? color : color.withOpacity(0.5),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _ActionsMenu extends StatelessWidget {
+  const _ActionsMenu({required this.spotifyUri, required this.onDelete});
+
+  final String spotifyUri;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert),
+      onSelected: (value) async {
+        if (value == 'spotify') {
+          final uri = 'spotify:playlist:$spotifyUri';
+          debugPrint('[openSpotifyUri] $uri');
+          try {
+            await SpotifyPlatformBridge().openSpotifyUri(uri);
+          } catch (e) {
+            debugPrint('[openSpotifyUri] ERROR: $e');
+          }
+        }
+        if (value == 'delete') onDelete();
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: 'spotify',
+          child: Row(
+            children: [
+              Icon(Icons.open_in_new, size: 18),
+              SizedBox(width: 10),
+              Text('Open in Spotify'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete, size: 18, color: Colors.red),
+              SizedBox(width: 10),
+              Text('Delete', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

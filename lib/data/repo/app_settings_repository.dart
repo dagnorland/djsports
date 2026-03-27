@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
 /// Simple key-value settings backed by a plain Hive box named 'settings'.
@@ -6,6 +7,9 @@ class AppSettings {
   static const _boxName = 'settings';
   static const _sidebarOnRightKey = 'sidebarOnRight';
   static const _keyboardShortcutsEnabledKey = 'keyboardShortcutsEnabled';
+  static const _themeColorKey = 'themeColor';
+  // Default: Spotify green
+  static const _defaultThemeColor = 0xFF1DB954;
 
   static Box<dynamic> get _box => Hive.box<dynamic>(_boxName);
 
@@ -24,4 +28,12 @@ class AppSettings {
 
   static Future<void> setKeyboardShortcutsEnabled(bool value) =>
       _box.put(_keyboardShortcutsEnabledKey, value);
+
+  /// Persisted primary theme color.
+  static Color get themeColor => Color(
+        _box.get(_themeColorKey, defaultValue: _defaultThemeColor) as int,
+      );
+
+  static Future<void> setThemeColor(Color color) =>
+      _box.put(_themeColorKey, color.value);
 }

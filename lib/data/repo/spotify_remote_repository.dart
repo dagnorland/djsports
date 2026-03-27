@@ -129,6 +129,24 @@ class SpotifyRemoteRepository {
 
   Future<List<String>> getActiveDevices() => _bridge.getActiveDevices();
 
+  /// Returns the current Spotify playback position in milliseconds.
+  /// Polls the Spotify Web API on iOS/macOS; uses the SDK on Android.
+  Future<int> getPlaybackPositionMs() async {
+    if (!hasSpotifyAccessToken || lastValidAccessToken.isEmpty) return 0;
+    if (Platform.isAndroid) return _bridge.getPlaybackPositionMs();
+    try {
+      final resp = await http.get(
+        Uri.parse('https://api.spotify.com/v1/me/player'),
+        headers: {'Authorization': 'Bearer $lastValidAccessToken'},
+      );
+      if (resp.statusCode == 200 && resp.body.isNotEmpty) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        return (data['progress_ms'] as num?)?.toInt() ?? 0;
+      }
+    } catch (_) {}
+    return 0;
+  }
+
   Future<bool> connect() async {
     if (_isConnecting) {
       debugPrint(
