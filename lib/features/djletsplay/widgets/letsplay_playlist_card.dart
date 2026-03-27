@@ -12,8 +12,8 @@ import 'package:toastification/toastification.dart';
 
 enum _NoDeviceAction { cancel, openSpotify }
 
-class MatchDayPlaylistCard extends ConsumerStatefulWidget {
-  const MatchDayPlaylistCard({
+class LetsPlayPlaylistCard extends ConsumerStatefulWidget {
+  const LetsPlayPlaylistCard({
     super.key,
     required this.playlistId,
     required this.playlistName,
@@ -31,11 +31,11 @@ class MatchDayPlaylistCard extends ConsumerStatefulWidget {
   final ValueNotifier<int>? playTrigger;
 
   @override
-  ConsumerState<MatchDayPlaylistCard> createState() =>
-      _MatchDayPlaylistCardState();
+  ConsumerState<LetsPlayPlaylistCard> createState() =>
+      _LetsPlayPlaylistCardState();
 }
 
-class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
+class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     with SingleTickerProviderStateMixin {
   late int _currentIndex;
   bool _goingForward = true;
@@ -55,7 +55,7 @@ class _MatchDayPlaylistCardState extends ConsumerState<MatchDayPlaylistCard>
   }
 
   @override
-  void didUpdateWidget(MatchDayPlaylistCard oldWidget) {
+  void didUpdateWidget(LetsPlayPlaylistCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.playTrigger != widget.playTrigger) {
       oldWidget.playTrigger?.removeListener(_onKeyboardTrigger);

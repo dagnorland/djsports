@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.1] - Release 2026-03-27
+
+### Changed
+- **Settings screen refactored** — `TrackTimeCenterScreen` is now a unified
+  tabbed Settings screen with four tabs: Settings, Playlists, Start Times, and
+  Spotify Diagnostics; replaces the old single-purpose track-time-only screen
+- **`DJLetsPlayViewPage`** — match-day view extracted into its own
+  `lib/features/djletsplay/` feature, replacing the old `djmatch_day` feature
+
+### Fixed
+- Typo in start time tab: "crrently" → "currently"
+
 ## [3.3.0] - Release 2026-03-27
 
 ### Added

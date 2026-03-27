@@ -7,25 +7,25 @@ import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
-import 'package:djsports/features/djmatch_day/widgets/debug_log_sheet.dart';
-import 'package:djsports/features/djmatch_day/widgets/match_day_playlist_card.dart';
+import 'package:djsports/features/djletsplay/widgets/debug_log_sheet.dart';
+import 'package:djsports/features/djletsplay/widgets/letsplay_playlist_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:toastification/toastification.dart';
 
-class DJMatchDayViewPage extends StatefulHookConsumerWidget {
-  const DJMatchDayViewPage({super.key, this.refreshCallback});
+class DJLetsPlayViewPage extends StatefulHookConsumerWidget {
+  const DJLetsPlayViewPage({super.key, this.refreshCallback});
 
   final VoidCallback? refreshCallback;
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() =>
-      _DJMatchDayViewPageState();
+      _DJLetsPlayViewPageState();
 }
 
-class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
+class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   bool isPlaying = false;
 
   final Map<String, ValueNotifier<int>> _playTriggers = {};
@@ -259,7 +259,7 @@ class _DJMatchDayViewPageState extends ConsumerState<DJMatchDayViewPage> {
                 final shortcutKey = AppSettings.keyboardShortcutsEnabled
                     ? _shortcutKeyForType(pType, i)
                     : null;
-                return MatchDayPlaylistCard(
+                return LetsPlayPlaylistCard(
                   playlistId: playlist.id,
                   playlistName: playlist.name,
                   playlistType: pType,
