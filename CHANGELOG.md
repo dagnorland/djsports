@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.2] - Release 2026-03-29
+
+### Added
+- **Playlist reordering** — playlists can now be drag-reordered within each
+  type section on the home page; the new order is persisted via the `position`
+  field; the full tile acts as the drag handle (no separate icon)
+
+### Fixed
+- **Auto-next respects playlist setting** — advancing to the next track after
+  playback now only happens when the playlist's *Auto Next* toggle is enabled
+- **Shortcut key badge no longer overlaps track counter** — the keyboard
+  shortcut badge in the match-day card is now inline in the header row, left
+  of the playlist name, so it no longer covers the `#1/5` track counter
+
 ## [3.3.1] - Release 2026-03-27
 
 ### Changed

@@ -89,6 +89,27 @@ class DJPlaylistHive extends Notifier<List<DJPlaylist>?> {
     djPlaylist.addTrack(djTrack.id);
     return repo.updateDJPlaylist(djPlaylist);
   }
+
+  void reorderPlaylistsOfType(
+    String typeName,
+    int oldIndex,
+    int newIndex,
+  ) {
+    final typePlaylists = state!
+        .where((p) => p.type == typeName)
+        .toList()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    if (newIndex > oldIndex) newIndex -= 1;
+    final item = typePlaylists.removeAt(oldIndex);
+    typePlaylists.insert(newIndex, item);
+
+    for (int i = 0; i < typePlaylists.length; i++) {
+      typePlaylists[i].position = i;
+      repo.updateDJPlaylist(typePlaylists[i]);
+    }
+    fetchDJPlaylist();
+  }
 }
 
 extension on DJPlaylist {

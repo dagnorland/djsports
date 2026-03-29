@@ -219,6 +219,7 @@ class _NarrowContent extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           trackCountBadge,
+          const SizedBox(width: 6),
           IconButton(
             icon: const Icon(Icons.edit, size: 18),
             onPressed: onEdit,
@@ -282,6 +283,7 @@ class _WideContent extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           trackCountBadge,
+          const SizedBox(width: 10),
           IconButton(
             icon: const Icon(Icons.edit, size: 18),
             onPressed: onEdit,

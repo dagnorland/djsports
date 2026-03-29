@@ -78,7 +78,13 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
         ref.read(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
     if (tracks.isEmpty) return;
     final idx = _currentIndex.clamp(0, tracks.length - 1);
-    _playTrack(tracks[idx], idx, tracks.length, playlist.shuffleAtEnd);
+    _playTrack(
+      tracks[idx],
+      idx,
+      tracks.length,
+      playlist.shuffleAtEnd,
+      playlist.autoNext,
+    );
   }
 
   String _truncate(String text, int max) {
@@ -174,6 +180,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     int idx,
     int trackCount,
     bool shuffleAtEnd,
+    bool autoNext,
     String errorMessage,
   ) async {
     final reconnect = await showDialog<bool>(
@@ -215,7 +222,10 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     if (!mounted) return;
 
     if (success) {
-      await _playTrack(track, idx, trackCount, shuffleAtEnd, retry: false);
+      await _playTrack(
+        track, idx, trackCount, shuffleAtEnd, autoNext,
+        retry: false,
+      );
     } else {
       final err = ref.read(spotifyRemoteRepositoryProvider).lastConnectError;
       _showToast(
@@ -275,7 +285,8 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     DJTrack track,
     int idx,
     int trackCount,
-    bool shuffleAtEnd, {
+    bool shuffleAtEnd,
+    bool autoNext, {
     bool retry = true,
   }) async {
     _autoNextTimer?.cancel();
@@ -304,10 +315,13 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
           .forceFullReconnect();
       if (!mounted) return;
       if (success) {
-        await _playTrack(track, idx, trackCount, shuffleAtEnd, retry: false);
+        await _playTrack(
+          track, idx, trackCount, shuffleAtEnd, autoNext,
+          retry: false,
+        );
       } else {
         await _showReconnectDialog(
-          track, idx, trackCount, shuffleAtEnd, response,
+          track, idx, trackCount, shuffleAtEnd, autoNext, response,
         );
       }
       return;
@@ -319,10 +333,12 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
       await ref
           .read(lastDjTrackPlayedProvider.notifier)
           .updateLastPlayedTrack(track);
-      _autoNextTimer = Timer(
-        const Duration(seconds: 2),
-        () => _autoNext(idx, trackCount, shuffleAtEnd),
-      );
+      if (autoNext) {
+        _autoNextTimer = Timer(
+          const Duration(seconds: 2),
+          () => _autoNext(idx, trackCount, shuffleAtEnd),
+        );
+      }
     }
     if (!mounted) return;
     final startMs = track.startTime + track.startTimeMS;
@@ -374,45 +390,14 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
                   ),
                 ),
               ),
-              if (widget.shortcutKey != null)
-                Positioned(
-                  top: 3,
-                  right: 3,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: borderColor,
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        widget.shortcutKey!.toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                          color: Colors.white,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         );
       },
       child: InkWell(
-        onTap: () =>
-            _playTrack(track, idx, tracks.length, playlist.shuffleAtEnd),
+        onTap: () => _playTrack(
+          track, idx, tracks.length, playlist.shuffleAtEnd, playlist.autoNext,
+        ),
         borderRadius: BorderRadius.circular(6),
         child: Container(
           width: double.infinity,
@@ -433,9 +418,30 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: playlist name + track counter
+              // Header: shortcut key + playlist name + track counter
               Row(
                 children: [
+                  if (widget.shortcutKey != null) ...[
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.shortcutKey!.toUpperCase(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          color: Colors.white,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                  ],
                   Expanded(
                     child: Text(
                       widget.playlistName.toUpperCase(),
@@ -541,6 +547,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
                       idx,
                       tracks.length,
                       playlist.shuffleAtEnd,
+                      playlist.autoNext,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
