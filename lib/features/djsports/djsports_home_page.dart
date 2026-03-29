@@ -426,7 +426,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                   .map((type) {
                     final typePlaylists = allPlaylists
                         .where((p) => p.type == type.name)
-                        .toList();
+                        .toList()
+                      ..sort(
+                        (a, b) => a.position.compareTo(b.position),
+                      );
                     if (typePlaylists.isEmpty) {
                       return const SizedBox.shrink();
                     }
@@ -449,6 +452,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                             ref.read(hiveTrackData.notifier),
                             playlist.id,
                           ),
+                      onReorder: (oldIndex, newIndex) => ref
+                          .read(hivePlaylistData.notifier)
+                          .reorderPlaylistsOfType(
+                            type.name,
+                            oldIndex,
+                            newIndex,
+                          ),
                     );
                   })
                   .toList(),
@@ -463,12 +473,14 @@ class _TypeSection extends StatefulWidget {
     required this.playlists,
     required this.onEdit,
     required this.onDelete,
+    required this.onReorder,
   });
 
   final DJPlaylistType type;
   final List<DJPlaylist> playlists;
   final void Function(DJPlaylist) onEdit;
   final void Function(DJPlaylist) onDelete;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   State<_TypeSection> createState() => _TypeSectionState();
@@ -527,18 +539,30 @@ class _TypeSectionState extends State<_TypeSection> {
         ],
       ),
       children: [
-        for (final playlist in widget.playlists)
-          DJPlaylistView(
-            name: playlist.name,
-            type: playlist.type,
-            spotifyUri: playlist.spotifyUri,
-            trackIds: playlist.trackIds,
-            shuffleAtEnd: playlist.shuffleAtEnd,
-            autoNext: playlist.autoNext,
-            currentTrack: playlist.currentTrack,
-            onEdit: () => widget.onEdit(playlist),
-            onDelete: () => widget.onDelete(playlist),
-          ),
+        ReorderableListView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          onReorder: widget.onReorder,
+          children: [
+            for (int i = 0; i < widget.playlists.length; i++)
+              ReorderableDragStartListener(
+                key: ValueKey(widget.playlists[i].id),
+                index: i,
+                child: DJPlaylistView(
+                  name: widget.playlists[i].name,
+                  type: widget.playlists[i].type,
+                  spotifyUri: widget.playlists[i].spotifyUri,
+                  trackIds: widget.playlists[i].trackIds,
+                  shuffleAtEnd: widget.playlists[i].shuffleAtEnd,
+                  autoNext: widget.playlists[i].autoNext,
+                  currentTrack: widget.playlists[i].currentTrack,
+                  onEdit: () => widget.onEdit(widget.playlists[i]),
+                  onDelete: () => widget.onDelete(widget.playlists[i]),
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }
