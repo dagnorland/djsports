@@ -10,6 +10,7 @@ import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:djsports/features/cloud_backup/cloud_backup_screen.dart';
 import 'package:djsports/features/djletsplay/djletsplay.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
+import 'package:djsports/features/djsports/first_time_use_screen.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/track_time/settings_center_screen.dart';
@@ -416,9 +417,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             : _buildNarrowActions(context, hasToken),
       ),
       body: allPlaylists.isEmpty
-          ? const Center(
-              child: Text('Make some playlists, and let the game begin!'),
-            )
+          ? const FirstTimeUseScreen()
           : ListView(
               padding: const EdgeInsets.only(bottom: 88),
               children: DJPlaylistType.values

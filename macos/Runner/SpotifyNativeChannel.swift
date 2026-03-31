@@ -722,6 +722,15 @@ class SpotifyNativeChannel: NSObject {
                     if http.statusCode >= 400 {
                         let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? "(no body)"
                         print("[SpotifyMacOS] Web API error body: \(body)")
+                        // 403 "Restriction violated" means the player state doesn't
+                        // allow the command right now (e.g. nothing is playing, already
+                        // paused, no active device). Treat as a no-op success so the
+                        // app doesn't show errors when Spotify is idle.
+                        if http.statusCode == 403 && body.contains("Restriction violated") {
+                            print("[SpotifyMacOS] Ignoring restriction violation — player idle or command not applicable")
+                            result(nil)
+                            return
+                        }
                         result(FlutterError(code: "API_ERROR", message: "HTTP \(http.statusCode): \(body)", details: nil))
                         return
                     }

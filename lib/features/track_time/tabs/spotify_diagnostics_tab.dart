@@ -38,6 +38,12 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
           children: [
             globalInfoBox(
               context,
+              'SPOTIFY ACCOUNT',
+              _accountSection(repo),
+            ),
+            const Gap(20),
+            globalInfoBox(
+              context,
               'SPOTIFY DIAGNOSTIC',
               _diagSection(context, repo),
             ),
@@ -45,6 +51,63 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _accountSection(SpotifyRemoteRepository repo) {
+    return ValueListenableBuilder<String>(
+      valueListenable: repo.spotifyUserIdNotifier,
+      builder: (context, userId, _) {
+        final displayName = repo.spotifyUserDisplayName;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            children: [
+              _accountRow(
+                icon: Icons.person_outline,
+                label: 'Display name',
+                value: displayName.isEmpty ? '— not connected' : displayName,
+                valueColor: displayName.isEmpty ? Colors.black38 : Colors.black87,
+              ),
+              const SizedBox(height: 8),
+              _accountRow(
+                icon: Icons.badge_outlined,
+                label: 'User ID',
+                value: userId.isEmpty ? '— not connected' : userId,
+                valueColor: userId.isEmpty ? Colors.black38 : Colors.black54,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _accountRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.black45),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+        ),
+        Expanded(
+          child: SelectableText(
+            value,
+            style: TextStyle(fontSize: 13, color: valueColor),
+          ),
+        ),
+      ],
     );
   }
 
