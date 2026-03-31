@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.4.0] - Release 2026-03-31
 
+### App Store prep
+- **PrivacyInfo.xcprivacy** added to `ios/Runner/` — declares UserDefaults
+  (CA92.1), FileTimestamp (C617.1) and DiskSpace (E174.1) API access; declares
+  Spotify user ID and user-created playlist content as collected data (app
+  functionality only, no tracking)
+- **`CFBundleDisplayName`** corrected from `"Djsports"` to `"djSports"`
+- **`UIBackgroundModes`** — `audio` and `fetch` added to Info.plist for
+  background audio playback via `audio_service`
+- **`LSApplicationCategoryType`** set to `public.app-category.music`
+  (was empty string)
+
 ### Added
 - **Welcome / first-time-use screen** — shown when no playlists exist; covers
   Spotify connection steps, playlist type guide, how to add playlists, Profile &
