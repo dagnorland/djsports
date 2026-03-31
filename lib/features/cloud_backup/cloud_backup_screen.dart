@@ -1,3 +1,4 @@
+import 'package:djsports/data/provider/backup_profile_provider.dart';
 import 'package:djsports/data/provider/cloud_backup_provider.dart';
 import 'package:djsports/data/provider/device_name_provider.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
@@ -27,6 +28,15 @@ class CloudBackupScreen extends HookConsumerWidget {
     final spotifyUserId = useValueListenable(repo.spotifyUserIdNotifier);
     final displayName = repo.spotifyUserDisplayName;
 
+    final profileName = ref.watch(backupProfileProvider);
+    final profileCtrl = useTextEditingController(
+      text: ref.read(backupProfileProvider),
+    );
+    final pinCtrl = useTextEditingController(
+      text: ref.read(backupPinProvider),
+    );
+    final pinVisible = useState(false);
+    final profileKey = ref.watch(backupProfileKeyProvider);
     final deviceNameCtrl = useTextEditingController(
       text: ref.read(deviceNameProvider),
     );
@@ -44,13 +54,14 @@ class CloudBackupScreen extends HookConsumerWidget {
     void clearStatus() => statusMessage.value = null;
 
     Future<void> doBackup() async {
-      print('[CloudBackup] doBackup called — userId=$spotifyUserId device=${deviceNameCtrl.text.trim()}');
+      print('[CloudBackup] doBackup called — key=$profileKey device=${deviceNameCtrl.text.trim()}');
       clearStatus();
       isSaving.value = true;
       try {
         final service = ref.read(cloudBackupServiceProvider);
         print('[CloudBackup] calling createBackup…');
         await service.createBackup(
+          profileName: profileKey,
           spotifyUserId: spotifyUserId,
           spotifyDisplayName: displayName,
           deviceName: deviceNameCtrl.text.trim(),
@@ -59,7 +70,7 @@ class CloudBackupScreen extends HookConsumerWidget {
           trackTimeRepo: TrackTimeRepo(),
         );
         print('[CloudBackup] createBackup succeeded');
-        ref.invalidate(cloudBackupListProvider(spotifyUserId));
+        ref.invalidate(cloudBackupListProvider(profileKey));
         showStatus('Backup created successfully.');
       } catch (e, st) {
         print('[CloudBackup] createBackup ERROR: $e\n$st');
@@ -156,14 +167,14 @@ class CloudBackupScreen extends HookConsumerWidget {
       clearStatus();
       try {
         await ref.read(cloudBackupServiceProvider).deleteBackup(backup.id);
-        ref.invalidate(cloudBackupListProvider(spotifyUserId));
+        ref.invalidate(cloudBackupListProvider(profileKey));
         showStatus('Backup deleted.');
       } catch (e) {
         showStatus('Delete failed: $e', error: true);
       }
     }
 
-    final backupsAsync = ref.watch(cloudBackupListProvider(spotifyUserId));
+    final backupsAsync = ref.watch(cloudBackupListProvider(profileKey));
 
     return Scaffold(
       appBar: AppBar(
@@ -176,14 +187,87 @@ class CloudBackupScreen extends HookConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionHeader(label: 'Spotify account'),
-          _InfoRow(label: 'Display name', value: displayName.isEmpty ? '—' : displayName),
-          _InfoRow(
-            label: 'User ID',
-            value: spotifyUserId.isEmpty
-                ? 'Not connected — connect Spotify first'
-                : spotifyUserId,
+          _SectionHeader(label: 'Profile'),
+          const Text(
+            'Shared name + 4-digit PIN used to group backups across all '
+            'your devices. Every device with the same Profile and PIN '
+            'sees the same backups.',
+            style: TextStyle(color: Colors.black54, fontSize: 13),
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: profileCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Profile name',
+                    hintText: 'e.g. Oslo Vikings',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: pinCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  obscureText: !pinVisible.value,
+                  decoration: InputDecoration(
+                    labelText: 'PIN',
+                    hintText: '1234',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    counterText: '',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        pinVisible.value
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 18,
+                      ),
+                      onPressed: () =>
+                          pinVisible.value = !pinVisible.value,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () async {
+                  final pin = pinCtrl.text.trim();
+                  if (pin.length != 4) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('PIN must be exactly 4 digits.'),
+                      ),
+                    );
+                    return;
+                  }
+                  await ref
+                      .read(backupProfileProvider.notifier)
+                      .setProfile(profileCtrl.text.trim());
+                  await ref.read(backupPinProvider.notifier).setPin(pin);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile & PIN saved.')),
+                    );
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+          if (profileKey.isEmpty) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Set a Profile name and 4-digit PIN to enable cloud backup.',
+              style: TextStyle(color: Colors.orange, fontSize: 13),
+            ),
+          ],
           const SizedBox(height: 24),
           _SectionHeader(label: 'Device name'),
           const Text(
@@ -225,7 +309,7 @@ class CloudBackupScreen extends HookConsumerWidget {
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: (isSaving.value || spotifyUserId.isEmpty)
+            onPressed: (isSaving.value || profileKey.isEmpty)
                 ? null
                 : doBackup,
             icon: isSaving.value
@@ -268,9 +352,9 @@ class CloudBackupScreen extends HookConsumerWidget {
           ],
           const SizedBox(height: 24),
           _SectionHeader(label: 'Existing backups'),
-          if (spotifyUserId.isEmpty)
+          if (profileName.isEmpty)
             const Text(
-              'Connect Spotify to see your backups.',
+              'Set a Profile name above to see your backups.',
               style: TextStyle(color: Colors.black54),
             )
           else
@@ -328,37 +412,6 @@ class _SectionHeader extends StatelessWidget {
             .textTheme
             .titleMedium
             ?.copyWith(fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.black54, fontSize: 13),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
-        ],
       ),
     );
   }

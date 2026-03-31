@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - Release 2026-03-31
+
+### Added
+- **Welcome / first-time-use screen** — shown when no playlists exist; covers
+  Spotify connection steps, playlist type guide, how to add playlists, Profile &
+  Device Name setup, and a one-tap *djSports Example Setup* button
+- **djSports Example Setup** — creates 5 real Spotify playlists (HotSpot,
+  Match ×2, Fun Stuff, Pre Match) by syncing directly from Spotify; live
+  per-playlist progress indicator shows pending → syncing → done/error
+- **Login to Spotify button** on the welcome screen — clears the current
+  session and triggers a fresh PKCE OAuth flow; shows the connected account
+  name and user ID after a successful login
+- **Cloud Backup: Profile + PIN** — backups are now keyed on a shared
+  *Profile name* + 4-digit PIN instead of Spotify user ID, so multiple
+  devices can share the same backup pool without using the same Spotify
+  account; PIN visibility toggle added on both the welcome screen and the
+  Cloud Backup settings screen
+- **Spotify account info moved to Settings → Spotify tab** — display name and
+  user ID are now shown in the Spotify Diagnostics tab instead of the Cloud
+  Backup screen
+- **Spotify URI field on track edit screen** — the URI field was wired but not
+  visible; it is now shown and editable in the track metadata section
+- **Check for backups** button on the welcome screen — looks up existing cloud
+  backups for the saved Profile + PIN and offers to open Cloud Backup for
+  restore
+
+### Fixed
+- Sample/example playlists with an empty Spotify URI no longer trigger the
+  duplicate-URI guard in the playlist repository
+
 ## [3.3.2] - Release 2026-03-29
 
 ### Added

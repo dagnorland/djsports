@@ -7,7 +7,7 @@ final cloudBackupServiceProvider = Provider<CloudBackupService>(
 
 final cloudBackupListProvider = FutureProvider.family<
     List<CloudBackupSummary>, String>(
-  (ref, spotifyUserId) => ref
+  (ref, profileName) => ref
       .watch(cloudBackupServiceProvider)
-      .listBackupsForAccount(spotifyUserId),
+      .listBackupsForProfile(profileName),
 );

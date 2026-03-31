@@ -11,6 +11,7 @@ import 'package:djsports/data/repo/track_time_repository.dart';
 class CloudBackupSummary {
   const CloudBackupSummary({
     required this.id,
+    required this.profileName,
     required this.spotifyUserId,
     required this.spotifyDisplayName,
     required this.deviceName,
@@ -22,6 +23,7 @@ class CloudBackupSummary {
   });
 
   final String id;
+  final String profileName;
   final String spotifyUserId;
   final String spotifyDisplayName;
   final String deviceName;
@@ -40,6 +42,7 @@ class CloudBackupService {
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   Future<void> createBackup({
+    required String profileName,
     required String spotifyUserId,
     required String spotifyDisplayName,
     required String deviceName,
@@ -55,7 +58,7 @@ class CloudBackupService {
         .length;
 
     // Enforce 5-backup limit per device (delete oldest when at limit).
-    final existing = await listBackupsForAccount(spotifyUserId);
+    final existing = await listBackupsForProfile(profileName);
     final deviceBackups = existing
         .where((b) => b.deviceName == deviceName)
         .toList()
@@ -70,6 +73,7 @@ class CloudBackupService {
     }
 
     await _db.collection(_collection).add({
+      'profileName': profileName,
       'spotifyUserId': spotifyUserId,
       'spotifyDisplayName': spotifyDisplayName,
       'deviceName': deviceName,
@@ -84,14 +88,14 @@ class CloudBackupService {
     });
   }
 
-  Future<List<CloudBackupSummary>> listBackupsForAccount(
-    String spotifyUserId,
+  Future<List<CloudBackupSummary>> listBackupsForProfile(
+    String profileName,
   ) async {
     // No orderBy in Firestore to avoid requiring a composite index.
     // Sort by createdAt descending in Dart after fetching.
     final snapshot = await _db
         .collection(_collection)
-        .where('spotifyUserId', isEqualTo: spotifyUserId)
+        .where('profileName', isEqualTo: profileName)
         .get()
         .timeout(
           const Duration(seconds: 15),
@@ -106,6 +110,7 @@ class CloudBackupService {
       final ts = data['createdAt'] as Timestamp?;
       return CloudBackupSummary(
         id: doc.id,
+        profileName: data['profileName'] as String? ?? '',
         spotifyUserId: data['spotifyUserId'] as String? ?? '',
         spotifyDisplayName: data['spotifyDisplayName'] as String? ?? '',
         deviceName: data['deviceName'] as String? ?? '',

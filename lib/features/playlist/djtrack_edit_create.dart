@@ -280,14 +280,27 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   Widget _buildMetadataSection(bool isWide) {
     if (isWide) {
       return _sectionContainer(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: _field(nameController, 'Name', 'Track name')),
-            const Gap(16),
-            Expanded(child: _field(albumController, 'Album', 'Album name')),
-            const Gap(16),
-            Expanded(child: _field(artistController, 'Artist', 'Artist name')),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _field(nameController, 'Name', 'Track name')),
+                const Gap(16),
+                Expanded(child: _field(albumController, 'Album', 'Album name')),
+                const Gap(16),
+                Expanded(
+                  child: _field(artistController, 'Artist', 'Artist name'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _field(
+              spotifyUriController,
+              'Spotify URI',
+              'spotify:track:...',
+            ),
           ],
         ),
       );
@@ -301,6 +314,12 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           _field(albumController, 'Album', 'Album name'),
           const SizedBox(height: 12),
           _field(artistController, 'Artist', 'Artist name'),
+          const SizedBox(height: 12),
+          _field(
+            spotifyUriController,
+            'Spotify URI',
+            'spotify:track:...',
+          ),
         ],
       ),
     );
