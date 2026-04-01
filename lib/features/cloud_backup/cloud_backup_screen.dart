@@ -32,9 +32,7 @@ class CloudBackupScreen extends HookConsumerWidget {
     final profileCtrl = useTextEditingController(
       text: ref.read(backupProfileProvider),
     );
-    final pinCtrl = useTextEditingController(
-      text: ref.read(backupPinProvider),
-    );
+    final pinCtrl = useTextEditingController(text: ref.read(backupPinProvider));
     final pinVisible = useState(false);
     final profileKey = ref.watch(backupProfileKeyProvider);
     final deviceNameCtrl = useTextEditingController(
@@ -42,6 +40,7 @@ class CloudBackupScreen extends HookConsumerWidget {
     );
     final isSaving = useState(false);
     final isRestoring = useState(false);
+    final isSyncing = useState(false);
     final restoreProgress = useState<String?>(null);
     final statusMessage = useState<String?>(null);
     final statusIsError = useState(false);
@@ -54,7 +53,9 @@ class CloudBackupScreen extends HookConsumerWidget {
     void clearStatus() => statusMessage.value = null;
 
     Future<void> doBackup() async {
-      print('[CloudBackup] doBackup called — key=$profileKey device=${deviceNameCtrl.text.trim()}');
+      print(
+        '[CloudBackup] doBackup called — key=$profileKey device=${deviceNameCtrl.text.trim()}',
+      );
       clearStatus();
       isSaving.value = true;
       try {
@@ -97,9 +98,7 @@ class CloudBackupScreen extends HookConsumerWidget {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text(
                 'Restore',
@@ -116,7 +115,7 @@ class CloudBackupScreen extends HookConsumerWidget {
       restoreProgress.value = null;
       try {
         final service = ref.read(cloudBackupServiceProvider);
-        await service.restoreBackup(
+        final (playlists, tracks) = await service.restoreBackup(
           backupId: backup.id,
           playlistRepo: DJPlaylistRepo(),
           trackRepo: DJTrackRepo(),
@@ -124,20 +123,66 @@ class CloudBackupScreen extends HookConsumerWidget {
           onProgress: (msg) => restoreProgress.value = msg,
         );
         restoreProgress.value = null;
-        // Refresh local Riverpod state so the home screen reflects the restore.
-        ref.invalidate(hivePlaylistData);
-        ref.invalidate(hiveTrackData);
-        ref.invalidate(hiveTrackTimeData);
-        refreshCallback?.call();
-        showStatus(
-          'Restored ${backup.playlistCount} playlists '
-          'and ${backup.trackCount} tracks.',
-        );
+        // Fetch directly into notifier state — avoids null gap from invalidate.
+        ref.read(hivePlaylistData.notifier).fetchDJPlaylist();
+        ref.read(hiveTrackData.notifier).fetchDJTrack();
+        ref.read(hiveTrackTimeData.notifier).fetchTrackTimes();
+        showStatus('Restored $playlists playlists and $tracks tracks.');
       } catch (e) {
         restoreProgress.value = null;
         showStatus('Restore failed: $e', error: true);
       } finally {
         isRestoring.value = false;
+      }
+    }
+
+    Future<void> doSync(CloudBackupSummary backup) async {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Sync from backup?'),
+          content: Text(
+            'Playlists from ${backup.deviceName} '
+            '(${DateFormat('MMM d y HH:mm').format(backup.createdAt)}) '
+            'will be added if they are not already present locally '
+            '(matched by Spotify URI). Existing playlists are not changed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sync'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      clearStatus();
+      isSyncing.value = true;
+      restoreProgress.value = null;
+      try {
+        final service = ref.read(cloudBackupServiceProvider);
+        await service.syncBackup(
+          backupId: backup.id,
+          playlistRepo: DJPlaylistRepo(),
+          trackRepo: DJTrackRepo(),
+          trackTimeRepo: TrackTimeRepo(),
+          onProgress: (msg) => restoreProgress.value = msg,
+        );
+        restoreProgress.value = null;
+        ref.read(hivePlaylistData.notifier).fetchDJPlaylist();
+        ref.read(hiveTrackData.notifier).fetchDJTrack();
+        ref.read(hiveTrackTimeData.notifier).fetchTrackTimes();
+        showStatus('Sync complete.');
+      } catch (e) {
+        restoreProgress.value = null;
+        showStatus('Sync failed: $e', error: true);
+      } finally {
+        isSyncing.value = false;
       }
     }
 
@@ -229,8 +274,7 @@ class CloudBackupScreen extends HookConsumerWidget {
                             : Icons.visibility,
                         size: 18,
                       ),
-                      onPressed: () =>
-                          pinVisible.value = !pinVisible.value,
+                      onPressed: () => pinVisible.value = !pinVisible.value,
                     ),
                   ),
                 ),
@@ -309,9 +353,7 @@ class CloudBackupScreen extends HookConsumerWidget {
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: (isSaving.value || profileKey.isEmpty)
-                ? null
-                : doBackup,
+            onPressed: (isSaving.value || profileKey.isEmpty) ? null : doBackup,
             icon: isSaving.value
                 ? const SizedBox(
                     width: 16,
@@ -327,7 +369,9 @@ class CloudBackupScreen extends HookConsumerWidget {
               TextSpan(
                 text: statusMessage.value,
                 style: TextStyle(
-                  color: statusIsError.value ? Colors.red : Colors.green.shade700,
+                  color: statusIsError.value
+                      ? Colors.red
+                      : Colors.green.shade700,
                   fontSize: 13,
                 ),
               ),
@@ -352,6 +396,12 @@ class CloudBackupScreen extends HookConsumerWidget {
           ],
           const SizedBox(height: 24),
           _SectionHeader(label: 'Existing backups'),
+          const Text(
+            'Full restore — replaces all local data with the backup.\n'
+            'Sync (↓) — adds only playlists not already present locally.',
+            style: TextStyle(color: Colors.black54, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
           if (profileName.isEmpty)
             const Text(
               'Set a Profile name above to see your backups.',
@@ -383,8 +433,9 @@ class CloudBackupScreen extends HookConsumerWidget {
                       .map(
                         (b) => _BackupTile(
                           backup: b,
-                          isRestoring: isRestoring.value,
+                          isBusy: isRestoring.value || isSyncing.value,
                           onRestore: () => doRestore(b),
+                          onSync: () => doSync(b),
                           onDelete: () => doDelete(b),
                         ),
                       )
@@ -408,10 +459,9 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         label,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -420,19 +470,23 @@ class _SectionHeader extends StatelessWidget {
 class _BackupTile extends StatelessWidget {
   const _BackupTile({
     required this.backup,
-    required this.isRestoring,
+    required this.isBusy,
     required this.onRestore,
+    required this.onSync,
     required this.onDelete,
   });
 
   final CloudBackupSummary backup;
-  final bool isRestoring;
+  final bool isBusy;
   final VoidCallback onRestore;
+  final VoidCallback onSync;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('MMM d y  HH:mm').format(backup.createdAt.toLocal());
+    final dateStr = DateFormat(
+      'MMM d y  HH:mm',
+    ).format(backup.createdAt.toLocal());
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -448,8 +502,13 @@ class _BackupTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextButton(
-              onPressed: isRestoring ? null : onRestore,
-              child: const Text('Restore'),
+              onPressed: isBusy ? null : onRestore,
+              child: const Text('Full restore'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_downward),
+              tooltip: 'Sync (add missing playlists only)',
+              onPressed: isBusy ? null : onSync,
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),

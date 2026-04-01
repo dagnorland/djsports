@@ -61,7 +61,7 @@ class DJPlaylistRepo {
         .firstWhere((element) => element.id == playlist.id);
   }
 
-  void deleteAll() {
-    _hive.clear();
+  Future<void> deleteAll() async {
+    await _hive.clear();
   }
 }

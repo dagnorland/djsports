@@ -45,8 +45,9 @@ class DJPlaylistView extends HookConsumerWidget {
     final allTracks = ref.read(hiveTrackData) ?? [];
     final trackDots = trackIds.map((id) {
       final idx = allTracks.indexWhere((t) => t.id == id);
-      final startTime = allTracks[idx].startTime + (allTracks[idx].startTimeMS);
-      return idx >= 0 && startTime > 0;
+      if (idx < 0) return false;
+      final startTime = allTracks[idx].startTime + allTracks[idx].startTimeMS;
+      return startTime > 0;
     }).toList();
 
     Widget albumArt(double size) => networkImageUri.isEmpty

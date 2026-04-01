@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.2] - Release 2026-04-01
+
+### Added
+- **Cloud Backup: Sync restore** — new "Sync (↓)" action on each backup tile adds
+  only playlists (with their tracks and timings) that are not already present
+  locally (matched by Spotify URI); existing playlists are left untouched
+
+### Fixed
+- **Full restore tracks blank until restart** — `hive_ce`'s `Box.clear()` is
+  async; it was not awaited before the subsequent `add()` calls, so the deferred
+  clear wiped the freshly added tracks from the in-memory map; fix: `await`
+  the clear in all three repositories (`DJPlaylistRepo`, `DJTrackRepo`,
+  `TrackTimeRepo`) before writing restored data
+- **Post-restore welcome screen flash** — replacing `ref.invalidate` with direct
+  `fetchDJPlaylist()` / `fetchDJTrack()` / `fetchTrackTimes()` notifier calls
+  eliminates the null-state gap that briefly showed the first-time-use screen
+- **Spotify "New tracks found" false positive after restore** — `getDJTracksSpotifyUri`
+  now reads from Riverpod state (populated after restore) rather than a potentially
+  stale repo snapshot
+- **RangeError crash in playlist tile** — `DJPlaylistView` accessed `allTracks[idx]`
+  before guarding `idx >= 0`; fixed check order
+
 ## [3.4.0] - Release 2026-03-31
 
 ### App Store prep

@@ -124,6 +124,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         DJPlaylistType.values.firstWhere((e) => e.name == widget.type);
     trackIds = widget.trackIds;
     positionController.addListener(_validateInput);
+    ref.read(hiveTrackData.notifier).fetchDJTrack();
     playlistTrackList = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
     super.initState();
     if (!widget.isNew &&

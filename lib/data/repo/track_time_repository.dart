@@ -36,7 +36,7 @@ class TrackTimeRepo {
     return _hive.values.toList();
   }
 
-  void deleteAll() {
-    _hive.clear();
+  Future<void> deleteAll() async {
+    await _hive.clear();
   }
 }
