@@ -126,7 +126,8 @@ class CloudBackupService {
     return results;
   }
 
-  Future<void> restoreBackup({
+  /// Returns `(playlistsRestored, tracksRestored)`.
+  Future<(int, int)> restoreBackup({
     required String backupId,
     required DJPlaylistRepo playlistRepo,
     required DJTrackRepo trackRepo,
@@ -149,33 +150,163 @@ class CloudBackupService {
     trackRepo.getDJTracks();
     trackTimeRepo.getTrackTimes();
 
-    playlistRepo.deleteAll();
-    trackRepo.deleteAll();
-    trackTimeRepo.deleteAll();
+    // Await clear so in-memory state is empty before we start adding.
+    await playlistRepo.deleteAll();
+    await trackRepo.deleteAll();
+    await trackTimeRepo.deleteAll();
 
+    int playlistsRestored = 0;
     onProgress?.call('Restoring ${playlistsJson.length} playlists…');
     for (final p in playlistsJson) {
-      final playlist = DJPlaylist.fromJson(
-        Map<String, dynamic>.from(p as Map),
-      );
-      playlistRepo.addDJPlaylist(playlist);
+      try {
+        final playlist = DJPlaylist.fromJson(
+          Map<String, dynamic>.from(p as Map),
+        );
+        playlistRepo.addDJPlaylist(playlist);
+        playlistsRestored++;
+      } catch (e) {
+        onProgress?.call('Warning: skipped a playlist — $e');
+      }
     }
 
+    int tracksRestored = 0;
     onProgress?.call('Restoring ${tracksJson.length} tracks…');
     for (final t in tracksJson) {
-      final track = DJTrack.fromJson(Map<String, dynamic>.from(t as Map));
-      trackRepo.addDJTrack(track);
+      try {
+        final map = Map<String, dynamic>.from(t as Map);
+        // Guard against null fields from older backup versions.
+        final track = DJTrack(
+          id: map['id'] as String? ?? '',
+          name: map['name'] as String? ?? '',
+          album: map['album'] as String? ?? '',
+          artist: map['artist'] as String? ?? '',
+          startTime: (map['startTime'] as num?)?.toInt() ?? 0,
+          startTimeMS: (map['startTimeMS'] as num?)?.toInt() ?? 0,
+          duration: (map['duration'] as num?)?.toInt() ?? 0,
+          playCount: (map['playCount'] as num?)?.toInt() ?? 0,
+          spotifyUri: map['spotifyUri'] as String? ?? '',
+          mp3Uri: map['mp3Uri'] as String? ?? '',
+          networkImageUri: map['networkImageUri'] as String? ?? '',
+          shortcut: map['shortcut'] as String? ?? '',
+        );
+        if (track.id.isEmpty) continue;
+        trackRepo.addDJTrack(track);
+        tracksRestored++;
+      } catch (e) {
+        onProgress?.call('Warning: skipped a track — $e');
+      }
     }
 
     onProgress?.call('Restoring ${trackTimesJson.length} track timings…');
     for (final tt in trackTimesJson) {
-      final time = TrackTime.fromJson(
-        Map<String, dynamic>.from(tt as Map),
-      );
-      trackTimeRepo.addTrackTime(time);
+      try {
+        final time = TrackTime.fromJson(
+          Map<String, dynamic>.from(tt as Map),
+        );
+        trackTimeRepo.addTrackTime(time);
+      } catch (e) {
+        // Non-fatal — start times are optional.
+      }
     }
 
-    onProgress?.call('Done!');
+    onProgress?.call(
+      'Done — $playlistsRestored playlists, $tracksRestored tracks.',
+    );
+    return (playlistsRestored, tracksRestored);
+  }
+
+  /// Sync-restore: adds playlists (with tracks + timings) from a backup that
+  /// don't already exist locally (matched by non-empty spotifyUri). Existing
+  /// playlists are left untouched.
+  Future<void> syncBackup({
+    required String backupId,
+    required DJPlaylistRepo playlistRepo,
+    required DJTrackRepo trackRepo,
+    required TrackTimeRepo trackTimeRepo,
+    void Function(String message)? onProgress,
+  }) async {
+    onProgress?.call('Fetching backup from cloud…');
+    final doc = await _db.collection(_collection).doc(backupId).get();
+    if (!doc.exists) throw Exception('Backup not found: $backupId');
+
+    final data = doc.data()!;
+
+    final playlistsJson = data['playlists'] as List<dynamic>? ?? [];
+    final tracksJson = data['tracks'] as List<dynamic>? ?? [];
+    final trackTimesJson = data['trackTimes'] as List<dynamic>? ?? [];
+
+    // Initialize all Hive boxes (required before any write — _hive is late).
+    onProgress?.call('Reading local playlists…');
+    final localPlaylists = playlistRepo.getDJPlaylists();
+    final localTracks = trackRepo.getDJTracks();
+    final localTrackTimes = trackTimeRepo.getTrackTimes();
+    final localUris = localPlaylists
+        .where((p) => p.spotifyUri.isNotEmpty)
+        .map((p) => p.spotifyUri)
+        .toSet();
+    // Track IDs already in the local box — skip re-adding to avoid same-instance errors.
+    final localTrackIds = localTracks.map((t) => t.id).toSet();
+    final localTrackTimeIds = localTrackTimes.map((tt) => tt.id).toSet();
+    // Track IDs added during this sync run — avoid duplicate adds across playlists.
+    final addedTrackIds = <String>{};
+
+    // Parse backup data.
+    final backupPlaylists = playlistsJson
+        .map((p) => DJPlaylist.fromJson(Map<String, dynamic>.from(p as Map)))
+        .toList();
+    final backupTracks = tracksJson
+        .map((t) => DJTrack.fromJson(Map<String, dynamic>.from(t as Map)))
+        .toList();
+    final backupTrackTimes = trackTimesJson
+        .map(
+          (tt) => TrackTime.fromJson(Map<String, dynamic>.from(tt as Map)),
+        )
+        .toList();
+
+    // Build lookup: trackId → TrackTime (TrackTime.id == DJTrack.id).
+    final trackTimeByTrackId = <String, TrackTime>{};
+    for (final tt in backupTrackTimes) {
+      trackTimeByTrackId[tt.id] = tt;
+    }
+
+    int added = 0;
+    int skipped = 0;
+
+    for (final playlist in backupPlaylists) {
+      if (playlist.spotifyUri.isNotEmpty &&
+          localUris.contains(playlist.spotifyUri)) {
+        skipped++;
+        continue;
+      }
+
+      onProgress?.call('Adding playlist: ${playlist.name}…');
+      playlistRepo.addDJPlaylist(playlist);
+
+      // Add tracks that belong to this playlist.
+      final playlistTrackIds = playlist.trackIds.toSet();
+      final tracksToAdd = backupTracks
+          .where((t) => playlistTrackIds.contains(t.id))
+          .toList();
+
+      for (final track in tracksToAdd) {
+        if (localTrackIds.contains(track.id) ||
+            addedTrackIds.contains(track.id)) {
+          continue;
+        }
+        trackRepo.addDJTrack(track);
+        addedTrackIds.add(track.id);
+        final tt = trackTimeByTrackId[track.id];
+        if (tt != null && !localTrackTimeIds.contains(tt.id)) {
+          trackTimeRepo.addTrackTime(tt);
+        }
+      }
+
+      added++;
+    }
+
+    onProgress?.call(
+      'Sync done — added $added playlist(s), skipped $skipped.',
+    );
   }
 
   Future<void> deleteBackup(String backupId) =>

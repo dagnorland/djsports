@@ -28,8 +28,7 @@ class DJTrackHive extends Notifier<List<DJTrack>?> {
   }
 
   List<String> getDJTracksSpotifyUri(List<String> trackIds) {
-    final djTracks = repo
-        .getDJTracks()
+    final djTracks = (state ?? repo.getDJTracks())
         .where((element) => trackIds.contains(element.id))
         .toList();
     for (var djTrack in djTracks) {
@@ -46,7 +45,7 @@ class DJTrackHive extends Notifier<List<DJTrack>?> {
   }
 
   List<DJTrack> getDJTracks(List<String> trackIds) {
-    final allTracks = repo.getDJTracks();
+    final allTracks = state ?? [];
     return trackIds
         .map((id) => allTracks.firstWhere(
               (track) => track.id == id,
