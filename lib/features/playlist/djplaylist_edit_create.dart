@@ -126,6 +126,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     positionController.addListener(_validateInput);
     playlistTrackList = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
     super.initState();
+    if (!widget.isNew &&
+        widget.spotifyUri.isNotEmpty &&
+        widget.trackIds.length < 100) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkSpotifyForNewTracks();
+      });
+    }
   }
 
   void _validateInput() {
@@ -139,6 +146,98 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       setState(() => _errorMessage = 'Value must be between 1 and 99');
     } else {
       setState(() => _errorMessage = '');
+    }
+  }
+
+  Future<void> _checkSpotifyForNewTracks() async {
+    if (!mounted) return;
+
+    unawaited(showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Checking Spotify for new tracks...'),
+          ],
+        ),
+      ),
+    ));
+
+    Iterable<Track> spotifyTracks = [];
+    try {
+      final service = ref.read(playlistServiceProvider);
+      spotifyTracks = await service.searchRepository
+          .getTracksByUri(widget.spotifyUri)
+          .then((value) => value.when(
+                (tracks) => tracks,
+                error: (_) => <Track>[],
+              ));
+    } catch (_) {
+      // ignore fetch errors
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // dismiss loading dialog
+
+    final existingUris = ref
+        .read(hiveTrackData.notifier)
+        .getDJTracksSpotifyUri(widget.trackIds);
+
+    final newTracks = spotifyTracks
+        .where((t) => t.uri != null && !existingUris.contains(t.uri))
+        .toList();
+
+    if (newTracks.isEmpty || !mounted) return;
+
+    final shouldAdd = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New tracks found'),
+        content: Text(
+          'Found ${newTracks.length} new '
+          'track${newTracks.length == 1 ? '' : 's'} '
+          'in the Spotify playlist. Add them?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldAdd != true || !mounted) return;
+
+    final playlist = ref
+        .read(hivePlaylistData.notifier)
+        .repo
+        .getDJPlaylists()
+        .firstWhere((e) => e.id == widget.id);
+
+    for (final track in newTracks) {
+      final djTrack = DJTrack.fromSpotifyTrack(track);
+      ref.read(hiveTrackData.notifier).addDJTrack(djTrack);
+      ref
+          .read(hivePlaylistData.notifier)
+          .addTrackToDJPlaylist(playlist, djTrack);
+    }
+    ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
+
+    if (mounted) {
+      setState(() {
+        trackIds = playlist.trackIds;
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+      });
     }
   }
 
