@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.4.2] - Release 2026-04-01
+## [3.4.3] - Release 2026-04-03
+
+### Added
+- **Firestore index** — `firestore.indexes.json` defines a composite index on the
+  `backups` collection (`profileName ASC`, `createdAt DESC`) for efficient backup
+  lookups; `firestore.rules` and updated `firebase.json` added to support
+  `firebase deploy --only firestore:indexes`
+
+## [3.4.2] - Release 2026-04-02
 
 ### Added
 - **Cloud Backup: Sync restore** — new "Sync (↓)" action on each backup tile adds
