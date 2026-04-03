@@ -107,6 +107,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
   @override
   void initState() {
+    super.initState();
     if (!widget.isNew) {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
@@ -124,16 +125,19 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         DJPlaylistType.values.firstWhere((e) => e.name == widget.type);
     trackIds = widget.trackIds;
     positionController.addListener(_validateInput);
-    ref.read(hiveTrackData.notifier).fetchDJTrack();
-    playlistTrackList = ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
-    super.initState();
-    if (!widget.isNew &&
-        widget.spotifyUri.isNotEmpty &&
-        widget.trackIds.length < 100) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkSpotifyForNewTracks();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(hiveTrackData.notifier).fetchDJTrack();
+      setState(() {
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
       });
-    }
+      if (!widget.isNew &&
+          widget.spotifyUri.isNotEmpty &&
+          widget.trackIds.length < 100) {
+        _checkSpotifyForNewTracks();
+      }
+    });
   }
 
   void _validateInput() {
@@ -1063,7 +1067,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   }
 
   void syncMissingStartTimes(List<DJTrack> tracks) {
-    final trackTimeList = ref.watch(dataTrackTimeProvider);
+    final trackTimeList = ref.read(dataTrackTimeProvider);
     int updatedCount = 0;
     for (var track in tracks) {
       if (track.startTime == 0) {
