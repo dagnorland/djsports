@@ -16,6 +16,7 @@ class DJPlaylistView extends HookConsumerWidget {
   final List<String> trackIds;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final Widget? dragHandle;
   const DJPlaylistView({
     super.key,
     required this.name,
@@ -27,6 +28,7 @@ class DJPlaylistView extends HookConsumerWidget {
     required this.currentTrack,
     required this.onEdit,
     required this.onDelete,
+    this.dragHandle,
   });
 
   Color get _typeColor => DJPlaylistType.values
@@ -131,6 +133,7 @@ class DJPlaylistView extends HookConsumerWidget {
                 dotColor: typeColor,
                 onEdit: onEdit,
                 onDelete: () => confirmDelete(context),
+                dragHandle: dragHandle,
               )
             : _NarrowContent(
                 name: name,
@@ -141,6 +144,7 @@ class DJPlaylistView extends HookConsumerWidget {
                 dotColor: typeColor,
                 onEdit: onEdit,
                 onDelete: () => confirmDelete(context),
+                dragHandle: dragHandle,
               );
 
         return Padding(
@@ -179,6 +183,7 @@ class _NarrowContent extends StatelessWidget {
   final Color dotColor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final Widget? dragHandle;
 
   const _NarrowContent({
     required this.name,
@@ -189,6 +194,7 @@ class _NarrowContent extends StatelessWidget {
     required this.dotColor,
     required this.onEdit,
     required this.onDelete,
+    this.dragHandle,
   });
 
   @override
@@ -228,6 +234,7 @@ class _NarrowContent extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
           _ActionsMenu(spotifyUri: spotifyUri, onDelete: onDelete),
+          ?dragHandle,
         ],
       ),
     );
@@ -243,6 +250,7 @@ class _WideContent extends StatelessWidget {
   final Color dotColor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final Widget? dragHandle;
 
   const _WideContent({
     required this.name,
@@ -253,6 +261,7 @@ class _WideContent extends StatelessWidget {
     required this.dotColor,
     required this.onEdit,
     required this.onDelete,
+    this.dragHandle,
   });
 
   @override
@@ -292,6 +301,7 @@ class _WideContent extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
           _ActionsMenu(spotifyUri: spotifyUri, onDelete: onDelete),
+          ?dragHandle,
         ],
       ),
     );

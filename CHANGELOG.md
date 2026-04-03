@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.5] - Release 2026-04-03
+
+### Added
+- **Playlist drag handle** — optional `dragHandle` widget prop added to
+  `DJPlaylistView`; the drag icon (≡) now renders inside the row rather than
+  wrapping the entire card in a `ReorderableDragStartListener`
+
+### Fixed
+- **Playlist edit state init** — moved `super.initState()` to first line;
+  deferred Riverpod reads to `addPostFrameCallback` with a `mounted` guard;
+  changed `ref.watch` → `ref.read` in `syncMissingStartTimes` to prevent
+  calling `watch` outside of `build`
+- **Spotify connection stream** — added `onError` / `cancelOnError: false`
+  handler so stream errors are logged and the listener is not silently cancelled
+- **iOS build (Firebase + Xcode)** — added BoringSSL-GRPC `HEADER_SEARCH_PATHS`
+  workaround in `ios/Podfile` to fix build failures on newer Xcode with Firebase
+
+### Chore
+- `.gitignore` — added `android/.kotlin/sessions/*` and `macos/.DS_Store`
+- `android/build.gradle` — removed duplicate `subprojects` block
+
 ## [3.4.4] - Release 2026-04-03
 
 ### Changed

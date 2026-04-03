@@ -96,7 +96,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     } else if (Platform.isAndroid) {
       stream = SpotifySdk.subscribeConnectionStatus().map((s) => s.connected);
     }
-    _connectionSubscription = stream?.listen(_onConnectionStatus);
+    _connectionSubscription = stream?.listen(
+      _onConnectionStatus,
+      onError: (e) => debugPrint('Connection status stream error: $e'),
+      cancelOnError: false,
+    );
     _initializeSpotifyConnection();
     _startConnectionHealthCheck();
   }
@@ -545,19 +549,26 @@ class _TypeSectionState extends State<_TypeSection> {
           onReorder: widget.onReorder,
           children: [
             for (int i = 0; i < widget.playlists.length; i++)
-              ReorderableDragStartListener(
+              DJPlaylistView(
                 key: ValueKey(widget.playlists[i].id),
-                index: i,
-                child: DJPlaylistView(
-                  name: widget.playlists[i].name,
-                  type: widget.playlists[i].type,
-                  spotifyUri: widget.playlists[i].spotifyUri,
-                  trackIds: widget.playlists[i].trackIds,
-                  shuffleAtEnd: widget.playlists[i].shuffleAtEnd,
-                  autoNext: widget.playlists[i].autoNext,
-                  currentTrack: widget.playlists[i].currentTrack,
-                  onEdit: () => widget.onEdit(widget.playlists[i]),
-                  onDelete: () => widget.onDelete(widget.playlists[i]),
+                name: widget.playlists[i].name,
+                type: widget.playlists[i].type,
+                spotifyUri: widget.playlists[i].spotifyUri,
+                trackIds: widget.playlists[i].trackIds,
+                shuffleAtEnd: widget.playlists[i].shuffleAtEnd,
+                autoNext: widget.playlists[i].autoNext,
+                currentTrack: widget.playlists[i].currentTrack,
+                onEdit: () => widget.onEdit(widget.playlists[i]),
+                onDelete: () => widget.onDelete(widget.playlists[i]),
+                dragHandle: ReorderableDragStartListener(
+                  index: i,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      Icons.drag_handle,
+                      color: Colors.black26,
+                    ),
+                  ),
                 ),
               ),
           ],
