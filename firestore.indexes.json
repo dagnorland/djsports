@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "backups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "profileName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
