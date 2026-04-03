@@ -41,6 +41,10 @@ macos/Runner/GoogleService-Info.plist
 radle-version/
 
 
+# Android signing — never commit
+android/key.properties
+android/release.keystore
+
 # Android related
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
@@ -96,3 +100,4 @@ assets/images/.DS_Store
 .DS_Store
 .fvm/flutter_sdk
 .fvm/flutter_sdk
+.DS_Store
