@@ -1,4 +1,4 @@
-package com.example.djsports
+package com.dagnorland.djsports
 
 import io.flutter.embedding.android.FlutterActivity
 import com.ryanheise.audioservice.AudioServiceActivity
