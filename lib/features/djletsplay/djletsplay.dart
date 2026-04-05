@@ -8,6 +8,7 @@ import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/features/djmatch_center/widgets/center_control_widget.dart';
 import 'package:djsports/features/djletsplay/widgets/debug_log_sheet.dart';
+import 'package:djsports/features/djletsplay/letsplay_help_screen.dart';
 import 'package:djsports/features/djletsplay/widgets/letsplay_playlist_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -328,6 +329,20 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
             ),
           ),
           IconButton(
+            icon: const Icon(
+              Icons.help_outline,
+              color: Colors.white70,
+              size: 22,
+            ),
+            tooltip: 'Help',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const LetsPlayHelpScreen(),
+              ),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.bug_report, color: Colors.white70, size: 22),
             tooltip: 'Debug log',
             onPressed: () => DebugLogSheet.show(context),
@@ -452,6 +467,20 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                 onPressed: () => ref
                     .read(spotifyRemoteRepositoryProvider)
                     .adjustVolume(-0.05),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.help_outline,
+                  color: Colors.white70,
+                  size: 24,
+                ),
+                tooltip: 'Help',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LetsPlayHelpScreen(),
+                  ),
+                ),
               ),
               IconButton(
                 icon: const Icon(
