@@ -8,6 +8,7 @@ import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:djsports/features/cloud_backup/cloud_backup_screen.dart';
+import 'package:djsports/features/djsports/playlist_help_screen.dart';
 import 'package:djsports/features/djletsplay/djletsplay.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/djsports/first_time_use_screen.dart';
@@ -152,6 +153,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         _navigateTo(TrackTimeCenterScreen());
       case 'cloudbackup':
         _navigateTo(CloudBackupScreen(refreshCallback: () => setState(() {})));
+      case 'playlisthelp':
+        _navigateTo(const PlaylistHelpScreen());
     }
   }
 
@@ -202,6 +205,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         child: IconButton(
           icon: const Icon(Icons.settings, color: Colors.black),
           onPressed: () => _navigateTo(TrackTimeCenterScreen()),
+        ),
+      ),
+      Tooltip(
+        message: 'Playlist help',
+        child: IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.black54),
+          onPressed: () => _navigateTo(const PlaylistHelpScreen()),
         ),
       ),
       Tooltip(
@@ -335,6 +345,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Icon(Icons.cloud),
                 SizedBox(width: 10),
                 Text('Cloud Backup'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'playlisthelp',
+            child: Row(
+              children: [
+                Icon(Icons.help_outline),
+                SizedBox(width: 10),
+                Text('Playlist Help'),
               ],
             ),
           ),

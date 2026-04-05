@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.5] - Release 2026-04-05
+
+### Added
+- **Playlist Help screen** — step-by-step guide covering: adding playlists
+  with +, setting playlist type, pasting a Spotify URI, syncing tracks, and
+  editing track start times; accessible via the `?` icon in the AppBar (wide)
+  or the ··· popup menu (narrow)
+- **Let's Play Help screen** — guide for the live DJ view covering: tapping a
+  card to start, Auto Next behaviour, browsing tracks with < / >, adjusting
+  volume, and using the ⌫ button to return home; accessible via the `?` icon
+  in the sidebar and compact control bar
+
 ## [3.4.5] - Release 2026-04-03
 
 ### Added
