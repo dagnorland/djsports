@@ -103,3 +103,8 @@ assets/images/.DS_Store
 .DS_Store
 android/.kotlin/sessions/*
 macos/.DS_Store
+.DS_Store
+android/.DS_Store
+ios/.DS_Store
+lib/.DS_Store
+macos/.DS_Store
