@@ -15,6 +15,8 @@ import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_tracks_view.dart';
 import 'package:djsports/features/playlist/widgets/playlist_examples_dropdown.dart';
 import 'package:djsports/features/spotify_playlist_sync/spotify_playlist_sync_delegate.dart';
+import 'package:djsports/features/apple_music_search/apple_music_search_delegate.dart';
+import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/cupertino.dart';
@@ -40,6 +42,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
     required this.isNew,
     this.status,
     required this.id,
+    this.appleMusicPlaylistId = '',
     this.refreshCallback,
   });
   factory DJPlaylistEditScreen.fromDJPlaylist(DJPlaylist playlist,
@@ -50,6 +53,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
       name: playlist.name,
       type: playlist.type,
       spotifyUri: playlist.spotifyUri,
+      appleMusicPlaylistId: playlist.appleMusicPlaylistId,
       trackIds: [...playlist.trackIds],
       shuffleAtEnd: playlist.shuffleAtEnd,
       autoNext: playlist.autoNext,
@@ -64,6 +68,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
       name: '',
       type: DJPlaylistType.hotspot.name,
       spotifyUri: '',
+      appleMusicPlaylistId: '',
       trackIds: const [],
       shuffleAtEnd: true,
       autoNext: true,
@@ -77,6 +82,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
   final String name;
   final String type;
   final String spotifyUri;
+  final String appleMusicPlaylistId;
   final bool shuffleAtEnd;
   final bool autoNext;
   final int currentTrack;
@@ -94,6 +100,7 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
 class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   final nameController = TextEditingController();
   final spotifyUriController = TextEditingController();
+  final appleMusicPlaylistIdController = TextEditingController();
   final positionController = TextEditingController();
   DJPlaylistType selectedType = DJPlaylistType.funStuff;
   List<String> trackIds = [];
@@ -103,14 +110,16 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   int currentTrack = 0;
   String _errorMessage = '';
   List<DJTrack> playlistTrackList = [];
-  bool _showDetails = false;
+  late bool _showDetails;
 
   @override
   void initState() {
     super.initState();
+    _showDetails = widget.isNew;
     if (!widget.isNew) {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
+      appleMusicPlaylistIdController.text = widget.appleMusicPlaylistId;
       shuffleAtEnd = widget.shuffleAtEnd;
       autoNext = widget.autoNext;
       position = widget.position;
@@ -119,6 +128,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     } else {
       nameController.text = widget.name;
       spotifyUriController.text = widget.spotifyUri;
+      appleMusicPlaylistIdController.text = widget.appleMusicPlaylistId;
       positionController.text = position.toString();
     }
     selectedType =
@@ -461,6 +471,148 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     }
   }
 
+  Future<void> _showAppleMusicSearch(
+      BuildContext context, WidgetRef ref) async {
+    if (widget.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Save the playlist first before adding tracks'),
+        duration: Duration(seconds: 3),
+      ));
+      return;
+    }
+    final amTrack = await showSearch(
+      context: context,
+      delegate: AppleMusicSearchDelegate(),
+    );
+    if (amTrack == null || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Adding: ${amTrack.name}'),
+      duration: const Duration(seconds: 2),
+    ));
+    final djTrack = DJTrack.fromAppleMusicTrack(amTrack);
+    ref.read(hiveTrackData.notifier).addDJTrack(djTrack);
+    final playlist = ref
+        .read(hivePlaylistData.notifier)
+        .repo
+        .getDJPlaylists()
+        .firstWhere((e) => e.id == widget.id);
+    ref.read(hivePlaylistData.notifier).addTrackToDJPlaylist(playlist, djTrack);
+    ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
+    if (mounted) {
+      setState(() {
+        trackIds = playlist.trackIds;
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+      });
+    }
+  }
+
+  String _appleMusicIdFromInput(String value) {
+    if (value.isEmpty) return '';
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.host == 'music.apple.com') {
+      return uri.pathSegments.last;
+    }
+    return value.trim();
+  }
+
+  Future<void> _appleMusicPlaylistSync(BuildContext context) async {
+    final rawId = appleMusicPlaylistIdController.text;
+    final playlistId = _appleMusicIdFromInput(rawId);
+    if (playlistId.isEmpty) return;
+
+    if (widget.isNew) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Save the playlist first before syncing'),
+        duration: Duration(seconds: 3),
+      ));
+      return;
+    }
+
+    if (!mounted) return;
+    unawaited(showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Fetching Apple Music playlist…'),
+          ],
+        ),
+      ),
+    ));
+
+    final repo = ref.read(appleMusicRepositoryProvider);
+    final result = await repo.syncPlaylist(playlistId);
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // dismiss loading dialog
+
+    if (result.tracks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(repo.lastError.isNotEmpty
+            ? repo.lastError
+            : 'No tracks found in playlist'),
+      ));
+      return;
+    }
+
+    final playlist = ref
+        .read(hivePlaylistData.notifier)
+        .repo
+        .getDJPlaylists()
+        .firstWhere((e) => e.id == widget.id);
+
+    final existingIds = ref
+        .read(hiveTrackData.notifier)
+        .getDJTracks(playlist.trackIds)
+        .map((t) => t.appleMusicId)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    int added = 0;
+    int skipped = 0;
+    for (final amTrack in result.tracks) {
+      if (existingIds.contains(amTrack.id)) {
+        skipped++;
+        continue;
+      }
+      final djTrack = DJTrack.fromAppleMusicTrack(amTrack);
+      ref.read(hiveTrackData.notifier).addDJTrack(djTrack);
+      ref.read(hivePlaylistData.notifier).addTrackToDJPlaylist(playlist, djTrack);
+      added++;
+    }
+
+    // Save the extracted ID and playlist name back
+    final cleanId = playlistId;
+    if (appleMusicPlaylistIdController.text != cleanId) {
+      appleMusicPlaylistIdController.text = cleanId;
+    }
+    if (result.playlistName.isNotEmpty && nameController.text.isEmpty) {
+      nameController.text = result.playlistName;
+    }
+
+    ref.read(hivePlaylistData.notifier).updateDJPlaylist(playlist);
+
+    if (mounted) {
+      setState(() {
+        trackIds = playlist.trackIds;
+        playlistTrackList =
+            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Added $added tracks, skipped $skipped. '
+          'Playlist now has ${playlist.trackIds.length} tracks.',
+        ),
+      ));
+    }
+  }
+
   String newPlaylistFromFormData() {
     return ref.read(hivePlaylistData.notifier).addDJplaylist(
           DJPlaylist(
@@ -468,6 +620,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             name: nameController.text,
             type: selectedType.name,
             spotifyUri: spotifyUriController.text,
+            appleMusicPlaylistId: _appleMusicIdFromInput(
+              appleMusicPlaylistIdController.text,
+            ),
             shuffleAtEnd: shuffleAtEnd,
             trackIds: [],
             currentTrack: currentTrack,
@@ -551,7 +706,19 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     );
   }
 
-  Widget _buildSyncButtons() {
+  Widget _buildAppleMusicUriField() {
+    return TextField(
+      controller: appleMusicPlaylistIdController,
+      onChanged: (value) => setState(() {}),
+      decoration: const InputDecoration(
+        labelText: 'Apple Music playlist',
+        hintText: 'Paste Apple Music playlist link or ID',
+        prefixIcon: Icon(Icons.music_note, color: Colors.pink),
+      ),
+    );
+  }
+
+  Widget _buildSpotifySyncButtons() {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -572,10 +739,51 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         ),
         DJIconActionButton(
           icon: Icons.playlist_add_circle_outlined,
-          tooltip: 'Browse playlist tracks',
+          tooltip: 'Browse Spotify playlist tracks',
           onPressed: () => setState(() {
             _spotifyTrackSync(context, ref, spotifyUriController.text);
           }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppleMusicSyncButtons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DJIconActionButton(
+          icon: Icons.sync,
+          tooltip: 'Sync from Apple Music playlist',
+          onPressed: () => _appleMusicPlaylistSync(context),
+        ),
+        DJIconActionButton(
+          icon: Icons.search,
+          tooltip: 'Search Apple Music',
+          onPressed: () => _showAppleMusicSearch(context, ref),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSyncButtons() {
+    final hasAppleMusic = appleMusicPlaylistIdController.text.isNotEmpty;
+    final hasSpotify = spotifyUriController.text.isNotEmpty;
+    if (hasAppleMusic) return _buildAppleMusicSyncButtons();
+    if (hasSpotify) return _buildSpotifySyncButtons();
+    // Neither set — show both search buttons
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DJIconActionButton(
+          icon: Icons.search,
+          tooltip: 'Search Spotify',
+          onPressed: () => setState(() => _showSearch(context, ref)),
+        ),
+        DJIconActionButton(
+          icon: Icons.music_note,
+          tooltip: 'Search Apple Music',
+          onPressed: () => _showAppleMusicSearch(context, ref),
         ),
       ],
     );
@@ -693,6 +901,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               name: nameController.text,
               type: selectedType.name,
               spotifyUri: spotifyUriController.text,
+              appleMusicPlaylistId: _appleMusicIdFromInput(
+                appleMusicPlaylistIdController.text,
+              ),
               shuffleAtEnd: shuffleAtEnd,
               trackIds: trackIds,
               currentTrack: currentTrack,
@@ -711,6 +922,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             name: nameController.text,
             type: selectedType.name,
             spotifyUri: spotifyUriController.text,
+            appleMusicPlaylistId: _appleMusicIdFromInput(
+              appleMusicPlaylistIdController.text,
+            ),
             trackIds: const [],
             isNew: false,
             id: newPlayListId,
@@ -823,28 +1037,61 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             if (_showDetails) ...[
               const SizedBox(height: 8),
 
-              // Spotify URI + Sync
-              if (isWide)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(flex: 75, child: _buildUriField()),
-                    const SizedBox(width: 8),
-                    _buildSyncButtons(),
-                  ],
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildUriField(),
-                    const SizedBox(height: 4),
-                    Row(children: [_buildSyncButtons()]),
-                  ],
-                ),
-
-              // Example playlist dropdown (when URI is empty)
+              // Source field: Spotify URI or Apple Music playlist
+              // Show only one if one is already filled; show both when empty.
+              if (appleMusicPlaylistIdController.text.isEmpty) ...[
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(flex: 75, child: _buildUriField()),
+                      const SizedBox(width: 8),
+                      _buildSyncButtons(),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildUriField(),
+                      const SizedBox(height: 4),
+                      Row(children: [_buildSyncButtons()]),
+                    ],
+                  ),
+              ],
               if (spotifyUriController.text.isEmpty) ...[
+                if (appleMusicPlaylistIdController.text.isNotEmpty)
+                  const SizedBox(height: 8),
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                          flex: 75, child: _buildAppleMusicUriField()),
+                      const SizedBox(width: 8),
+                      if (appleMusicPlaylistIdController.text.isNotEmpty)
+                        _buildAppleMusicSyncButtons()
+                      else
+                        // Already shown with Spotify buttons above
+                        const SizedBox.shrink(),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildAppleMusicUriField(),
+                      if (appleMusicPlaylistIdController.text.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(children: [_buildAppleMusicSyncButtons()]),
+                      ],
+                    ],
+                  ),
+              ],
+
+              // Example Spotify dropdown (only when both URIs are empty)
+              if (spotifyUriController.text.isEmpty &&
+                  appleMusicPlaylistIdController.text.isEmpty) ...[
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -1031,6 +1278,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           mp3Uri: track.mp3Uri,
           networkImageUri: track.networkImageUri,
           shortcut: track.shortcut,
+          appleMusicId: track.appleMusicId,
           index: index,
           trackCount: playlistTrackList.length,
           initialAutoPreview: autoPreview,

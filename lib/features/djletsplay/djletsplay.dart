@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:djsports/data/models/djplaylist_model.dart';
+import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
@@ -177,18 +178,34 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     super.dispose();
   }
 
+  bool _lastWasAppleMusic() {
+    return ref.read(lastDjTrackPlayedProvider).maybeWhen(
+      data: (t) => t?.appleMusicId.isNotEmpty ?? false,
+      orElse: () => false,
+    );
+  }
+
   Future<bool> pausePlayer() async {
+    if (_lastWasAppleMusic()) {
+      return ref.read(appleMusicRepositoryProvider).pausePlayer();
+    }
     isPlaying = await ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
     return isPlaying;
   }
 
   Future<bool> hardPausePlayer() async {
+    if (_lastWasAppleMusic()) {
+      return ref.read(appleMusicRepositoryProvider).pausePlayer();
+    }
     isPlaying =
         await ref.read(spotifyRemoteRepositoryProvider).hardPausePlayer();
     return isPlaying;
   }
 
   Future<bool> resumePlayer() async {
+    if (_lastWasAppleMusic()) {
+      return ref.read(appleMusicRepositoryProvider).resumePlayer();
+    }
     isPlaying =
         await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
     return isPlaying;
