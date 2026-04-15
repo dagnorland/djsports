@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - Release 2026-04-15
+
+### Added
+- **Apple Music integration (iOS + macOS)** — full MusicKit-based playback alongside
+  Spotify; no OAuth / developer dashboard registration required
+  - iOS: `MPMusicPlayerController.applicationQueuePlayer` via native `AppleMusicNativeChannel`
+  - macOS: `ApplicationMusicPlayer` (requires macOS 12.0+); 350 ms seek delay after play
+  - Dart bridge (`apple_music_platform_bridge.dart`) + repository (`apple_music_repository.dart`)
+    mirror the Spotify repo interface: `playTrackAndJumpStart`, `pausePlayer`,
+    `resumePlayer`, `search`, `syncPlaylist`
+  - `appleMusicId` field added to `DJTrack` (HiveField 12); `DJTrack.fromAppleMusicTrack()`
+    factory constructor; Hive adapters regenerated
+  - Per-track playback routing: `appleMusicId.isNotEmpty` → Apple Music; otherwise → Spotify
+  - Spotify error-recovery dialogs (reconnect, no-device) gated on Apple-Music-only tracks
+  - Apple Music search delegate (`apple_music_search_delegate.dart`) — same grid layout
+    as Spotify search; returns `AppleMusicTrack` for adding to playlists
+  - Playlist sync from Apple Music catalog playlists by ID
+  - Apple Music diagnostics tab in Settings (`apple_music_diagnostics_tab.dart`)
+  - Connection status icon (music_note, pink = connected) on home page AppBar for
+    both iOS and macOS; subscribes to native EventChannel on startup
+  - `NSAppleMusicUsageDescription` added to iOS + macOS `Info.plist`
+  - `com.apple.developer.musickit` entitlement added to macOS Debug + Release entitlements
+  - iOS Runner entitlements file (`Runner.entitlements`) added with MusicKit key
+  - macOS deployment target bumped to 12.0
+
 ## [3.4.5] - Release 2026-04-05
 
 ### Added
