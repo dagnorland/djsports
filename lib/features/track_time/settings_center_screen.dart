@@ -1,8 +1,10 @@
+import 'package:djsports/features/track_time/tabs/apple_music_diagnostics_tab.dart';
 import 'package:djsports/features/track_time/tabs/playlists_tab.dart';
 import 'package:djsports/features/track_time/tabs/settings_tab.dart';
 import 'package:djsports/features/track_time/tabs/spotify_diagnostics_tab.dart';
 import 'package:djsports/features/track_time/tabs/start_time_tab.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class TrackTimeCenterScreen extends StatelessWidget {
   const TrackTimeCenterScreen({super.key, this.refreshCallback});
@@ -12,7 +14,7 @@ class TrackTimeCenterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           centerTitle: false,
@@ -37,7 +39,14 @@ class TrackTimeCenterScreen extends StatelessWidget {
               Tab(icon: Icon(Icons.settings), text: 'Settings'),
               Tab(icon: Icon(Icons.queue_music), text: 'Playlists'),
               Tab(icon: Icon(Icons.timer), text: 'Start times'),
-              Tab(icon: Icon(Icons.music_note), text: 'Spotify'),
+              Tab(
+                icon: FaIcon(FontAwesomeIcons.spotify),
+                text: 'Spotify',
+              ),
+              Tab(
+                icon: FaIcon(FontAwesomeIcons.apple),
+                text: 'Apple Music',
+              ),
             ],
           ),
         ),
@@ -47,6 +56,7 @@ class TrackTimeCenterScreen extends StatelessWidget {
             PlaylistsTab(),
             StartTimeTab(),
             SpotifyDiagnosticsTab(),
+            AppleMusicDiagnosticsTab(),
           ],
         ),
       ),

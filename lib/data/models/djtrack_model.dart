@@ -1,3 +1,4 @@
+import 'package:djsports/data/services/apple_music_platform_bridge.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:spotify/spotify.dart';
 import 'package:uuid/uuid.dart';
@@ -24,6 +25,7 @@ class DJTrack extends HiveObject {
     required this.mp3Uri,
     required this.networkImageUri,
     this.shortcut = '',
+    this.appleMusicId = '',
   });
 
   @HiveField(0)
@@ -51,6 +53,9 @@ class DJTrack extends HiveObject {
 
   @HiveField(11, defaultValue: '')
   String shortcut;
+
+  @HiveField(12, defaultValue: '')
+  String appleMusicId;
 
   factory DJTrack.fromJson(Map<String, dynamic> json) =>
       _$DJTrackFromJson(json);
@@ -110,6 +115,24 @@ class DJTrack extends HiveObject {
     int minutes = milliseconds ~/ 60;
     int remainSec = (milliseconds % 60);
     return ('${minutes.toString().padLeft(2, '0')}:${remainSec.toString().padLeft(2, '0')}');
+  }
+
+  static DJTrack fromAppleMusicTrack(AppleMusicTrack track) {
+    return DJTrack(
+      id: const Uuid().v4(),
+      name: track.name,
+      album: track.album,
+      artist: track.artist,
+      startTime: 0,
+      startTimeMS: 0,
+      duration: track.durationMs,
+      playCount: 0,
+      spotifyUri: '',
+      mp3Uri: '',
+      networkImageUri: track.artworkUrl,
+      shortcut: '',
+      appleMusicId: track.id,
+    );
   }
 
   static DJTrack fromSpotifyTrack(Track track) {

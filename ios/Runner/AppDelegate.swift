@@ -11,6 +11,9 @@ import UIKit
     ) -> Bool {
         let controller = window?.rootViewController as! FlutterViewController
         spotifyChannel.setup(messenger: controller.binaryMessenger)
+        if #available(iOS 15.0, *) {
+            AppleMusicNativeChannel().setup(messenger: controller.binaryMessenger)
+        }
         GeneratedPluginRegistrant.register(with: self)
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }

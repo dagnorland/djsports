@@ -90,7 +90,8 @@ class DJPlaylist extends HiveObject {
       this.currentTrack = 0,
       this.playCount = 0,
       required this.trackIds,
-      this.position = 0});
+      this.position = 0,
+      this.appleMusicPlaylistId = ''});
 
   @HiveField(0)
   String id;
@@ -113,6 +114,9 @@ class DJPlaylist extends HiveObject {
   @HiveField(9, defaultValue: 0)
   int position;
 
+  @HiveField(10, defaultValue: '')
+  String appleMusicPlaylistId;
+
   factory DJPlaylist.simple(String id, String name, DJPlaylistType type) =>
       DJPlaylist(
         id: id,
@@ -132,7 +136,7 @@ class DJPlaylist extends HiveObject {
   Map<String, dynamic> toJson() => _$DJPlaylistToJson(this);
 
   DJPlaylist addTrack(String trackId) {
-    trackIds.add(trackId);
+    trackIds = List<String>.from(trackIds)..add(trackId);
     return this;
   }
 

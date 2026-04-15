@@ -434,6 +434,10 @@ class SpotifyRemoteRepository {
     debugPrint(
       '[PLAY] hasSpotifyAccessToken=$hasSpotifyAccessToken tokenEmpty=${lastValidAccessToken.isEmpty} uri=${track.spotifyUri} jumpStart=$jumpStart',
     );
+    if (track.spotifyUri.isEmpty) {
+      debugPrint('[PLAY] Blocked: empty spotifyUri');
+      return '[Error] Track has no Spotify URI';
+    }
     if (!hasSpotifyAccessToken || !lastValidAccessToken.isNotEmpty) {
       debugPrint('[PLAY] Blocked: not connected');
       return '[Error] Not connected to Spotify';

@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
+import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:djsports/features/cloud_backup/cloud_backup_screen.dart';
@@ -18,6 +20,7 @@ import 'package:djsports/features/track_time/settings_center_screen.dart';
 import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
@@ -35,8 +38,41 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool spotifyRemoteConnect = false;
   bool isPlaying = false;
   bool initStateConnectDone = false;
+  bool appleMusicConnected = false;
   Timer? _connectionHealthCheckTimer;
   StreamSubscription<bool>? _connectionSubscription;
+  StreamSubscription<bool>? _appleMusicSubscription;
+
+  Future<void> _appleMusicConnect() async {
+    final repo = ref.read(appleMusicRepositoryProvider);
+    final ok = await repo.connect();
+    if (mounted) setState(() => appleMusicConnected = ok);
+    if (ok) unawaited(_prewarmAppleMusicCache());
+  }
+
+  Future<void> _prewarmAppleMusicCache() async {
+    final ids = ref
+        .read(dataTrackProvider)
+        .map((t) => t.appleMusicId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    if (ids.isEmpty) return;
+    final repo = ref.read(appleMusicRepositoryProvider);
+    await repo.prewarmCache(ids);
+    // Pick the last played Apple Music track (or first in list) for warmup
+    final lastAppleMusicId = ref
+        .read(lastDjTrackPlayedProvider)
+        .maybeWhen(
+          data: (t) => t?.appleMusicId ?? '',
+          orElse: () => '',
+        );
+    final warmupId = lastAppleMusicId.isNotEmpty ? lastAppleMusicId : ids.first;
+    // Warmup: silent play+pause to establish streaming session (~600ms after this)
+    await repo.warmupStreamingSession(warmupId);
+    // Pre-set queue for the same track so play() can start immediately
+    unawaited(repo.presetQueue(warmupId));
+  }
 
   Future<void> _spotifyConnect(BuildContext context, WidgetRef ref) async {
     final spotifyRemoteService = ref.read(spotifyRemoteRepositoryProvider);
@@ -44,20 +80,29 @@ class _HomePageState extends ConsumerState<HomePage> {
     debugPrint('_spotifyConnect: $spotifyConnect');
   }
 
+  bool _lastWasAppleMusic() {
+    return ref
+        .read(lastDjTrackPlayedProvider)
+        .maybeWhen(
+          data: (t) => t?.appleMusicId.isNotEmpty ?? false,
+          orElse: () => false,
+        );
+  }
+
   Future<bool> pausePlayer() async {
-    {
-      isPlaying = await ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
-      return isPlaying;
+    if (_lastWasAppleMusic()) {
+      return ref.read(appleMusicRepositoryProvider).pausePlayer();
     }
+    isPlaying = await ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    return isPlaying;
   }
 
   Future<bool> resumePlayer() async {
-    {
-      isPlaying = await ref
-          .read(spotifyRemoteRepositoryProvider)
-          .resumePlayer();
-      return isPlaying;
+    if (_lastWasAppleMusic()) {
+      return ref.read(appleMusicRepositoryProvider).resumePlayer();
     }
+    isPlaying = await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
+    return isPlaying;
   }
 
   void _startConnectionHealthCheck() {
@@ -104,6 +149,21 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
     _initializeSpotifyConnection();
     _startConnectionHealthCheck();
+    if (Platform.isIOS || Platform.isMacOS) _initializeAppleMusicConnection();
+  }
+
+  void _initializeAppleMusicConnection() {
+    final repo = ref.read(appleMusicRepositoryProvider);
+    _appleMusicSubscription = repo.subscribeConnectionStatus().listen(
+      (connected) {
+        if (mounted) setState(() => appleMusicConnected = connected);
+        if (connected) _prewarmAppleMusicCache();
+      },
+      onError: (e) => debugPrint('Apple Music connection stream error: $e'),
+      cancelOnError: false,
+    );
+    // Check existing authorization without prompting the user
+    repo.connect();
   }
 
   void _onConnectionStatus(bool connected) {
@@ -120,6 +180,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void dispose() {
     _connectionSubscription?.cancel();
+    _appleMusicSubscription?.cancel();
     _connectionHealthCheckTimer?.cancel();
     super.dispose();
   }
@@ -223,11 +284,26 @@ class _HomePageState extends ConsumerState<HomePage> {
           },
         ),
       ),
+      if (Platform.isIOS || Platform.isMacOS)
+        Tooltip(
+          message: appleMusicConnected
+              ? 'Apple Music connected'
+              : 'Connect Apple Music',
+          child: IconButton(
+            icon: Icon(
+              FontAwesomeIcons.apple,
+              color: appleMusicConnected
+                  ? Colors.green.shade700
+                  : Colors.red.shade700,
+            ),
+            onPressed: _appleMusicConnect,
+          ),
+        ),
       Tooltip(
-        message: hasToken ? 'Connected' : 'Connect Spotify',
+        message: hasToken ? 'Spotify connected' : 'Connect Spotify',
         child: IconButton(
-          icon: Icon(
-            hasToken ? Icons.wifi : Icons.wifi_off,
+          icon: FaIcon(
+            FontAwesomeIcons.spotify,
             color: hasToken ? Colors.green.shade700 : Colors.red.shade700,
           ),
           onPressed: () async {
@@ -279,6 +355,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                   : (isPlaying ? Colors.green : Colors.grey),
             ),
           ),
+        ),
+      if (Platform.isIOS || Platform.isMacOS)
+        IconButton(
+          icon: Icon(
+            Icons.music_note,
+            color: appleMusicConnected
+                ? Colors.pink.shade600
+                : Colors.grey.shade400,
+          ),
+          tooltip: appleMusicConnected
+              ? 'Apple Music connected'
+              : 'Connect Apple Music',
+          onPressed: _appleMusicConnect,
         ),
       IconButton(
         icon: Icon(
@@ -447,12 +536,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               children: DJPlaylistType.values
                   .where((t) => t != DJPlaylistType.all)
                   .map((type) {
-                    final typePlaylists = allPlaylists
-                        .where((p) => p.type == type.name)
-                        .toList()
-                      ..sort(
-                        (a, b) => a.position.compareTo(b.position),
-                      );
+                    final typePlaylists =
+                        allPlaylists.where((p) => p.type == type.name).toList()
+                          ..sort((a, b) => a.position.compareTo(b.position));
                     if (typePlaylists.isEmpty) {
                       return const SizedBox.shrink();
                     }
@@ -584,10 +670,7 @@ class _TypeSectionState extends State<_TypeSection> {
                   index: i,
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      Icons.drag_handle,
-                      color: Colors.black26,
-                    ),
+                    child: Icon(Icons.drag_handle, color: Colors.black26),
                   ),
                 ),
               ),

@@ -4,6 +4,7 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
+import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
@@ -281,6 +282,33 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     _showToast(message);
   }
 
+  Future<String> _callService(DJTrack track) {
+    final jumpStart = track.startTime + track.startTimeMS;
+    if (track.appleMusicId.isNotEmpty) {
+      return ref
+          .read(appleMusicRepositoryProvider)
+          .playTrackAndJumpStart(
+            track,
+            jumpStart,
+            widget.playlistType,
+            widget.playlistName,
+          );
+    }
+    if (track.spotifyUri.isEmpty) {
+      return Future.value(
+        '[Error] No playback source — re-add this track from Apple Music or Spotify.',
+      );
+    }
+    return ref
+        .read(spotifyRemoteRepositoryProvider)
+        .playTrackAndJumpStart(
+          track,
+          jumpStart,
+          widget.playlistType,
+          widget.playlistName,
+        );
+  }
+
   Future<void> _playTrack(
     DJTrack track,
     int idx,
@@ -291,40 +319,34 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
   }) async {
     _autoNextTimer?.cancel();
     unawaited(_flashController.forward(from: 0.0));
-    final response = await ref
-        .read(spotifyRemoteRepositoryProvider)
-        .playTrackAndJumpStart(
-          track,
-          track.startTime + track.startTimeMS,
-          widget.playlistType,
-          widget.playlistName,
-        );
+
+    final response = await _callService(track);
     if (!mounted) return;
 
-    if (_isNoActiveDeviceError(response)) {
-      await _showNoDeviceDialog(track, idx, trackCount, shuffleAtEnd);
-      return;
-    }
-    if (_isConnectionError(response) && retry) {
-      // Auto-attempt full reconnect before bothering the user with a dialog.
-      // On iOS this opens Spotify briefly via initiateSession; on macOS it
-      // refreshes the token.  Only show the dialog if this also fails.
-      _showToast('Reconnecting to Spotify…');
-      final success = await ref
-          .read(spotifyRemoteRepositoryProvider)
-          .forceFullReconnect();
-      if (!mounted) return;
-      if (success) {
-        await _playTrack(
-          track, idx, trackCount, shuffleAtEnd, autoNext,
-          retry: false,
-        );
-      } else {
-        await _showReconnectDialog(
-          track, idx, trackCount, shuffleAtEnd, autoNext, response,
-        );
+    // Spotify-only error recovery
+    if (track.appleMusicId.isEmpty) {
+      if (_isNoActiveDeviceError(response)) {
+        await _showNoDeviceDialog(track, idx, trackCount, shuffleAtEnd);
+        return;
       }
-      return;
+      if (_isConnectionError(response) && retry) {
+        _showToast('Reconnecting to Spotify…');
+        final success = await ref
+            .read(spotifyRemoteRepositoryProvider)
+            .forceFullReconnect();
+        if (!mounted) return;
+        if (success) {
+          await _playTrack(
+            track, idx, trackCount, shuffleAtEnd, autoNext,
+            retry: false,
+          );
+        } else {
+          await _showReconnectDialog(
+            track, idx, trackCount, shuffleAtEnd, autoNext, response,
+          );
+        }
+        return;
+      }
     }
 
     if (!response.contains('[Error]')) {

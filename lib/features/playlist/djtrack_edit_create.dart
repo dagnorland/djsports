@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:djsports/data/models/djtrack_model.dart';
+import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/playlist/start_time_slider.dart';
@@ -30,6 +31,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
     required this.id,
     required this.shortcut,
     required this.trackCount,
+    this.appleMusicId = '',
     this.initialAutoPreview = false,
   });
   final String playlistName;
@@ -49,6 +51,7 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
   final int index;
   final String shortcut;
   final int trackCount;
+  final String appleMusicId;
   final bool initialAutoPreview;
 
   @override
@@ -81,7 +84,11 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
       widget.duration > 0 ? widget.duration : 300000;
 
   void _navigateTo(int targetIndex) {
-    ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    if (widget.appleMusicId.isNotEmpty) {
+      ref.read(appleMusicRepositoryProvider).pausePlayer();
+    } else {
+      ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    }
     _stopPositionPolling();
     Navigator.pop(context, (targetIndex, autoPreview));
   }
@@ -144,13 +151,20 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   void _onSliderChangeEnd(double value) {
     if (autoPreview) {
-      ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
-            spotifyUriController.text.isEmpty
-                ? mp3UriController.text
-                : spotifyUriController.text,
-            parseStartTime(),
-          );
-      _startPositionPolling();
+      if (widget.appleMusicId.isNotEmpty) {
+        ref.read(appleMusicRepositoryProvider).playAppleMusicIdAndJumpStart(
+              widget.appleMusicId,
+              parseStartTime(),
+            );
+      } else {
+        ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
+              spotifyUriController.text.isEmpty
+                  ? mp3UriController.text
+                  : spotifyUriController.text,
+              parseStartTime(),
+            );
+        _startPositionPolling();
+      }
     }
   }
 
@@ -162,17 +176,28 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   }
 
   void _playPreview() {
-    ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
-          spotifyUriController.text.isEmpty
-              ? mp3UriController.text
-              : spotifyUriController.text,
-          parseStartTime(),
-        );
-    _startPositionPolling();
+    if (widget.appleMusicId.isNotEmpty) {
+      ref.read(appleMusicRepositoryProvider).playAppleMusicIdAndJumpStart(
+            widget.appleMusicId,
+            parseStartTime(),
+          );
+    } else {
+      ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
+            spotifyUriController.text.isEmpty
+                ? mp3UriController.text
+                : spotifyUriController.text,
+            parseStartTime(),
+          );
+      _startPositionPolling();
+    }
   }
 
   void _pausePreview() {
-    ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    if (widget.appleMusicId.isNotEmpty) {
+      ref.read(appleMusicRepositoryProvider).pausePlayer();
+    } else {
+      ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    }
     _stopPositionPolling();
   }
 
@@ -228,6 +253,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               playCount: 0,
               networkImageUri: networkImageUriController.text,
               shortcut: '',
+              appleMusicId: widget.appleMusicId,
             ),
           );
     } else {
@@ -245,10 +271,15 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               playCount: widget.playCount,
               networkImageUri: widget.networkImageUri,
               shortcut: '',
+              appleMusicId: widget.appleMusicId,
             ),
           );
     }
-    ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    if (widget.appleMusicId.isNotEmpty) {
+      ref.read(appleMusicRepositoryProvider).pausePlayer();
+    } else {
+      ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
+    }
 
     if (goToNextTrack && widget.index >= 0) {
       Navigator.pop(context, (widget.index + 1, autoPreview));
