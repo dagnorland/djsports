@@ -37,6 +37,8 @@
 	<string>djSports needs to control Spotify to play music during sports events.</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>djSports uses Apple Music to play tracks during sports events.</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.music</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
