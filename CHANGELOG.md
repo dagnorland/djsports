@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - Release 2026-04-24
+
+### Fixed
+- **macOS App Store compliance** — removed unused `com.apple.security.network.server`
+  entitlement from Release and DebugProfile entitlements; the app only makes outgoing
+  connections (`network.client`) and does not act as a network server
+
 ## [3.5.0] - Release 2026-04-15
 
 ### Added
