@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
+import 'package:djsports/data/provider/fade_volume_provider.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
@@ -193,6 +194,22 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     return isPlaying;
   }
 
+  /// Triggered by the fade pause button. Reads the configured fade ms from
+  /// [fadeVolumeMsProvider]; falls back to a regular instant pause when the
+  /// last played track is from Apple Music (fade is Spotify-only for v1).
+  Future<bool> fadeAndPause() async {
+    final fadeMs = ref.read(fadeVolumeMsProvider);
+    if (fadeMs <= 0) return pausePlayer();
+    if (_lastWasAppleMusic()) {
+      // Fade not implemented for the Apple Music path yet — instant pause.
+      return ref.read(appleMusicRepositoryProvider).pausePlayer();
+    }
+    isPlaying = await ref
+        .read(spotifyRemoteRepositoryProvider)
+        .fadeAndPausePlayer(Duration(milliseconds: fadeMs));
+    return isPlaying;
+  }
+
   Future<bool> hardPausePlayer() async {
     if (_lastWasAppleMusic()) {
       return ref.read(appleMusicRepositoryProvider).pausePlayer();
@@ -327,6 +344,7 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   }
 
   Widget _buildSidebar() {
+    final fadeMs = ref.watch(fadeVolumeMsProvider);
     return Container(
       color: Colors.red,
       child: Column(
@@ -338,6 +356,8 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
               onHardPause: Platform.isIOS
                   ? () async => hardPausePlayer()
                   : null,
+              onFadePause: fadeMs > 0 ? () async => fadeAndPause() : null,
+              fadeMs: fadeMs,
               onBack: () {
                 Navigator.of(context).pop();
                 widget.refreshCallback?.call();
@@ -372,6 +392,7 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
 
   Widget _buildCompactControls() {
     final lastTrack = ref.watch(lastDjTrackPlayedProvider);
+    final fadeMs = ref.watch(fadeVolumeMsProvider);
     return ColoredBox(
       color: Colors.red,
       child: SafeArea(
@@ -453,6 +474,40 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                   ),
                 ),
               ),
+              if (fadeMs > 0)
+                ValueListenableBuilder<bool>(
+                  valueListenable: ref
+                      .read(spotifyRemoteRepositoryProvider)
+                      .fadePausingNotifier,
+                  builder: (context, isFading, _) => Tooltip(
+                    message: isFading
+                        ? 'Fading…'
+                        : 'Fade pause ($fadeMs ms)',
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.pause_circle_outline,
+                        color: isFading
+                            ? Colors.amber
+                            : Colors.amberAccent,
+                        size: 32,
+                      ),
+                      onPressed: isFading
+                          ? null
+                          : () async {
+                              await fadeAndPause();
+                              if (!context.mounted) return;
+                              toastification.show(
+                                context: context,
+                                title: Text('FADED ($fadeMs ms)'),
+                                autoCloseDuration:
+                                    const Duration(seconds: 2),
+                                style: ToastificationStyle.flat,
+                                alignment: Alignment.topCenter,
+                              );
+                            },
+                    ),
+                  ),
+                ),
               if (Platform.isIOS || Platform.isMacOS)
                 IconButton(
                   icon: const Icon(

@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.2] - Release 2026-05-14
+
+### Added
+- **Volume fade on pause** — new "fade pause" button in the Let's Play screen
+  that smoothly ramps the system volume to 0 before pausing Spotify, then
+  restores the original volume on the next play/resume
+  - Configurable fade duration (0–10,000 ms) via a new slider in Settings →
+    Display; `0` disables the feature and hides the button
+  - Linear ramp with platform-tuned step cadence: 20–60 ms steps on
+    iOS/Android for a smooth sweep; 100–200 ms steps on macOS to avoid
+    Spotify Web API rate limits (macOS fades both Mac master volume and the
+    active Spotify Connect device via `PUT /me/player/volume`)
+  - `fadePausingNotifier` (`ValueNotifier<bool>`) disables the button while
+    a fade is in flight; pressing play mid-fade cancels the sweep and
+    immediately restores volume via the existing `resumePlayer` path
+  - Android hint shown in Settings when fade < 750 ms (system volume uses 15
+    discrete steps and short fades can sound stepped)
+  - Falls back to instant pause for Apple Music tracks (fade is Spotify-only)
+
+### Fixed
+- **macOS: Dart VM service crash on launch** — added
+  `com.apple.security.network.server` to `DebugProfile.entitlements`; the
+  Dart VM service needs to bind a local socket for DevTools / hot-reload
+- **Android: NDK version mismatch** — bumped `ndkVersion` in
+  `android/app/build.gradle` to `28.2.13676358` (required by `jni` plugin)
+- **Android: `ClassNotFoundException: io/flutter/util/PathUtils`** — pinned
+  `path_provider_android` to `2.2.7` via `dependency_overrides`; versions
+  ≥ 2.2.8 use JNI bindings that fail to resolve the Flutter embedding class
+  at runtime on some devices
+
 ## [3.5.1] - Release 2026-04-24
 
 ### Fixed

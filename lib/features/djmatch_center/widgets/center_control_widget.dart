@@ -16,6 +16,8 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
     required this.onResume,
     required this.onPause,
     this.onHardPause,
+    this.onFadePause,
+    this.fadeMs = 0,
     required this.onBack,
     required this.refreshCallback,
   });
@@ -23,6 +25,10 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
   final VoidCallback onResume;
   final Future<void> Function() onPause;
   final Future<void> Function()? onHardPause;
+  /// When non-null and [fadeMs] > 0, an extra fade pause button is shown.
+  final Future<void> Function()? onFadePause;
+  /// Fade duration in milliseconds — used for the tooltip / label.
+  final int fadeMs;
   final VoidCallback onBack;
   final VoidCallback? refreshCallback;
 
@@ -128,6 +134,11 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
+                  if (widget.onFadePause != null && widget.fadeMs > 0)
+                    _FadePauseButton(
+                      onFadePause: widget.onFadePause!,
+                      fadeMs: widget.fadeMs,
                     ),
                 ],
               ),
@@ -255,6 +266,77 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Compact button that triggers [onFadePause] and disables itself while a
+/// fade is already in progress (driven by
+/// [SpotifyRemoteRepository.fadePausingNotifier]).
+class _FadePauseButton extends ConsumerWidget {
+  const _FadePauseButton({required this.onFadePause, required this.fadeMs});
+
+  final Future<void> Function() onFadePause;
+  final int fadeMs;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.read(spotifyRemoteRepositoryProvider);
+    return ValueListenableBuilder<bool>(
+      valueListenable: repo.fadePausingNotifier,
+      builder: (context, isFading, _) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Gap(4),
+            Tooltip(
+              message: isFading ? 'Fading…' : 'Fade pause ($fadeMs ms)',
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.pause_circle_outline,
+                      color: isFading ? Colors.amber : Colors.amberAccent,
+                      size: 46,
+                    ),
+                    onPressed: isFading
+                        ? null
+                        : () async {
+                            await onFadePause();
+                            if (!context.mounted) return;
+                            toastification.show(
+                              context: context,
+                              title: Text('FADED ($fadeMs ms)'),
+                              autoCloseDuration: const Duration(seconds: 2),
+                              style: ToastificationStyle.flat,
+                              alignment: Alignment.topCenter,
+                            );
+                          },
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    child: Icon(
+                      Icons.south,
+                      size: 14,
+                      color: isFading ? Colors.amber : Colors.amberAccent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'FADE',
+              style: TextStyle(
+                color: isFading ? Colors.amber : Colors.amberAccent,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
