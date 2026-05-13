@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
@@ -63,6 +64,11 @@ class SpotifyRemoteRepository {
   /// True on iOS when the silence keep-alive track is playing instead of
   /// real music (i.e. the user pressed pause).
   final ValueNotifier<bool> silencePlayingNotifier = ValueNotifier(false);
+  /// True while [fadeAndPausePlayer] is sweeping the volume down. Used by
+  /// the UI to disable the fade button mid-fade and by [resumePlayer] to
+  /// abort an in-flight fade if the user hits play before it finishes.
+  final ValueNotifier<bool> fadePausingNotifier = ValueNotifier(false);
+  Timer? _fadeTimer;
   int latestDurationStartupMS = 0;
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
 
@@ -326,6 +332,154 @@ class SpotifyRemoteRepository {
     await _bridge.setSystemVolume(_preMuteVolume);
   }
 
+  /// Writes [v] to system volume during a fade sweep.
+  ///
+  /// Always routes through [SpotifyPlatformBridge.setSystemVolume] so the
+  /// fade hits the same code path as [adjustVolume] (the +/- buttons).
+  /// On macOS that means the call fans out to BOTH:
+  ///   1. `FlutterVolumeController.setVolume(v)` — macOS system master.
+  ///   2. The native `setVolume` channel → Spotify Web API
+  ///      `PUT /me/player/volume` → Spotify Connect **device** volume.
+  ///
+  /// `FlutterVolumeController` on macOS can silently no-op when the app
+  /// isn't holding focus or when the package's CoreAudio control is
+  /// blocked, in which case the Web API leg is what actually fades the
+  /// audio. Calling both keeps the volume indicator (which mirrors
+  /// the Mac master via [FlutterVolumeController.addListener]) and the
+  /// Spotify device slider in lock-step with the heard audio.
+  Future<void> _setFadeStepVolume(double v) async {
+    final clamped = v.clamp(0.0, 1.0);
+    // Update Dart-side state BEFORE the system write so the system-volume
+    // listener (registered in _initVolume) sees |new - current| < 0.005
+    // and skips re-entering setVolume().
+    volume = clamped;
+    volumeNotifier.value = clamped;
+    await _bridge.setSystemVolume(clamped);
+  }
+
+  /// Cancels any in-flight fade timer without restoring volume.
+  /// Safe to call when no fade is running.
+  void cancelFade() {
+    _fadeTimer?.cancel();
+    _fadeTimer = null;
+    fadePausingNotifier.value = false;
+  }
+
+  /// Smoothly fades the system volume to zero over [fadeDuration], then
+  /// pauses Spotify. The pre-fade volume is captured into [_preMuteVolume]
+  /// and [_isMuted] is set to `true`, so the existing [resumePlayer] path
+  /// (which calls `_unMute()`) restores the original level on the next
+  /// play/resume across all three platforms.
+  ///
+  /// Platform notes:
+  ///   * Android — system volume is a 15-step discrete ladder. Fades shorter
+  ///     than ~750 ms will sound stepped.
+  ///   * iOS — pause is implemented as a silence keep-alive track (see
+  ///     `ios/Runner/SpotifyNativeChannel.swift`). We fade BEFORE switching
+  ///     to silence so the keep-alive never plays audibly.
+  ///   * macOS — each step hits the Spotify Web API (via the native
+  ///     `setVolume` channel → `PUT /me/player/volume`), so we use a
+  ///     longer step interval (~120 ms) to avoid timer pile-up and Web
+  ///     API rate limits.
+  Future<bool> fadeAndPausePlayer(Duration fadeDuration) async {
+    final totalMs = fadeDuration.inMilliseconds;
+    if (totalMs <= 0) {
+      // No fade configured — fall back to instant pause.
+      return pausePlayer();
+    }
+
+    // Cancel any prior fade so two rapid fade-pauses don't stack timers.
+    _fadeTimer?.cancel();
+    _fadeTimer = null;
+
+    // Snapshot the current volume so resume can restore it. Prefer the live
+    // system reading over our cached [volume] field — the user may have
+    // adjusted the OS slider since the last [setVolume] notification.
+    double startVolume;
+    try {
+      startVolume = await _bridge.getSystemVolume();
+    } catch (_) {
+      startVolume = volume;
+    }
+    if (startVolume <= 0.001) {
+      // Already silent — just pause without sweeping.
+      return pausePlayer();
+    }
+
+    _preMuteVolume = startVolume;
+    _isMuted = true; // ensures resumePlayer → _unMute restores volume
+    fadePausingNotifier.value = true;
+
+    // Step cadence:
+    //   * Android/iOS — local system volume API, cheap. Aim for ~20 steps,
+    //     20–60 ms between steps so the sweep is smooth.
+    //   * macOS — each step also fires a Spotify Web API call. Use 100–200 ms
+    //     intervals so we don't pile up HTTP requests on the timer (still
+    //     gives a ~10–15 step ramp for a 1.5 s fade, which the Mac mixer
+    //     interpolates audibly).
+    final int stepMs;
+    if (Platform.isMacOS) {
+      stepMs = (totalMs ~/ 10).clamp(100, 200);
+    } else {
+      stepMs = (totalMs ~/ 20).clamp(20, 60);
+    }
+    final stepCount = math.max(1, totalMs ~/ stepMs);
+    final completer = Completer<bool>();
+    int step = 0;
+    bool finalizing = false; // guards against re-entry if a tick fires while
+                             // the final pause() is still awaiting.
+
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+      'Fade-pause start: ${totalMs}ms, $stepCount steps @ ${stepMs}ms, '
+      'from ${(startVolume * 100).round()}%',
+    );
+
+    _fadeTimer = Timer.periodic(Duration(milliseconds: stepMs), (timer) async {
+      if (finalizing) return;
+      step++;
+      // Linear ramp. (A perceptual / exponential curve could be added later
+      // if users report the linear curve sounds too back-loaded.)
+      final fraction = (step / stepCount).clamp(0.0, 1.0);
+      final newVolume = startVolume * (1.0 - fraction);
+
+      if (step >= stepCount) {
+        finalizing = true;
+        timer.cancel();
+        _fadeTimer = null;
+        try {
+          // Final step: make sure system volume is exactly zero. This goes
+          // through the same _bridge.setSystemVolume path as every other
+          // step, so on macOS the Spotify Web API leg fires here too — no
+          // extra sync call is needed.
+          await _setFadeStepVolume(0);
+          // Execute the platform pause. On Android we don't call _mute()
+          // here because the volume is already at 0 from the sweep.
+          await _bridge.pause();
+          if (Platform.isIOS) silencePlayingNotifier.value = true;
+          isPlaying = false;
+          SpotifyConnectionLog().addSimpleEntry(
+            SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+            'Fade-pause complete (${totalMs}ms)',
+          );
+        } catch (e) {
+          debugPrint('fadeAndPausePlayer: pause failed: $e');
+        } finally {
+          fadePausingNotifier.value = false;
+          if (!completer.isCompleted) completer.complete(isPlaying);
+        }
+      } else {
+        try {
+          await _setFadeStepVolume(newVolume);
+        } catch (e) {
+          debugPrint('fadeAndPausePlayer: step $step failed: $e');
+        }
+      }
+    });
+
+    return completer.future;
+  }
+
   /// Hard pause — like [pausePlayer] but does NOT start silence keep-alive on
   /// iOS. Icon will show white (fully paused).
   Future<bool> hardPausePlayer() async {
@@ -373,6 +527,9 @@ class SpotifyRemoteRepository {
   }
 
   Future<bool> resumePlayer() async {
+    // If the user hits play mid-fade, abort the sweep so we don't keep
+    // muting after resume kicks in.
+    cancelFade();
     try {
       await _bridge.resume();
       await _unMute();
@@ -449,10 +606,13 @@ class SpotifyRemoteRepository {
         spotifyUri: track.spotifyUri,
         positionMs: jumpStart > 0 ? jumpStart : 0,
       );
-      // Only restore volume if we explicitly muted on pause. When playing
-      // with a start time without a prior pause, the bridge handles its own
-      // mute/unmute internally using the correct pre-seek volume.
-      if (Platform.isAndroid && _isMuted) await _unMute();
+      // Restore volume if a prior pause (regular Android mute or any
+      // platform's fade-pause) left us muted. On Android the native bridge
+      // already runs its own mute/seek/restore-to-savedVolume during the
+      // call above, so this unmute pins the final level to the user's
+      // actual pre-pause volume rather than the bridge's fallback default.
+      cancelFade();
+      if (_isMuted) await _unMute();
       debugPrint('[PLAY] bridge.playWithPosition returned OK');
       if (jumpStart > 0) {
         latestDurationStartupMS = DateTime.now()

@@ -67,11 +67,7 @@ class _AppleMusicDiagnosticsTabState
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            globalInfoBox(
-              context,
-              'APPLE MUSIC STATUS',
-              _statusCard(repo),
-            ),
+            globalInfoBox(context, 'APPLE MUSIC STATUS', _statusCard(repo)),
             const Gap(20),
             globalInfoBox(
               context,
@@ -90,10 +86,16 @@ class _AppleMusicDiagnosticsTabState
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _stateRow('authorized', _isAuthorized ? 'true' : 'false',
-              _isAuthorized ? Colors.green : Colors.red),
-          _stateRow('subscribed', _isSubscribed ? 'true' : 'false',
-              _isSubscribed ? Colors.green : Colors.orange),
+          _stateRow(
+            'authorized',
+            _isAuthorized ? 'true' : 'false',
+            _isAuthorized ? Colors.green : Colors.red,
+          ),
+          _stateRow(
+            'subscribed',
+            _isSubscribed ? 'true' : 'false',
+            _isSubscribed ? Colors.green : Colors.orange,
+          ),
           _stateRow('authStatus', _authStatus, Colors.black54),
           if (repo.lastError.isNotEmpty)
             _stateRow('lastError', repo.lastError, Colors.red.shade700),
@@ -174,9 +176,9 @@ class _AppleMusicDiagnosticsTabState
           const Gap(6),
           Text(
             'Search:',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Gap(8),
           TextField(
@@ -199,9 +201,9 @@ class _AppleMusicDiagnosticsTabState
           const Gap(6),
           Text(
             'Playlist Sync:',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Gap(8),
           TextField(
@@ -264,8 +266,7 @@ class _AppleMusicDiagnosticsTabState
               : Colors.pink.shade700,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           alignment: Alignment.centerLeft,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         onPressed: _running ? null : onPressed,
         icon: Icon(icon, color: Colors.white, size: 18),
@@ -287,10 +288,9 @@ class _AppleMusicDiagnosticsTabState
           valueListenable: AppleMusicLog().changeCount,
           builder: (context, value, _) => Text(
             'Log  (${AppleMusicLog().log.length} entries)',
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         const Spacer(),
@@ -309,7 +309,7 @@ class _AppleMusicDiagnosticsTabState
   Widget _logView() {
     return ValueListenableBuilder<int>(
       valueListenable: AppleMusicLog().changeCount,
-      builder: (context, _, _a) {
+      builder: (context, value, child) {
         final entries = AppleMusicLog().log.reversed.toList();
         if (entries.isEmpty) {
           return Container(
@@ -396,8 +396,10 @@ class _AppleMusicDiagnosticsTabState
       final repo = ref.read(appleMusicRepositoryProvider);
       // Access bridge directly via connect which calls getAuthorizationStatus
       final ok = await repo.connect();
-      _done('authStatus check done — authorized=$ok '
-          'subscribed=${repo.isSubscribed}');
+      _done(
+        'authStatus check done — authorized=$ok '
+        'subscribed=${repo.isSubscribed}',
+      );
     } catch (e) {
       _done('Error: $e');
     }
@@ -409,11 +411,13 @@ class _AppleMusicDiagnosticsTabState
     try {
       final repo = ref.read(appleMusicRepositoryProvider);
       final ok = await repo.connect();
-      _done(ok
-          ? 'Authorized + subscribed OK'
-          : 'Failed — authorized=${repo.isAuthorized} '
-              'subscribed=${repo.isSubscribed} '
-              'error=${repo.lastError}');
+      _done(
+        ok
+            ? 'Authorized + subscribed OK'
+            : 'Failed — authorized=${repo.isAuthorized} '
+                  'subscribed=${repo.isSubscribed} '
+                  'error=${repo.lastError}',
+      );
     } catch (e) {
       _done('Error: $e');
     }
@@ -425,8 +429,10 @@ class _AppleMusicDiagnosticsTabState
     try {
       final repo = ref.read(appleMusicRepositoryProvider);
       final ok = await repo.connect();
-      _done('subscribed=${repo.isSubscribed} authorized=${repo.isAuthorized} '
-          'connect=$ok');
+      _done(
+        'subscribed=${repo.isSubscribed} authorized=${repo.isAuthorized} '
+        'connect=$ok',
+      );
     } catch (e) {
       _done('Error: $e');
     }
@@ -439,8 +445,10 @@ class _AppleMusicDiagnosticsTabState
       final repo = ref.read(appleMusicRepositoryProvider);
       final results = await repo.search(_searchController.text.trim());
       if (results.isEmpty) {
-        _done('Search returned 0 results. '
-            'lastError=${repo.lastError}');
+        _done(
+          'Search returned 0 results. '
+          'lastError=${repo.lastError}',
+        );
       } else {
         final preview = results
             .take(3)
@@ -461,15 +469,19 @@ class _AppleMusicDiagnosticsTabState
       final id = _playlistIdController.text.trim();
       final result = await repo.syncPlaylist(id);
       if (result.tracks.isEmpty) {
-        _done('Playlist "${result.playlistName}" returned 0 tracks. '
-            'error=${repo.lastError}');
+        _done(
+          'Playlist "${result.playlistName}" returned 0 tracks. '
+          'error=${repo.lastError}',
+        );
       } else {
         final preview = result.tracks
             .take(3)
             .map((t) => '  • ${t.name} — ${t.artist}')
             .join('\n');
-        _done('Playlist "${result.playlistName}": '
-            '${result.tracks.length} tracks\n$preview');
+        _done(
+          'Playlist "${result.playlistName}": '
+          '${result.tracks.length} tracks\n$preview',
+        );
       }
     } catch (e) {
       _done('Error: $e');
