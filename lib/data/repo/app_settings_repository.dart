@@ -51,4 +51,42 @@ class AppSettings {
 
   static Future<void> setFadeVolumeMs(int value) =>
       _box.put(_fadeVolumeMsKey, value.clamp(0, fadeVolumeMaxMs));
+
+  // ---------------------------------------------------------------------
+  // Spotify credentials (Bring Your Own Client ID)
+  //
+  // Since Feb 2026 Spotify Development Mode is limited to 5 authorized
+  // users per Client ID. To let anyone use djSports with Spotify, each
+  // user creates their own (free) app in the Spotify Developer Dashboard
+  // and enters their own credentials here. Empty values mean "use the
+  // .env fallback" (developer builds).
+  // ---------------------------------------------------------------------
+  static const _spotifyClientIdKey = 'spotifyClientId';
+  static const _spotifyClientSecretKey = 'spotifyClientSecret';
+  static const _spotifyRedirectUrlKey = 'spotifyRedirectUrl';
+
+  /// Default redirect URI registered in the user's Spotify app.
+  static const defaultSpotifyRedirectUrl = 'djsports://callback';
+
+  /// User-supplied Spotify Client ID. Empty string = not set.
+  static String get spotifyClientId =>
+      (_box.get(_spotifyClientIdKey, defaultValue: '') as String).trim();
+
+  static Future<void> setSpotifyClientId(String value) =>
+      _box.put(_spotifyClientIdKey, value.trim());
+
+  /// User-supplied Spotify Client Secret. Empty string = not set.
+  /// Needed by the Web API search integration (client credentials flow).
+  static String get spotifyClientSecret =>
+      (_box.get(_spotifyClientSecretKey, defaultValue: '') as String).trim();
+
+  static Future<void> setSpotifyClientSecret(String value) =>
+      _box.put(_spotifyClientSecretKey, value.trim());
+
+  /// User-supplied redirect URI. Empty string = not set.
+  static String get spotifyRedirectUrl =>
+      (_box.get(_spotifyRedirectUrlKey, defaultValue: '') as String).trim();
+
+  static Future<void> setSpotifyRedirectUrl(String value) =>
+      _box.put(_spotifyRedirectUrlKey, value.trim());
 }

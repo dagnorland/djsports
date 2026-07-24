@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:djsports/data/provider/fade_volume_provider.dart';
 import 'package:djsports/data/provider/theme_color_provider.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
+import 'package:djsports/features/spotify_connect/spotify_credentials_settings.dart';
 import 'package:djsports/features/track_time/settings_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
@@ -33,6 +34,12 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
               context,
               'LETS PLAY SETTINGS',
               _matchCenterSettingsSection(context),
+            ),
+            const Gap(20),
+            globalInfoBox(
+              context,
+              'SPOTIFY ACCOUNT',
+              const SpotifyCredentialsSettings(),
             ),
             const Gap(20),
           ],

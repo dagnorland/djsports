@@ -6,10 +6,10 @@ import 'dart:math' as math;
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
+import 'package:djsports/data/provider/spotify_credentials_provider.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -1021,14 +1021,15 @@ class SpotifyRemoteRepository {
 final spotifyRemoteRepositoryProvider = Provider<SpotifyRemoteRepository>((
   ref,
 ) {
+  // Watching means the repository is rebuilt when the user saves their
+  // own Client ID (Bring Your Own Client ID) in the settings screen.
+  final creds = ref.watch(spotifyCredentialsProvider);
+
   SpotifyApiCredentials credentials = SpotifyApiCredentials(
-    dotenv.env['SPOTIFY_CLIENTID'],
-    dotenv.env['SPOTIFY_SECRET'],
+    creds.clientId,
+    creds.clientSecret,
   );
   credentials.scopes = [];
 
-  String redirectUrl =
-      dotenv.env['SPOTIFY_REDIRECT_URL'] ?? 'djsports://callback';
-
-  return SpotifyRemoteRepository(credentials, redirectUrl);
+  return SpotifyRemoteRepository(credentials, creds.redirectUrl);
 });

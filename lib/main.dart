@@ -30,12 +30,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   //FlutterNativeSplash.preserve(widgetsBinding: WidgetsBinding.instance);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await dotenv.dotenv.load(fileName: '.env');
-
-  // print all elements in dotenv
-  dotenv.dotenv.env.forEach((key, value) {
-    debugPrint('Starting app .  $key: $value');
-  });
+  // .env is optional: end users bring their own Spotify Client ID via
+  // the in-app settings instead (see spotify_credentials_provider.dart).
+  try {
+    await dotenv.dotenv.load(fileName: '.env');
+    debugPrint('Starting app, .env loaded: '
+        '${dotenv.dotenv.env.keys.join(', ')}');
+  } catch (_) {
+    debugPrint('Starting app, no .env found — '
+        'using user-supplied Spotify credentials');
+  }
 
   /// Initilize Hive Database
   await Hive.initFlutter();

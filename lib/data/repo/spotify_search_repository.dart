@@ -1,9 +1,9 @@
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/models/spotify_playlist_result.dart';
 import 'package:djsports/data/models/spotify_search_result.dart';
+import 'package:djsports/data/provider/spotify_credentials_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotify/spotify.dart';
 
@@ -135,9 +135,10 @@ class SpotifySearchRepository {
 }
 
 final searchRepositoryProvider = Provider<SpotifySearchRepository>((ref) {
+  final creds = ref.watch(spotifyCredentialsProvider);
   final credentials = SpotifyApiCredentials(
-    dotenv.env['SPOTIFY_CLIENTID'],
-    dotenv.env['SPOTIFY_SECRET'],
+    creds.clientId,
+    creds.clientSecret,
   );
 
   return SpotifySearchRepository(
