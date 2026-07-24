@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - Unreleased
+
+### Added
+- **Bring Your Own Spotify Client ID** — Spotify's February 2026 Development
+  Mode rules limit each Client ID to 5 authorized users, so the bundled
+  credentials cannot serve all users. Each user can now enter their own
+  Client ID, Client Secret and redirect URI (from their own free app in the
+  Spotify Developer Dashboard) in a new Settings → Spotify Account section
+  - Credentials are stored locally in the Hive `settings` box and never
+    leave the device; clearing them reverts to the bundled `.env` fallback
+    (developer builds)
+  - New `spotifyCredentialsProvider` resolves user credentials first, then
+    `.env`; the Spotify remote and search repositories watch it, so saving
+    new credentials reconnects without an app restart
+  - Client ID validated as a 32-character hex string; redirect URI defaults
+    to `djsports://callback`
+  - In-app step-by-step instructions for creating the Spotify app
+    (requires a Spotify Premium account per Spotify's new rules)
+
+### Changed
+- `.env` is now optional at startup — end-user builds run without it and
+  rely on user-supplied credentials; startup logging no longer prints
+  secret values, only the loaded keys
+
 ## [3.5.2] - Release 2026-05-14
 
 ### Added
