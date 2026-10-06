@@ -6,11 +6,13 @@ import 'dart:math' as math;
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
+import 'package:djsports/data/models/spotify_device.dart';
 import 'package:djsports/data/provider/spotify_credentials_provider.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
@@ -50,8 +52,25 @@ class SpotifyRemoteRepository {
   String spotifyUserDisplayName = '';
   String spotifyUserEmail = '';
   String spotifyUserId = '';
+  String spotifyUserProduct = '';
   final ValueNotifier<String> spotifyUserIdNotifier = ValueNotifier('');
   List<String> spotifyActiveDevices = [];
+
+  /// Who (Spotify account) and where (device) djSports plays.
+  late final ValueNotifier<SpotifySession> sessionNotifier = ValueNotifier(
+    SpotifySession(
+      preferredDeviceId: _settingsGet(_preferredDeviceIdKey),
+      preferredDeviceName: _settingsGet(_preferredDeviceNameKey),
+    ),
+  );
+  SpotifySession get session => sessionNotifier.value;
+
+  /// Device list from the last NO_ACTIVE_DEVICE error, for the device prompt.
+  List<SpotifyDevice> lastNoDeviceCandidates = [];
+
+  /// Set by [reGrantSpotify]; makes the next token request show Spotify's
+  /// login / account picker instead of reusing the cached grant.
+  bool _forceAccountPickerOnce = false;
   bool isSpotifyPluginInstalled = false;
   bool isPlaying = false;
   bool _isConnecting = false;
@@ -61,9 +80,11 @@ class SpotifyRemoteRepository {
   bool _isMuted = false;
   bool volumeAutoSetToDefault = false;
   final ValueNotifier<double> volumeNotifier = ValueNotifier(0.5);
+
   /// True on iOS when the silence keep-alive track is playing instead of
   /// real music (i.e. the user pressed pause).
   final ValueNotifier<bool> silencePlayingNotifier = ValueNotifier(false);
+
   /// True while [fadeAndPausePlayer] is sweeping the volume down. Used by
   /// the UI to disable the fade button mid-fade and by [resumePlayer] to
   /// abort an in-flight fade if the user hits play before it finishes.
@@ -134,6 +155,188 @@ class SpotifyRemoteRepository {
   }
 
   Future<List<String>> getActiveDevices() => _bridge.getActiveDevices();
+
+  // ── Spotify session: account + devices ──────────────────────────────────
+
+  static const _preferredDeviceIdKey = 'spotifyPreferredDeviceId';
+  static const _preferredDeviceNameKey = 'spotifyPreferredDeviceName';
+
+  static String _settingsGet(String key) {
+    try {
+      return Hive.box<dynamic>('settings').get(key) as String? ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static Future<void> _settingsPut(String key, String value) async {
+    try {
+      await Hive.box<dynamic>('settings').put(key, value);
+    } catch (e) {
+      debugPrint('[Spotify] settings put $key failed: $e');
+    }
+  }
+
+  void _updateSession(SpotifySession Function(SpotifySession) update) {
+    sessionNotifier.value = update(sessionNotifier.value);
+  }
+
+  /// Remembers [device] as the playback target (null = follow Spotify's
+  /// active device). Persisted in the Hive `settings` box.
+  Future<void> setPreferredDevice(SpotifyDevice? device) async {
+    final id = device?.id ?? '';
+    final name = device?.name ?? '';
+    await _settingsPut(_preferredDeviceIdKey, id);
+    await _settingsPut(_preferredDeviceNameKey, name);
+    _updateSession(
+      (s) => s.copyWith(preferredDeviceId: id, preferredDeviceName: name),
+    );
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.connectedSpotify,
+      device == null
+          ? 'Playback device: follow Spotify active device'
+          : 'Playback device set to ${device.name} (${device.type})',
+    );
+  }
+
+  /// Reloads the device list, this machine's name and (macOS) whether
+  /// Spotify is running. Safe to call often; errors are logged only.
+  Future<void> refreshDevices() async {
+    if (Platform.isAndroid) return;
+    String localName = session.localDeviceName;
+    bool? running;
+    try {
+      if (localName.isEmpty) localName = await _bridge.getLocalDeviceName();
+      running = await _bridge.isSpotifyRunning();
+    } catch (e) {
+      debugPrint('[Spotify] local device info failed: $e');
+    }
+    if (!hasSpotifyAccessToken) {
+      _updateSession(
+        (s) => s.copyWith(
+          connected: false,
+          localDeviceName: localName,
+          localSpotifyRunning: running,
+        ),
+      );
+      return;
+    }
+    try {
+      final devices = await _bridge.getDevices();
+      spotifyActiveDevices = devices.map((d) => d.toString()).toList();
+      _updateSession(
+        (s) => s.copyWith(
+          connected: true,
+          devices: devices,
+          devicesLoaded: true,
+          localDeviceName: localName,
+          localSpotifyRunning: running,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[Spotify] refreshDevices failed: $e');
+      _updateSession(
+        (s) => s.copyWith(
+          localDeviceName: localName,
+          localSpotifyRunning: running,
+        ),
+      );
+    }
+  }
+
+  void _setAccount(Map<String, String> profile) {
+    spotifyUserDisplayName = profile['displayName'] ?? '';
+    spotifyUserEmail = profile['email'] ?? '';
+    spotifyUserId = profile['id'] ?? '';
+    spotifyUserProduct = profile['product'] ?? '';
+    spotifyUserIdNotifier.value = spotifyUserId;
+    _updateSession(
+      (s) =>
+          s.copyWith(connected: true, account: SpotifyAccount.fromMap(profile)),
+    );
+  }
+
+  void _clearSessionState({bool clearPreferredDevice = false}) {
+    spotifyUserDisplayName = '';
+    spotifyUserEmail = '';
+    spotifyUserId = '';
+    spotifyUserProduct = '';
+    spotifyUserIdNotifier.value = '';
+    spotifyActiveDevices = [];
+    lastNoDeviceCandidates = [];
+    _updateSession(
+      (s) => SpotifySession(
+        localDeviceName: s.localDeviceName,
+        localSpotifyRunning: s.localSpotifyRunning,
+        preferredDeviceId: clearPreferredDevice ? '' : s.preferredDeviceId,
+        preferredDeviceName: clearPreferredDevice ? '' : s.preferredDeviceName,
+      ),
+    );
+    if (clearPreferredDevice) {
+      unawaited(_settingsPut(_preferredDeviceIdKey, ''));
+      unawaited(_settingsPut(_preferredDeviceNameKey, ''));
+    }
+  }
+
+  String? get _preferredDeviceIdOrNull =>
+      session.preferredDeviceId.isEmpty ? null : session.preferredDeviceId;
+
+  /// Records where a play actually went and logs "who → where".
+  void _recordPlayed(SpotifyDevice? used) {
+    if (used == null) return;
+    final known = session.devices.where((d) => d.id == used.id).firstOrNull;
+    final device = known ?? used;
+    _updateSession(
+      (s) => s.copyWith(
+        lastPlayedDevice: device,
+        devices: [
+          for (final d in s.devices)
+            SpotifyDevice(
+              id: d.id,
+              name: d.name,
+              type: d.type,
+              isActive: d.id == device.id,
+              isRestricted: d.isRestricted,
+              volumePercent: d.volumePercent,
+            ),
+        ],
+      ),
+    );
+    final who = session.account?.label ?? '?';
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+      'Playing on ${device.name.isEmpty ? device.id : device.name} as $who',
+    );
+  }
+
+  /// Maps device / Premium errors to result strings the UI recognises:
+  /// `[Error][NoDevice] …` (see [lastNoDeviceCandidates]) and
+  /// `[Error][Premium] …`. Both keep the `[Error]` prefix so older callers
+  /// still treat them as failures.
+  String? _classifyPlayError(PlatformException e) {
+    if (e.code == 'NO_ACTIVE_DEVICE') {
+      final raw = e.details;
+      lastNoDeviceCandidates = raw is List
+          ? raw
+                .whereType<Map<dynamic, dynamic>>()
+                .map(SpotifyDevice.fromMap)
+                .toList()
+          : [];
+      _updateSession(
+        (s) => s.copyWith(devices: lastNoDeviceCandidates, devicesLoaded: true),
+      );
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.connectedSpotify,
+        'No usable Spotify device: ${e.message} '
+        '(${lastNoDeviceCandidates.length} available)',
+      );
+      return '[Error][NoDevice] ${e.message ?? 'No Spotify device available'}';
+    }
+    if (e.code == 'PREMIUM_REQUIRED') {
+      return '[Error][Premium] ${e.message ?? 'Spotify Premium is required'}';
+    }
+    return null;
+  }
 
   /// Returns the current Spotify playback position in milliseconds.
   /// Polls the Spotify Web API on iOS/macOS; uses the SDK on Android.
@@ -240,7 +443,9 @@ class SpotifyRemoteRepository {
           return true;
         }
       } on PlatformException catch (e) {
-        debugPrint('forceFullReconnect: step 2 failed (${e.code}): ${e.message}');
+        debugPrint(
+          'forceFullReconnect: step 2 failed (${e.code}): ${e.message}',
+        );
         // NO_SESSION means no storedSession → fall through to step 3.
       } catch (e) {
         debugPrint('forceFullReconnect: step 2 error: $e');
@@ -276,6 +481,7 @@ class SpotifyRemoteRepository {
     hasSpotifyAccessToken = false;
     isConnectedRemote = false;
     lastConnectError = '';
+    _clearSessionState(clearPreferredDevice: true);
     SpotifyConnectionLog().addSimpleEntry(
       SpotifyConnectionStatus.notConnected,
       'resetAll: clearing native session + all Dart caches',
@@ -305,11 +511,8 @@ class SpotifyRemoteRepository {
     hasSpotifyAccessToken = false;
     isConnectedRemote = false;
     lastConnectError = '';
-    spotifyUserDisplayName = '';
-    spotifyUserEmail = '';
-    spotifyUserId = '';
-    spotifyUserIdNotifier.value = '';
-    spotifyActiveDevices = [];
+    _clearSessionState(clearPreferredDevice: true);
+    _forceAccountPickerOnce = true;
     SpotifyConnectionLog().addSimpleEntry(
       SpotifyConnectionStatus.notConnected,
       'reGrantSpotify: clearing grant + all caches',
@@ -427,7 +630,7 @@ class SpotifyRemoteRepository {
     final completer = Completer<bool>();
     int step = 0;
     bool finalizing = false; // guards against re-entry if a tick fires while
-                             // the final pause() is still awaiting.
+    // the final pause() is still awaiting.
 
     SpotifyConnectionLog().addSimpleEntry(
       SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -531,7 +734,7 @@ class SpotifyRemoteRepository {
     // muting after resume kicks in.
     cancelFade();
     try {
-      await _bridge.resume();
+      _recordPlayed(await _bridge.resume(deviceId: _preferredDeviceIdOrNull));
       await _unMute();
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -550,7 +753,9 @@ class SpotifyRemoteRepository {
             SpotifyConnectionStatus.connectedSpotifyRemoteApp,
             'Reconnected. Retrying resume.',
           );
-          await _bridge.resume();
+          _recordPlayed(
+            await _bridge.resume(deviceId: _preferredDeviceIdOrNull),
+          );
           isPlaying = true;
           return isPlaying;
         }
@@ -601,10 +806,15 @@ class SpotifyRemoteRepository {
     }
     final startTime = DateTime.now();
     try {
-      debugPrint('[PLAY] Calling bridge.playWithPosition uri=${track.spotifyUri}');
-      await _bridge.playWithPosition(
-        spotifyUri: track.spotifyUri,
-        positionMs: jumpStart > 0 ? jumpStart : 0,
+      debugPrint(
+        '[PLAY] Calling bridge.playWithPosition uri=${track.spotifyUri}',
+      );
+      _recordPlayed(
+        await _bridge.playWithPosition(
+          spotifyUri: track.spotifyUri,
+          positionMs: jumpStart > 0 ? jumpStart : 0,
+          deviceId: _preferredDeviceIdOrNull,
+        ),
       );
       // Restore volume if a prior pause (regular Android mute or any
       // platform's fade-pause) left us muted. On Android the native bridge
@@ -636,6 +846,8 @@ class SpotifyRemoteRepository {
         'message=${platformException.message}\n'
         '  details=${platformException.details}',
       );
+      final classified = _classifyPlayError(platformException);
+      if (classified != null) return classified;
       if (retry && _needsReconnect(platformException)) {
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
@@ -675,13 +887,17 @@ class SpotifyRemoteRepository {
 
     final startTime = DateTime.now();
     try {
-      await _bridge.playWithPosition(
-        spotifyUri: spotifyUri,
-        positionMs: jumpStart,
+      _recordPlayed(
+        await _bridge.playWithPosition(
+          spotifyUri: spotifyUri,
+          positionMs: jumpStart,
+          deviceId: _preferredDeviceIdOrNull,
+        ),
       );
       if (jumpStart > 0) {
-        latestDurationStartupMS =
-            DateTime.now().difference(startTime).inMilliseconds;
+        latestDurationStartupMS = DateTime.now()
+            .difference(startTime)
+            .inMilliseconds;
       }
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -694,6 +910,8 @@ class SpotifyRemoteRepository {
         'message=${platformException.message}\n'
         '  details=${platformException.details}',
       );
+      final classified = _classifyPlayError(platformException);
+      if (classified != null) return classified;
       if (retry && _needsReconnect(platformException)) {
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
@@ -725,7 +943,12 @@ class SpotifyRemoteRepository {
     }
 
     try {
-      await _bridge.play(spotifyUri: spotifyUri);
+      _recordPlayed(
+        await _bridge.play(
+          spotifyUri: spotifyUri,
+          deviceId: _preferredDeviceIdOrNull,
+        ),
+      );
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'play track $spotifyUri',
@@ -735,6 +958,8 @@ class SpotifyRemoteRepository {
       debugPrint('Failed to play. details: ${platformException.details}');
       debugPrint('Failed to play. code: ${platformException.code}');
       debugPrint('Failed to play. message: ${platformException.message}');
+      final classified = _classifyPlayError(platformException);
+      if (classified != null) return classified;
       if (_needsReconnect(platformException)) {
         SpotifyConnectionLog().addSimpleEntry(
           SpotifyConnectionStatus.notConnected,
@@ -799,30 +1024,14 @@ class SpotifyRemoteRepository {
           unawaited(_fetchUserProfileFromWebApi(accessToken));
         } else {
           unawaited(
-            _bridge
-                .getUserProfile()
-                .then((profile) {
-                  spotifyUserDisplayName = profile['displayName'] ?? '';
-                  spotifyUserEmail = profile['email'] ?? '';
-                  spotifyUserId = profile['id'] ?? '';
-                  spotifyUserIdNotifier.value = spotifyUserId;
-                })
-                .catchError((error) {
-                  debugPrint('Failed to get user profile: $error');
-                }),
+            _bridge.getUserProfile().then(_setAccount).catchError((
+              Object error,
+            ) {
+              debugPrint('Failed to get user profile: $error');
+            }),
           );
         }
-        unawaited(
-          _bridge
-              .getActiveDevices()
-              .then((devices) {
-                spotifyActiveDevices = devices;
-              })
-              .catchError((error) {
-                debugPrint('Failed to get active devices: $error');
-                spotifyActiveDevices = [];
-              }),
-        );
+        unawaited(refreshDevices());
       }
     } catch (e) {
       debugPrint('[Spotify] connectAccessToken error: $e');
@@ -848,10 +1057,12 @@ class SpotifyRemoteRepository {
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        spotifyUserDisplayName = data['display_name'] as String? ?? '';
-        spotifyUserEmail = data['email'] as String? ?? '';
-        spotifyUserId = data['id'] as String? ?? '';
-        spotifyUserIdNotifier.value = spotifyUserId;
+        _setAccount({
+          'displayName': data['display_name'] as String? ?? '',
+          'email': data['email'] as String? ?? '',
+          'id': data['id'] as String? ?? '',
+          'product': data['product'] as String? ?? '',
+        });
         debugPrint(
           '[Spotify] Android user profile: '
           'id=$spotifyUserId name=$spotifyUserDisplayName',
@@ -895,11 +1106,15 @@ class SpotifyRemoteRepository {
         'user-modify-playback-state',
         'user-read-playback-state',
         'user-read-private',
+        'user-read-email',
         'playlist-read-private',
         'playlist-modify-public',
         'user-read-currently-playing',
       ];
+      final forceAccountPicker = _forceAccountPickerOnce;
+      _forceAccountPickerOnce = false;
       var accessToken = await _bridge.getAccessToken(
+        forceAccountPicker: forceAccountPicker,
         clientId: _credentials.clientId ?? '',
         redirectUrl: _spotifyRedirectUrl,
         scope:
@@ -907,6 +1122,7 @@ class SpotifyRemoteRepository {
             'user-modify-playback-state, '
             'user-read-playback-state, '
             'user-read-private, '
+            'user-read-email, '
             'playlist-read-private, '
             'playlist-modify-public, '
             'user-read-currently-playing',
@@ -968,6 +1184,7 @@ class SpotifyRemoteRepository {
             'user-modify-playback-state, '
             'user-read-playback-state, '
             'user-read-private, '
+            'user-read-email, '
             'playlist-read-private, '
             'playlist-modify-public, '
             'user-read-currently-playing',

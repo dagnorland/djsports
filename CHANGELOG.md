@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Spotify account & device visibility** (iOS + macOS) — the home AppBar
+  now shows `account → device` coloured by status; tapping it opens a
+  "Spotify output" sheet with the logged-in account (name, email, Premium),
+  every Spotify Connect device on the account, and a device selector
+  - The chosen device is remembered (Hive `settings`:
+    `spotifyPreferredDeviceId/Name`) and passed as `device_id` on play/resume
+  - Warns when Spotify on this Mac is running but missing from the
+    account's device list — i.e. the Spotify app is signed in with a
+    different account than djSports
+  - Every play logs `Playing on <device> as <account>`
+- **"Where should djSports play?" prompt** — when no usable device exists
+  (or the chosen one is gone), playback asks instead of guessing, then
+  retries on the picked device. Used by Let's Play, the playlist track list
+  and the track editor preview
+
+### Changed
+- Playback never silently falls back to the first device in the list
+  (could be a phone or speaker elsewhere). macOS only auto-uses this Mac;
+  iOS only auto-activates this iPhone. Native errors are now typed
+  (`NO_ACTIVE_DEVICE` with the device list, `PREMIUM_REQUIRED`)
+- "Switch Spotify account" now forces Spotify's login / account picker
+  (`show_dialog=true`, ephemeral browser session) instead of silently
+  logging back into the same account
+- Added the `user-read-email` scope so the account email is shown (takes
+  effect after the next Spotify login)
+
 ## [4.0.0] - Release 2026-10-06
 
 First release under the new Apple Developer account (Team ID `4SRFW7L9XH`),

@@ -1,5 +1,7 @@
 import 'package:djsports/data/models/spotify_connection_log.dart';
+import 'package:djsports/data/models/spotify_device.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:djsports/features/track_time/settings_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
@@ -36,11 +38,7 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            globalInfoBox(
-              context,
-              'SPOTIFY ACCOUNT',
-              _accountSection(repo),
-            ),
+            globalInfoBox(context, 'SPOTIFY ACCOUNT', _accountSection(repo)),
             const Gap(20),
             globalInfoBox(
               context,
@@ -55,10 +53,12 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
   }
 
   Widget _accountSection(SpotifyRemoteRepository repo) {
-    return ValueListenableBuilder<String>(
-      valueListenable: repo.spotifyUserIdNotifier,
-      builder: (context, userId, _) {
+    return ValueListenableBuilder<SpotifySession>(
+      valueListenable: repo.sessionNotifier,
+      builder: (context, session, _) {
         final displayName = repo.spotifyUserDisplayName;
+        final userId = repo.spotifyUserId;
+        final target = session.targetDevice;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
@@ -67,7 +67,9 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
                 icon: Icons.person_outline,
                 label: 'Display name',
                 value: displayName.isEmpty ? '— not connected' : displayName,
-                valueColor: displayName.isEmpty ? Colors.black38 : Colors.black87,
+                valueColor: displayName.isEmpty
+                    ? Colors.black38
+                    : Colors.black87,
               ),
               const SizedBox(height: 8),
               _accountRow(
@@ -75,6 +77,38 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
                 label: 'User ID',
                 value: userId.isEmpty ? '— not connected' : userId,
                 valueColor: userId.isEmpty ? Colors.black38 : Colors.black54,
+              ),
+              const SizedBox(height: 8),
+              _accountRow(
+                icon: Icons.workspace_premium_outlined,
+                label: 'Product',
+                value: repo.spotifyUserProduct.isEmpty
+                    ? '—'
+                    : repo.spotifyUserProduct,
+                valueColor: session.account?.premiumOrUnknown ?? true
+                    ? Colors.black54
+                    : Colors.red.shade700,
+              ),
+              const SizedBox(height: 8),
+              _accountRow(
+                icon: Icons.speaker_group_outlined,
+                label: 'Plays on',
+                value: session.suspectsOtherAccount
+                    ? '⚠️ Spotify on "${session.localDeviceName}" seems to '
+                          'use another account'
+                    : target?.name ?? '— no device (will ask on play)',
+                valueColor: target == null || session.suspectsOtherAccount
+                    ? Colors.orange.shade800
+                    : Colors.green.shade700,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.speaker_group_outlined),
+                  label: const Text('Spotify account & devices…'),
+                  onPressed: () => showSpotifyOutputSheet(context),
+                ),
               ),
             ],
           ),
@@ -326,10 +360,17 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
               repo.spotifyActiveDevices.join(', '),
               Colors.blue.shade700,
             )
-          else if (repo.spotifyUserEmail.isNotEmpty)
+          else if (repo.hasSpotifyAccessToken)
             _diagStateRow(
               'devices',
-              '⚠️ none found — Spotify may be logged in on a different account',
+              '⚠️ none found — open Spotify signed in as this account',
+              Colors.orange.shade800,
+            ),
+          if (repo.session.suspectsOtherAccount)
+            _diagStateRow(
+              'mismatch',
+              '⚠️ Spotify on "${repo.session.localDeviceName}" is not in '
+                  'this account\'s devices — likely another Spotify account',
               Colors.orange.shade800,
             ),
           if (repo.lastConnectError.isNotEmpty)

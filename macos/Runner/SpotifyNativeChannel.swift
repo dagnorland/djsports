@@ -42,7 +42,7 @@ class SpotifyNativeChannel: NSObject {
         case "pause":
             spotifyWebAPI(method: "PUT", path: "/me/player/pause", result: result)
         case "resume":
-            resumeOnDevice(result: result)
+            resumeOnDevice(args: args, result: result)
         case "seekTo":
             seekTo(args: args, result: result)
         case "setVolume":
@@ -52,6 +52,22 @@ class SpotifyNativeChannel: NSObject {
             getUserProfile(result: result)
         case "getActiveDevices":
             getActiveDevices(result: result)
+        case "getDevices":
+            getDevices(result: result)
+        case "getLocalDeviceName":
+            result(localDeviceName)
+        case "isSpotifyRunning":
+            result(!NSRunningApplication
+                .runningApplications(withBundleIdentifier: "com.spotify.client")
+                .isEmpty)
+        case "getDebugInfo":
+            result([
+                "native.hasToken": storedAccessToken != nil,
+                "native.hasRefreshToken": UserDefaults.standard.string(
+                    forKey: refreshTokenKey
+                ) != nil,
+                "native.localDeviceName": localDeviceName,
+            ])
         case "clearSession":
             storedAccessToken = nil
             UserDefaults.standard.removeObject(forKey: refreshTokenKey)
@@ -85,6 +101,22 @@ class SpotifyNativeChannel: NSObject {
             .replacingOccurrences(of: ", ", with: " ")
             .replacingOccurrences(of: ",", with: " ")
 
+        // Account switch: skip the cached refresh token and force Spotify to
+        // show its login / account picker instead of silently reusing the
+        // browser's existing Spotify session.
+        if args["forceAccountPicker"] as? Bool == true {
+            storedAccessToken = nil
+            UserDefaults.standard.removeObject(forKey: refreshTokenKey)
+            startPKCEFlow(
+                clientId: clientId,
+                redirectUrl: redirectUrl,
+                scope: normalizedScope,
+                forceAccountPicker: true,
+                result: result
+            )
+            return
+        }
+
         if let refreshToken = UserDefaults.standard.string(forKey: refreshTokenKey) {
             refreshAccessToken(clientId: clientId, refreshToken: refreshToken) { [weak self] accessToken in
                 if let accessToken = accessToken {
@@ -112,6 +144,7 @@ class SpotifyNativeChannel: NSObject {
         clientId: String,
         redirectUrl: String,
         scope: String,
+        forceAccountPicker: Bool = false,
         result: @escaping FlutterResult
     ) {
         let codeVerifier = generateCodeVerifier()
@@ -126,6 +159,11 @@ class SpotifyNativeChannel: NSObject {
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge", value: codeChallenge),
         ]
+        if forceAccountPicker {
+            components.queryItems?.append(
+                URLQueryItem(name: "show_dialog", value: "true")
+            )
+        }
 
         guard let authURL = components.url else {
             result(FlutterError(
@@ -178,7 +216,7 @@ class SpotifyNativeChannel: NSObject {
             )
         }
         authSession?.presentationContextProvider = self
-        authSession?.prefersEphemeralWebBrowserSession = false
+        authSession?.prefersEphemeralWebBrowserSession = forceAccountPicker
         authSession?.start()
     }
 
@@ -475,33 +513,149 @@ class SpotifyNativeChannel: NSObject {
             return
         }
         let positionMs = args["positionMs"] as? Int
-        print("[SpotifyMacOS] play called with uri: \(uri) positionMs: \(positionMs ?? 0)")
+        let deviceId = nonEmpty(args["deviceId"] as? String)
+        print("[SpotifyMacOS] play uri: \(uri) positionMs: \(positionMs ?? 0) device: \(deviceId ?? "(active)")")
+        var body: [String: Any] = ["uris": [uri]]
+        if let pos = positionMs, pos > 0 {
+            body["position_ms"] = pos
+        }
         // Ensure Spotify is running so it registers as active Web API device
         ensureSpotifyRunning {
-            self.fetchDeviceThenPlay(uri: uri, positionMs: positionMs, result: result)
+            self.playOnDevice(body: body, deviceId: deviceId, result: result)
         }
     }
 
     // MARK: - Playback helpers
 
-    private func fetchDeviceThenPlay(uri: String, positionMs: Int?, result: @escaping FlutterResult) {
-        var body: [String: Any] = ["uris": [uri]]
-        if let pos = positionMs, pos > 0 {
-            body["position_ms"] = pos
-        }
-        playWithAutoDeviceFallback(body: body, result: result)
+    /// Name Spotify desktop uses for this Mac in the Web API device list.
+    private var localDeviceName: String {
+        Host.current().localizedName ?? ""
     }
 
-    /// Tries to play; on HTTP 404 (no active device) automatically fetches
-    /// the device list and retries with an explicit device_id.
-    private func playWithAutoDeviceFallback(
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let value = value, !value.isEmpty else { return nil }
+        return value
+    }
+
+    /// Plays on [deviceId] when given, otherwise on the account's active
+    /// device. Never silently picks a device on another machine:
+    /// - 404 with no target → retry on this Mac if it is in the device list,
+    ///   otherwise fail with NO_ACTIVE_DEVICE (details = device list).
+    /// - 404 with a target → the chosen device is gone → NO_ACTIVE_DEVICE.
+    /// On success returns `{deviceId, deviceName}` of the device used.
+    private func playOnDevice(
         body: [String: Any],
+        deviceId: String?,
+        isRetry: Bool = false,
         result: @escaping FlutterResult
     ) {
+        var path = "/me/player/play"
+        if let deviceId = deviceId {
+            path += "?device_id=\(deviceId)"
+        }
+        sendPlayerCommand(path: path, body: body) { [weak self] status, bodyStr, error in
+            guard let self = self else { return }
+            if let error = error {
+                result(error)
+                return
+            }
+            if status == 404 {
+                self.handleNoActiveDevice(
+                    body: body,
+                    requestedDeviceId: deviceId,
+                    isRetry: isRetry,
+                    result: result
+                )
+                return
+            }
+            if status >= 400 {
+                result(self.playerError(status: status, body: bodyStr))
+                return
+            }
+            self.reportDeviceUsed(requestedDeviceId: deviceId, result: result)
+        }
+    }
+
+    private func handleNoActiveDevice(
+        body: [String: Any],
+        requestedDeviceId: String?,
+        isRetry: Bool,
+        result: @escaping FlutterResult
+    ) {
+        fetchDevices { [weak self] devices in
+            guard let self = self else { return }
+            let devices = devices ?? []
+            // The chosen device is listed but wasn't ready (e.g. Spotify was
+            // just launched) — give it a moment and retry once.
+            if let requested = requestedDeviceId, !isRetry,
+               devices.contains(where: { ($0["id"] as? String) == requested }) {
+                print("[SpotifyMacOS] Device \(requested) listed but not ready — retrying")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.playOnDevice(
+                        body: body,
+                        deviceId: requested,
+                        isRetry: true,
+                        result: result
+                    )
+                }
+                return
+            }
+            if requestedDeviceId == nil,
+               let local = devices.first(where: {
+                   ($0["name"] as? String) == self.localDeviceName
+               }),
+               let localId = local["id"] as? String {
+                print("[SpotifyMacOS] No active device — using this Mac (\(self.localDeviceName))")
+                self.playOnDevice(body: body, deviceId: localId, result: result)
+                return
+            }
+            let message = requestedDeviceId == nil
+                ? "No active Spotify device for this account."
+                : "The selected Spotify device is no longer available."
+            result(FlutterError(
+                code: "NO_ACTIVE_DEVICE",
+                message: message,
+                details: devices.map(self.deviceMap)
+            ))
+        }
+    }
+
+    /// After a successful play, tell Dart which device is playing.
+    private func reportDeviceUsed(
+        requestedDeviceId: String?,
+        result: @escaping FlutterResult
+    ) {
+        fetchDevices { [weak self] devices in
+            guard let self = self else { return }
+            let devices = devices ?? []
+            let used = devices.first(where: {
+                if let id = requestedDeviceId {
+                    return ($0["id"] as? String) == id
+                }
+                return $0["is_active"] as? Bool ?? false
+            })
+            result([
+                "deviceId": used?["id"] as? String ?? requestedDeviceId ?? "",
+                "deviceName": used?["name"] as? String ?? "",
+            ])
+        }
+    }
+
+    /// PUT a player command and hand back status + body without
+    /// interpreting them.
+    private func sendPlayerCommand(
+        path: String,
+        body: [String: Any],
+        completion: @escaping (Int, String, FlutterError?) -> Void
+    ) {
         guard let token = storedAccessToken,
-              let url = URL(string: "https://api.spotify.com/v1/me/player/play")
+              let url = URL(string: "https://api.spotify.com/v1\(path)")
         else {
-            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            completion(0, "", FlutterError(
+                code: "NO_TOKEN",
+                message: "No access token",
+                details: nil
+            ))
             return
         }
         var request = URLRequest(url: url)
@@ -510,57 +664,42 @@ class SpotifyNativeChannel: NSObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                guard let self = self else { return }
                 if let error = error {
-                    result(FlutterError(code: "API_ERROR",
-                                        message: error.localizedDescription,
-                                        details: nil))
+                    completion(0, "", FlutterError(
+                        code: "API_ERROR",
+                        message: error.localizedDescription,
+                        details: nil
+                    ))
                     return
                 }
-                guard let http = response as? HTTPURLResponse else {
-                    result(nil)
-                    return
-                }
-                print("[SpotifyMacOS] play status: \(http.statusCode)")
-                if http.statusCode == 404 {
-                    // No active device — pick first available and retry
-                    print("[SpotifyMacOS] No active device, fetching devices for fallback…")
-                    self.fetchFirstDeviceId { deviceId in
-                        guard let deviceId = deviceId else {
-                            result(FlutterError(
-                                code: "API_ERROR",
-                                message: "No active device found. Open Spotify and start playing first.",
-                                details: nil
-                            ))
-                            return
-                        }
-                        print("[SpotifyMacOS] Retrying play with device_id: \(deviceId)")
-                        self.spotifyWebAPI(
-                            method: "PUT",
-                            path: "/me/player/play?device_id=\(deviceId)",
-                            body: body,
-                            result: result
-                        )
-                    }
-                    return
-                }
-                if http.statusCode >= 400 {
-                    let bodyStr = data.flatMap { String(data: $0, encoding: .utf8) } ?? "(no body)"
-                    print("[SpotifyMacOS] play error body: \(bodyStr)")
-                    result(FlutterError(code: "API_ERROR",
-                                        message: "HTTP \(http.statusCode): \(bodyStr)",
-                                        details: nil))
-                    return
-                }
-                result(nil)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                let bodyStr = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                print("[SpotifyMacOS] PUT \(path) → \(status)")
+                completion(status, bodyStr, nil)
             }
         }.resume()
     }
 
-    /// Returns the first available Spotify device ID, or nil if none found.
-    private func fetchFirstDeviceId(completion: @escaping (String?) -> Void) {
+    private func playerError(status: Int, body: String) -> FlutterError {
+        print("[SpotifyMacOS] player error body: \(body)")
+        if status == 403 && body.contains("PREMIUM_REQUIRED") {
+            return FlutterError(
+                code: "PREMIUM_REQUIRED",
+                message: "Spotify Premium is required for playback control.",
+                details: nil
+            )
+        }
+        return FlutterError(
+            code: "API_ERROR",
+            message: "HTTP \(status): \(body.isEmpty ? "(no body)" : body)",
+            details: nil
+        )
+    }
+
+    /// Raw device objects from GET /me/player/devices, or nil on failure.
+    private func fetchDevices(completion: @escaping ([[String: Any]]?) -> Void) {
         guard let token = storedAccessToken,
               let url = URL(string: "https://api.spotify.com/v1/me/player/devices")
         else {
@@ -574,22 +713,33 @@ class SpotifyNativeChannel: NSObject {
                 guard
                     let data = data, error == nil,
                     let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                    let devices = json["devices"] as? [[String: Any]],
-                    let first = devices.first,
-                    let id = first["id"] as? String
+                    let devices = json["devices"] as? [[String: Any]]
                 else {
                     completion(nil)
                     return
                 }
-                let name = first["name"] as? String ?? "Unknown"
-                print("[SpotifyMacOS] Auto-selected device: \(name) (\(id))")
-                completion(id)
+                completion(devices)
             }
         }.resume()
     }
 
-    private func resumeOnDevice(result: @escaping FlutterResult) {
-        playWithAutoDeviceFallback(body: [:], result: result)
+    private func deviceMap(_ device: [String: Any]) -> [String: Any] {
+        return [
+            "id": device["id"] as? String ?? "",
+            "name": device["name"] as? String ?? "Unknown",
+            "type": device["type"] as? String ?? "",
+            "isActive": device["is_active"] as? Bool ?? false,
+            "isRestricted": device["is_restricted"] as? Bool ?? false,
+            "volumePercent": device["volume_percent"] as? Int ?? -1,
+        ]
+    }
+
+    private func resumeOnDevice(args: [String: Any], result: @escaping FlutterResult) {
+        playOnDevice(
+            body: [:],
+            deviceId: nonEmpty(args["deviceId"] as? String),
+            result: result
+        )
     }
 
     private func setVolumeOnDevice(percent: Int, result: @escaping FlutterResult) {
@@ -632,6 +782,25 @@ class SpotifyNativeChannel: NSObject {
                 ])
             }
         }.resume()
+    }
+
+    private func getDevices(result: @escaping FlutterResult) {
+        guard storedAccessToken != nil else {
+            result(FlutterError(code: "NO_TOKEN", message: "No access token", details: nil))
+            return
+        }
+        fetchDevices { [weak self] devices in
+            guard let self = self else { return }
+            guard let devices = devices else {
+                result(FlutterError(
+                    code: "API_ERROR",
+                    message: "Could not load Spotify devices",
+                    details: nil
+                ))
+                return
+            }
+            result(devices.map(self.deviceMap))
+        }
     }
 
     private func getActiveDevices(result: @escaping FlutterResult) {
@@ -729,6 +898,14 @@ class SpotifyNativeChannel: NSObject {
                         if http.statusCode == 403 && body.contains("Restriction violated") {
                             print("[SpotifyMacOS] Ignoring restriction violation — player idle or command not applicable")
                             result(nil)
+                            return
+                        }
+                        if http.statusCode == 403 && body.contains("PREMIUM_REQUIRED") {
+                            result(FlutterError(
+                                code: "PREMIUM_REQUIRED",
+                                message: "Spotify Premium is required for playback control.",
+                                details: nil
+                            ))
                             return
                         }
                         result(FlutterError(code: "API_ERROR", message: "HTTP \(http.statusCode): \(body)", details: nil))

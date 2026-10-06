@@ -18,6 +18,7 @@ import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/track_time/settings_center_screen.dart';
 import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
+import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -63,10 +64,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Pick the last played Apple Music track (or first in list) for warmup
     final lastAppleMusicId = ref
         .read(lastDjTrackPlayedProvider)
-        .maybeWhen(
-          data: (t) => t?.appleMusicId ?? '',
-          orElse: () => '',
-        );
+        .maybeWhen(data: (t) => t?.appleMusicId ?? '', orElse: () => '');
     final warmupId = lastAppleMusicId.isNotEmpty ? lastAppleMusicId : ids.first;
     // Warmup: silent play+pause to establish streaming session (~600ms after this)
     await repo.warmupStreamingSession(warmupId);
@@ -168,6 +166,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   void _onConnectionStatus(bool connected) {
     spotifyRemoteConnect = connected;
+    // Spotify app started/stopped (macOS) – re-check where we'd play. A
+    // freshly launched Spotify shows up in the device list a few seconds
+    // later, so check again before trusting the result.
+    final repo = ref.read(spotifyRemoteRepositoryProvider);
+    unawaited(repo.refreshDevices());
+    Future<void>.delayed(const Duration(seconds: 6), () {
+      if (mounted) unawaited(repo.refreshDevices());
+    });
     if (!connected) {
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.notConnected,
@@ -299,19 +305,22 @@ class _HomePageState extends ConsumerState<HomePage> {
             onPressed: _appleMusicConnect,
           ),
         ),
-      Tooltip(
-        message: hasToken ? 'Spotify connected' : 'Connect Spotify',
-        child: IconButton(
-          icon: FaIcon(
-            FontAwesomeIcons.spotify,
-            color: hasToken ? Colors.green.shade700 : Colors.red.shade700,
+      if (Platform.isAndroid)
+        Tooltip(
+          message: hasToken ? 'Spotify connected' : 'Connect Spotify',
+          child: IconButton(
+            icon: FaIcon(
+              FontAwesomeIcons.spotify,
+              color: hasToken ? Colors.green.shade700 : Colors.red.shade700,
+            ),
+            onPressed: () async {
+              await _spotifyConnect(context, ref);
+              if (mounted) setState(() {});
+            },
           ),
-          onPressed: () async {
-            await _spotifyConnect(context, ref);
-            if (mounted) setState(() {});
-          },
-        ),
-      ),
+        )
+      else
+        const SpotifyStatusChip(),
       Padding(
         padding: const EdgeInsets.only(right: 5),
         child: DJPrimaryButton(
@@ -369,17 +378,20 @@ class _HomePageState extends ConsumerState<HomePage> {
               : 'Connect Apple Music',
           onPressed: _appleMusicConnect,
         ),
-      IconButton(
-        icon: Icon(
-          hasToken ? Icons.wifi : Icons.wifi_off,
-          color: hasToken ? Colors.green : Colors.red,
-        ),
-        tooltip: hasToken ? 'Spotify Connected' : 'Connect Spotify',
-        onPressed: () async {
-          await _spotifyConnect(context, ref);
-          if (mounted) setState(() {});
-        },
-      ),
+      if (Platform.isAndroid)
+        IconButton(
+          icon: Icon(
+            hasToken ? Icons.wifi : Icons.wifi_off,
+            color: hasToken ? Colors.green : Colors.red,
+          ),
+          tooltip: hasToken ? 'Spotify Connected' : 'Connect Spotify',
+          onPressed: () async {
+            await _spotifyConnect(context, ref);
+            if (mounted) setState(() {});
+          },
+        )
+      else
+        const SpotifyStatusChip(compact: true),
       PopupMenuButton<String>(
         icon: const Icon(Icons.more_vert, color: Colors.black),
         onSelected: _handlePopupAction,

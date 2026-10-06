@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:djsports/data/models/spotify_device.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
@@ -12,10 +13,13 @@ abstract class SpotifyPlatformBridge {
     return _AndroidBridge();
   }
 
+  /// [forceAccountPicker] skips the cached grant and makes Spotify show its
+  /// login / account picker (iOS/macOS) – used when switching account.
   Future<String> getAccessToken({
     required String clientId,
     required String redirectUrl,
     required String scope,
+    bool forceAccountPicker = false,
   });
 
   Future<bool> connectToSpotifyRemote({
@@ -25,11 +29,19 @@ abstract class SpotifyPlatformBridge {
     required String accessToken,
   });
 
-  Future<void> play({required String spotifyUri, int positionMs = 0});
+  /// Plays on [deviceId], or on the active device when null.
+  /// Returns the device used (iOS/macOS) or null when unknown.
+  /// Throws [PlatformException] `NO_ACTIVE_DEVICE` (details = device maps)
+  /// or `PREMIUM_REQUIRED`.
+  Future<SpotifyDevice?> play({
+    required String spotifyUri,
+    int positionMs = 0,
+    String? deviceId,
+  });
 
   Future<void> pause();
 
-  Future<void> resume();
+  Future<SpotifyDevice?> resume({String? deviceId});
 
   Future<void> seekTo({required int positionedMilliseconds});
 
@@ -37,9 +49,10 @@ abstract class SpotifyPlatformBridge {
 
   /// Plays [spotifyUri] starting at [positionMs].
   /// Each platform handles mute / seek / unmute internally.
-  Future<void> playWithPosition({
+  Future<SpotifyDevice?> playWithPosition({
     required String spotifyUri,
     int positionMs = 0,
+    String? deviceId,
   });
 
   /// Returns the current volume as [0.0, 1.0].
@@ -57,6 +70,16 @@ abstract class SpotifyPlatformBridge {
   /// Returns the active Spotify devices for the authenticated account.
   /// Each entry is formatted as "Name (Type)" with " ●" appended if active.
   Future<List<String>> getActiveDevices();
+
+  /// All Spotify Connect devices for the authenticated account.
+  /// Empty on Android (App Remote SDK has no device list).
+  Future<List<SpotifyDevice>> getDevices();
+
+  /// Name Spotify uses for this machine. Empty when unknown.
+  Future<String> getLocalDeviceName();
+
+  /// Whether the Spotify app runs on this machine. Null when unknown.
+  Future<bool?> isSpotifyRunning();
 
   /// Clears the native session cache so the next [getAccessToken] call is
   /// forced through [SPTSessionManager.initiateSession], which opens the
@@ -102,11 +125,13 @@ class _IosBridge implements SpotifyPlatformBridge {
     required String clientId,
     required String redirectUrl,
     required String scope,
+    bool forceAccountPicker = false,
   }) => _mc
       .invokeMethod<String>('getAccessToken', {
         'clientId': clientId,
         'redirectUrl': redirectUrl,
         'scope': scope,
+        'forceAccountPicker': forceAccountPicker,
       })
       .then((v) => v ?? '');
 
@@ -126,17 +151,19 @@ class _IosBridge implements SpotifyPlatformBridge {
       .then((v) => v ?? false);
 
   @override
-  Future<void> play({required String spotifyUri, int positionMs = 0}) =>
-      _mc.invokeMethod('play', {
-        'spotifyUri': spotifyUri,
-        if (positionMs > 0) 'positionMs': positionMs,
-      });
+  Future<SpotifyDevice?> play({
+    required String spotifyUri,
+    int positionMs = 0,
+    String? deviceId,
+  }) => _invokePlay(_mc, spotifyUri, positionMs, deviceId);
 
   @override
   Future<void> pause() => _mc.invokeMethod('pause');
 
   @override
-  Future<void> resume() => _mc.invokeMethod('resume');
+  Future<SpotifyDevice?> resume({String? deviceId}) async => _deviceUsed(
+    await _mc.invokeMethod<Object?>('resume', {'deviceId': ?deviceId}),
+  );
 
   @override
   Future<void> seekTo({required int positionedMilliseconds}) =>
@@ -150,13 +177,11 @@ class _IosBridge implements SpotifyPlatformBridge {
 
   // Native Swift play handler already handles mute/seek/unmute — delegate directly.
   @override
-  Future<void> playWithPosition({
+  Future<SpotifyDevice?> playWithPosition({
     required String spotifyUri,
     int positionMs = 0,
-  }) => _mc.invokeMethod('play', {
-    'spotifyUri': spotifyUri,
-    if (positionMs > 0) 'positionMs': positionMs,
-  });
+    String? deviceId,
+  }) => _invokePlay(_mc, spotifyUri, positionMs, deviceId);
 
   @override
   Future<double> getSystemVolume() async =>
@@ -180,7 +205,18 @@ class _IosBridge implements SpotifyPlatformBridge {
       await _mc.invokeListMethod<String>('getActiveDevices') ?? [];
 
   @override
+  Future<List<SpotifyDevice>> getDevices() => _invokeGetDevices(_mc);
+
+  @override
+  Future<String> getLocalDeviceName() async =>
+      await _mc.invokeMethod<String>('getLocalDeviceName') ?? '';
+
+  @override
   Future<void> clearSession() => _mc.invokeMethod('clearSession');
+
+  // iOS can't see other apps' state.
+  @override
+  Future<bool?> isSpotifyRunning() async => null;
 
   @override
   Future<String> reconnectViaSpotify({
@@ -222,11 +258,13 @@ class _MacOSBridge implements SpotifyPlatformBridge {
     required String clientId,
     required String redirectUrl,
     required String scope,
+    bool forceAccountPicker = false,
   }) => _mc
       .invokeMethod<String>('getAccessToken', {
         'clientId': clientId,
         'redirectUrl': redirectUrl,
         'scope': scope,
+        'forceAccountPicker': forceAccountPicker,
       })
       .then((v) => v ?? '');
 
@@ -246,17 +284,19 @@ class _MacOSBridge implements SpotifyPlatformBridge {
       .then((v) => v ?? false);
 
   @override
-  Future<void> play({required String spotifyUri, int positionMs = 0}) =>
-      _mc.invokeMethod('play', {
-        'spotifyUri': spotifyUri,
-        if (positionMs > 0) 'positionMs': positionMs,
-      });
+  Future<SpotifyDevice?> play({
+    required String spotifyUri,
+    int positionMs = 0,
+    String? deviceId,
+  }) => _invokePlay(_mc, spotifyUri, positionMs, deviceId);
 
   @override
   Future<void> pause() => _mc.invokeMethod('pause');
 
   @override
-  Future<void> resume() => _mc.invokeMethod('resume');
+  Future<SpotifyDevice?> resume({String? deviceId}) async => _deviceUsed(
+    await _mc.invokeMethod<Object?>('resume', {'deviceId': ?deviceId}),
+  );
 
   @override
   Future<void> seekTo({required int positionedMilliseconds}) =>
@@ -270,13 +310,11 @@ class _MacOSBridge implements SpotifyPlatformBridge {
 
   // macOS Web API play already accepts position_ms inline — no muting needed.
   @override
-  Future<void> playWithPosition({
+  Future<SpotifyDevice?> playWithPosition({
     required String spotifyUri,
     int positionMs = 0,
-  }) => _mc.invokeMethod('play', {
-    'spotifyUri': spotifyUri,
-    if (positionMs > 0) 'positionMs': positionMs,
-  });
+    String? deviceId,
+  }) => _invokePlay(_mc, spotifyUri, positionMs, deviceId);
 
   @override
   Future<double> getSystemVolume() async =>
@@ -305,7 +343,18 @@ class _MacOSBridge implements SpotifyPlatformBridge {
       await _mc.invokeListMethod<String>('getActiveDevices') ?? [];
 
   @override
+  Future<List<SpotifyDevice>> getDevices() => _invokeGetDevices(_mc);
+
+  @override
+  Future<String> getLocalDeviceName() async =>
+      await _mc.invokeMethod<String>('getLocalDeviceName') ?? '';
+
+  @override
   Future<void> clearSession() => _mc.invokeMethod('clearSession');
+
+  @override
+  Future<bool?> isSpotifyRunning() =>
+      _mc.invokeMethod<bool>('isSpotifyRunning');
 
   @override
   Future<String> reconnectViaSpotify({
@@ -314,7 +363,10 @@ class _MacOSBridge implements SpotifyPlatformBridge {
   }) => throw UnsupportedError('reconnectViaSpotify is iOS-only');
 
   @override
-  Future<Map<String, String>> getDebugInfo() async => {};
+  Future<Map<String, String>> getDebugInfo() async {
+    final raw = await _mc.invokeMapMethod<String, dynamic>('getDebugInfo');
+    return (raw ?? {}).map((k, v) => MapEntry(k, v?.toString() ?? ''));
+  }
 
   // Handled via Web API in SpotifyRemoteRepository (needs access token).
   @override
@@ -340,6 +392,7 @@ class _AndroidBridge implements SpotifyPlatformBridge {
     required String clientId,
     required String redirectUrl,
     required String scope,
+    bool forceAccountPicker = false,
   }) => SpotifySdk.getAccessToken(
     clientId: clientId,
     redirectUrl: redirectUrl,
@@ -361,14 +414,23 @@ class _AndroidBridge implements SpotifyPlatformBridge {
   );
 
   @override
-  Future<void> play({required String spotifyUri, int positionMs = 0}) =>
-      SpotifySdk.play(spotifyUri: spotifyUri);
+  Future<SpotifyDevice?> play({
+    required String spotifyUri,
+    int positionMs = 0,
+    String? deviceId,
+  }) async {
+    await SpotifySdk.play(spotifyUri: spotifyUri);
+    return null;
+  }
 
   @override
   Future<void> pause() => SpotifySdk.pause();
 
   @override
-  Future<void> resume() => SpotifySdk.resume();
+  Future<SpotifyDevice?> resume({String? deviceId}) async {
+    await SpotifySdk.resume();
+    return null;
+  }
 
   @override
   Future<void> seekTo({required int positionedMilliseconds}) =>
@@ -380,13 +442,14 @@ class _AndroidBridge implements SpotifyPlatformBridge {
 
   // SpotifySdk.play() ignores positionMs — implement mute→play→seek-retry→unmute.
   @override
-  Future<void> playWithPosition({
+  Future<SpotifyDevice?> playWithPosition({
     required String spotifyUri,
     int positionMs = 0,
+    String? deviceId,
   }) async {
     if (positionMs <= 0) {
       await SpotifySdk.play(spotifyUri: spotifyUri);
-      return;
+      return null;
     }
     double savedVolume = await FlutterVolumeController.getVolume() ?? 0.5;
     if (savedVolume == 0) savedVolume = 0.5;
@@ -408,6 +471,7 @@ class _AndroidBridge implements SpotifyPlatformBridge {
     } finally {
       await FlutterVolumeController.setVolume(savedVolume); // always restore
     }
+    return null;
   }
 
   @override
@@ -427,6 +491,15 @@ class _AndroidBridge implements SpotifyPlatformBridge {
 
   @override
   Future<List<String>> getActiveDevices() async => [];
+
+  @override
+  Future<List<SpotifyDevice>> getDevices() async => [];
+
+  @override
+  Future<String> getLocalDeviceName() async => '';
+
+  @override
+  Future<bool?> isSpotifyRunning() async => null;
 
   @override
   Future<void> clearSession() async {} // no-op on Android
@@ -457,4 +530,36 @@ class _AndroidBridge implements SpotifyPlatformBridge {
   @override
   Future<void> openSpotifyUri(String spotifyUri) =>
       launchUrl(Uri.parse(spotifyUri), mode: LaunchMode.externalApplication);
+}
+
+// Shared by the iOS and macOS bridges (same native channel contract).
+
+Future<SpotifyDevice?> _invokePlay(
+  MethodChannel mc,
+  String spotifyUri,
+  int positionMs,
+  String? deviceId,
+) async => _deviceUsed(
+  await mc.invokeMethod<Object?>('play', {
+    'spotifyUri': spotifyUri,
+    if (positionMs > 0) 'positionMs': positionMs,
+    'deviceId': ?deviceId,
+  }),
+);
+
+/// Native play/resume return `{deviceId, deviceName}` (or null).
+SpotifyDevice? _deviceUsed(Object? raw) {
+  if (raw is! Map) return null;
+  final id = raw['deviceId'] as String? ?? '';
+  if (id.isEmpty) return null;
+  return SpotifyDevice(
+    id: id,
+    name: raw['deviceName'] as String? ?? '',
+    isActive: true,
+  );
+}
+
+Future<List<SpotifyDevice>> _invokeGetDevices(MethodChannel mc) async {
+  final raw = await mc.invokeListMethod<Map<dynamic, dynamic>>('getDevices');
+  return (raw ?? []).map(SpotifyDevice.fromMap).toList();
 }

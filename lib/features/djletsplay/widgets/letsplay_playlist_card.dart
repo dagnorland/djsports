@@ -7,6 +7,7 @@ import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:toastification/toastification.dart';
@@ -75,8 +76,9 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
   void _onKeyboardTrigger() {
     if (!mounted) return;
     final playlist = ref.read(djPlaylistByIdProvider(widget.playlistId));
-    final tracks =
-        ref.read(hiveTrackData.notifier).getDJTracks(playlist.trackIds);
+    final tracks = ref
+        .read(hiveTrackData.notifier)
+        .getDJTracks(playlist.trackIds);
     if (tracks.isEmpty) return;
     final idx = _currentIndex.clamp(0, tracks.length - 1);
     _playTrack(
@@ -196,10 +198,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
             const SizedBox(height: 8),
             SelectableText(
               errorMessage,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.red,
-              ),
+              style: const TextStyle(fontSize: 11, color: Colors.red),
             ),
           ],
         ),
@@ -218,13 +217,18 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     if (reconnect != true || !mounted) return;
 
     _showToast('Reconnecting to Spotify…');
-    final success =
-        await ref.read(spotifyRemoteRepositoryProvider).forceFullReconnect();
+    final success = await ref
+        .read(spotifyRemoteRepositoryProvider)
+        .forceFullReconnect();
     if (!mounted) return;
 
     if (success) {
       await _playTrack(
-        track, idx, trackCount, shuffleAtEnd, autoNext,
+        track,
+        idx,
+        trackCount,
+        shuffleAtEnd,
+        autoNext,
         retry: false,
       );
     } else {
@@ -246,8 +250,8 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     final userName = repo.spotifyUserDisplayName.isNotEmpty
         ? repo.spotifyUserDisplayName
         : repo.spotifyUserId.isNotEmpty
-            ? repo.spotifyUserId
-            : null;
+        ? repo.spotifyUserId
+        : null;
     final action = await showDialog<_NoDeviceAction>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -325,6 +329,32 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
 
     // Spotify-only error recovery
     if (track.appleMusicId.isEmpty) {
+      if (isNoDeviceResult(response)) {
+        // Ask where to play (never silently pick another device), then
+        // retry once on the chosen device.
+        final chosen = await showSpotifyDevicePicker(
+          context,
+          message: playResultMessage(response),
+        );
+        if (chosen && retry && mounted) {
+          await _playTrack(
+            track,
+            idx,
+            trackCount,
+            shuffleAtEnd,
+            autoNext,
+            retry: false,
+          );
+        }
+        return;
+      }
+      if (isPremiumResult(response)) {
+        _showToast(
+          'Spotify Premium required',
+          description: Text(playResultMessage(response)),
+        );
+        return;
+      }
       if (_isNoActiveDeviceError(response)) {
         await _showNoDeviceDialog(track, idx, trackCount, shuffleAtEnd);
         return;
@@ -337,12 +367,21 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
         if (!mounted) return;
         if (success) {
           await _playTrack(
-            track, idx, trackCount, shuffleAtEnd, autoNext,
+            track,
+            idx,
+            trackCount,
+            shuffleAtEnd,
+            autoNext,
             retry: false,
           );
         } else {
           await _showReconnectDialog(
-            track, idx, trackCount, shuffleAtEnd, autoNext, response,
+            track,
+            idx,
+            trackCount,
+            shuffleAtEnd,
+            autoNext,
+            response,
           );
         }
         return;
@@ -418,7 +457,11 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
       },
       child: InkWell(
         onTap: () => _playTrack(
-          track, idx, tracks.length, playlist.shuffleAtEnd, playlist.autoNext,
+          track,
+          idx,
+          tracks.length,
+          playlist.shuffleAtEnd,
+          playlist.autoNext,
         ),
         borderRadius: BorderRadius.circular(6),
         child: Container(
@@ -576,16 +619,10 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.play_arrow,
-                            color: borderColor,
-                            size: 38,
-                          ),
+                          Icon(Icons.play_arrow, color: borderColor, size: 38),
                           if (track.startTime + track.startTimeMS > 0)
                             Text(
-                              _formatMs(
-                                track.startTime + track.startTimeMS,
-                              ),
+                              _formatMs(track.startTime + track.startTimeMS),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: borderColor,

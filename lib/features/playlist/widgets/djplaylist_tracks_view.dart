@@ -3,6 +3,7 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -66,12 +67,26 @@ class DJPlaylistTrackView extends HookConsumerWidget {
     void playTrack() {
       final jumpStart = track.startTime + track.startTimeMS;
       if (track.appleMusicId.isNotEmpty) {
-        ref.read(appleMusicRepositoryProvider).playTrackAndJumpStart(
-          track, jumpStart, DJPlaylistType.hotspot, '',
-        );
+        ref
+            .read(appleMusicRepositoryProvider)
+            .playTrackAndJumpStart(
+              track,
+              jumpStart,
+              DJPlaylistType.hotspot,
+              '',
+            );
       } else if (track.spotifyUri.isNotEmpty) {
-        ref.read(spotifyRemoteRepositoryProvider).playTrackAndJumpStart(
-          track, jumpStart, DJPlaylistType.hotspot, '',
+        playWithDevicePrompt(
+          context,
+          ref,
+          () => ref
+              .read(spotifyRemoteRepositoryProvider)
+              .playTrackAndJumpStart(
+                track,
+                jumpStart,
+                DJPlaylistType.hotspot,
+                '',
+              ),
         );
       }
       // else: no playback source — silently ignore (track needs to be re-added)
@@ -104,26 +119,26 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
                       track.appleMusicId.isEmpty
-                          ? Image.asset(
-                              ref
-                                  .read(spotifyRemoteRepositoryProvider)
-                                  .spotifyLogoFileName,
-                              width: size,
-                              height: size,
-                              fit: BoxFit.cover,
-                            )
-                          : fallbackArt(size),
+                      ? Image.asset(
+                          ref
+                              .read(spotifyRemoteRepositoryProvider)
+                              .spotifyLogoFileName,
+                          width: size,
+                          height: size,
+                          fit: BoxFit.cover,
+                        )
+                      : fallbackArt(size),
                 )
               : (track.appleMusicId.isEmpty
-                  ? Image.asset(
-                      ref
-                          .read(spotifyRemoteRepositoryProvider)
-                          .spotifyLogoFileName,
-                      width: size,
-                      height: size,
-                      fit: BoxFit.cover,
-                    )
-                  : fallbackArt(size)),
+                    ? Image.asset(
+                        ref
+                            .read(spotifyRemoteRepositoryProvider)
+                            .spotifyLogoFileName,
+                        width: size,
+                        height: size,
+                        fit: BoxFit.cover,
+                      )
+                    : fallbackArt(size)),
         ),
         Icon(Icons.play_arrow, size: size * 0.9, color: Colors.white),
       ],
