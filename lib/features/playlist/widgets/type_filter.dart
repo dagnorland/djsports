@@ -14,25 +14,27 @@ class TypeFilter extends HookConsumerWidget {
         children: [
           Text(
             'Filter:',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.black45,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.black45),
           ),
           const SizedBox(width: 8),
           DropdownButton<DJPlaylistType>(
             value: selected,
             isDense: true,
             underline: const SizedBox.shrink(),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.black54,
-                ),
-            icon: const Icon(Icons.arrow_drop_down, size: 18, color: Colors.black38),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+            icon: const Icon(
+              Icons.arrow_drop_down,
+              size: 18,
+              color: Colors.black38,
+            ),
             items: DJPlaylistType.values
                 .map(
-                  (type) => DropdownMenuItem(
-                    value: type,
-                    child: Text(type.name),
-                  ),
+                  (type) =>
+                      DropdownMenuItem(value: type, child: Text(type.name)),
                 )
                 .toList(),
             onChanged: (type) {

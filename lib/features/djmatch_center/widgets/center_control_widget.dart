@@ -25,8 +25,10 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
   final VoidCallback onResume;
   final Future<void> Function() onPause;
   final Future<void> Function()? onHardPause;
+
   /// When non-null and [fadeMs] > 0, an extra fade pause button is shown.
   final Future<void> Function()? onFadePause;
+
   /// Fade duration in milliseconds — used for the tooltip / label.
   final int fadeMs;
   final VoidCallback onBack;
@@ -62,9 +64,8 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                   size: 28,
                 ),
                 tooltip: 'Open Spotify',
-                onPressed: () => ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .launchSpotify(),
+                onPressed: () =>
+                    ref.read(spotifyRemoteRepositoryProvider).launchSpotify(),
               ),
             ],
             const Gap(12),
@@ -99,7 +100,8 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                       highlightColor: Colors.black,
                       onPressed: () async {
                         await widget.onPause();
-                        final label = ref
+                        final label =
+                            ref
                                 .read(spotifyRemoteRepositoryProvider)
                                 .silencePlayingNotifier
                                 .value
@@ -155,8 +157,11 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
             ),
             const Gap(6),
             IconButton(
-              icon:
-                  const Icon(Icons.volume_down, color: Colors.white, size: 50),
+              icon: const Icon(
+                Icons.volume_down,
+                color: Colors.white,
+                size: 50,
+              ),
               onPressed: () =>
                   ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.05),
             ),
@@ -170,11 +175,12 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                   transitionBuilder: (child, animation) => FadeTransition(
                     opacity: animation,
                     child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.8, end: 1.0)
-                          .animate(CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOut,
-                      )),
+                      scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOut,
+                        ),
+                      ),
                       child: child,
                     ),
                   ),
@@ -188,14 +194,14 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) =>
                           const SizedBox(
-                        width: 50,
-                        height: 50,
-                        child: Icon(
-                          Icons.cloud_off_outlined,
-                          size: 50,
-                          color: Colors.black38,
-                        ),
-                      ),
+                            width: 50,
+                            height: 50,
+                            child: Icon(
+                              Icons.cloud_off_outlined,
+                              size: 50,
+                              color: Colors.black38,
+                            ),
+                          ),
                     ),
                   ),
                 ),

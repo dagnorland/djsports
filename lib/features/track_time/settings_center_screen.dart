@@ -29,24 +29,15 @@ class TrackTimeCenterScreen extends StatelessWidget {
           ),
           title: const Text(
             'Settings',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
           ),
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.settings), text: 'Settings'),
               Tab(icon: Icon(Icons.queue_music), text: 'Playlists'),
               Tab(icon: Icon(Icons.timer), text: 'Start times'),
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.spotify),
-                text: 'Spotify',
-              ),
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.apple),
-                text: 'Apple Music',
-              ),
+              Tab(icon: FaIcon(FontAwesomeIcons.spotify), text: 'Spotify'),
+              Tab(icon: FaIcon(FontAwesomeIcons.apple), text: 'Apple Music'),
             ],
           ),
         ),

@@ -13,6 +13,7 @@ class DJPrimaryButton extends StatelessWidget {
 
   final String label;
   final VoidCallback? onPressed;
+
   /// Override fill color. Defaults to [Theme.primaryColor].
   final Color? color;
 
@@ -121,13 +122,7 @@ class DJTextIconButton extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-            ),
-          ),
+          Text(label, style: TextStyle(color: color, fontSize: 14)),
         ],
       ),
     );

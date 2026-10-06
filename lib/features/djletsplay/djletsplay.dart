@@ -127,10 +127,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     if (type == null || index < 0) return false;
 
     final allPlaylists = ref.read(hivePlaylistData) ?? [];
-    final typePlaylists = allPlaylists
-        .where((p) => p.type == type!.name)
-        .toList()
-      ..sort((a, b) => a.position.compareTo(b.position));
+    final typePlaylists =
+        allPlaylists.where((p) => p.type == type!.name).toList()
+          ..sort((a, b) => a.position.compareTo(b.position));
 
     if (index < typePlaylists.length) {
       _getTrigger(typePlaylists[index].id).value++;
@@ -180,10 +179,12 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   }
 
   bool _lastWasAppleMusic() {
-    return ref.read(lastDjTrackPlayedProvider).maybeWhen(
-      data: (t) => t?.appleMusicId.isNotEmpty ?? false,
-      orElse: () => false,
-    );
+    return ref
+        .read(lastDjTrackPlayedProvider)
+        .maybeWhen(
+          data: (t) => t?.appleMusicId.isNotEmpty ?? false,
+          orElse: () => false,
+        );
   }
 
   Future<bool> pausePlayer() async {
@@ -214,8 +215,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     if (_lastWasAppleMusic()) {
       return ref.read(appleMusicRepositoryProvider).pausePlayer();
     }
-    isPlaying =
-        await ref.read(spotifyRemoteRepositoryProvider).hardPausePlayer();
+    isPlaying = await ref
+        .read(spotifyRemoteRepositoryProvider)
+        .hardPausePlayer();
     return isPlaying;
   }
 
@@ -223,18 +225,12 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     if (_lastWasAppleMusic()) {
       return ref.read(appleMusicRepositoryProvider).resumePlayer();
     }
-    isPlaying =
-        await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
+    isPlaying = await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
     return isPlaying;
   }
 
-  List<DJPlaylist> _filterByType(
-    List<DJPlaylist> all,
-    DJPlaylistType type,
-  ) {
-    return all
-        .where((p) => p.type == type.name)
-        .toList()
+  List<DJPlaylist> _filterByType(List<DJPlaylist> all, DJPlaylistType type) {
+    return all.where((p) => p.type == type.name).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
   }
 
@@ -245,8 +241,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   ) {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
-    final sectionColor =
-        type.color == Colors.black ? Colors.grey.shade400 : type.color;
+    final sectionColor = type.color == Colors.black
+        ? Colors.grey.shade400
+        : type.color;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,9 +371,7 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
             tooltip: 'Help',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const LetsPlayHelpScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const LetsPlayHelpScreen()),
             ),
           ),
           IconButton(
@@ -438,148 +433,147 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.play_arrow,
-                  color: Colors.white,
-                  size: 32,
-                ),
-                onPressed: resumePlayer,
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .silencePlayingNotifier,
-                builder: (context, isSilence, _) => GestureDetector(
-                  onLongPress: (Platform.isIOS && isSilence)
-                      ? () async {
-                          await hardPausePlayer();
-                          if (!context.mounted) return;
-                          toastification.show(
-                            context: context,
-                            title: const Text('PAUSED'),
-                            autoCloseDuration: const Duration(seconds: 2),
-                            style: ToastificationStyle.flat,
-                            alignment: Alignment.topCenter,
-                          );
-                        }
-                      : null,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.pause,
-                      color: isSilence ? Colors.orange : Colors.white,
+                  IconButton(
+                    icon: const Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
                       size: 32,
                     ),
-                    onPressed: pausePlayer,
+                    onPressed: resumePlayer,
                   ),
-                ),
-              ),
-              if (fadeMs > 0)
-                ValueListenableBuilder<bool>(
-                  valueListenable: ref
-                      .read(spotifyRemoteRepositoryProvider)
-                      .fadePausingNotifier,
-                  builder: (context, isFading, _) => Tooltip(
-                    message: isFading
-                        ? 'Fading…'
-                        : 'Fade pause ($fadeMs ms)',
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.pause_circle_outline,
-                        color: isFading
-                            ? Colors.amber
-                            : Colors.amberAccent,
-                        size: 32,
-                      ),
-                      onPressed: isFading
-                          ? null
-                          : () async {
-                              await fadeAndPause();
+                  ValueListenableBuilder<bool>(
+                    valueListenable: ref
+                        .read(spotifyRemoteRepositoryProvider)
+                        .silencePlayingNotifier,
+                    builder: (context, isSilence, _) => GestureDetector(
+                      onLongPress: (Platform.isIOS && isSilence)
+                          ? () async {
+                              await hardPausePlayer();
                               if (!context.mounted) return;
                               toastification.show(
                                 context: context,
-                                title: Text('FADED ($fadeMs ms)'),
-                                autoCloseDuration:
-                                    const Duration(seconds: 2),
+                                title: const Text('PAUSED'),
+                                autoCloseDuration: const Duration(seconds: 2),
                                 style: ToastificationStyle.flat,
                                 alignment: Alignment.topCenter,
                               );
-                            },
+                            }
+                          : null,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.pause,
+                          color: isSilence ? Colors.orange : Colors.white,
+                          size: 32,
+                        ),
+                        onPressed: pausePlayer,
+                      ),
                     ),
                   ),
-                ),
-              if (Platform.isIOS || Platform.isMacOS)
-                IconButton(
-                  icon: const Icon(
-                    Icons.open_in_new,
-                    color: Color(0xFF1DB954),
-                    size: 26,
+                  if (fadeMs > 0)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: ref
+                          .read(spotifyRemoteRepositoryProvider)
+                          .fadePausingNotifier,
+                      builder: (context, isFading, _) => Tooltip(
+                        message: isFading
+                            ? 'Fading…'
+                            : 'Fade pause ($fadeMs ms)',
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.pause_circle_outline,
+                            color: isFading ? Colors.amber : Colors.amberAccent,
+                            size: 32,
+                          ),
+                          onPressed: isFading
+                              ? null
+                              : () async {
+                                  await fadeAndPause();
+                                  if (!context.mounted) return;
+                                  toastification.show(
+                                    context: context,
+                                    title: Text('FADED ($fadeMs ms)'),
+                                    autoCloseDuration: const Duration(
+                                      seconds: 2,
+                                    ),
+                                    style: ToastificationStyle.flat,
+                                    alignment: Alignment.topCenter,
+                                  );
+                                },
+                        ),
+                      ),
+                    ),
+                  if (Platform.isIOS || Platform.isMacOS)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.open_in_new,
+                        color: Color(0xFF1DB954),
+                        size: 26,
+                      ),
+                      tooltip: 'Open Spotify',
+                      onPressed: () => ref
+                          .read(spotifyRemoteRepositoryProvider)
+                          .launchSpotify(),
+                    ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.volume_up,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () => ref
+                        .read(spotifyRemoteRepositoryProvider)
+                        .adjustVolume(0.05),
                   ),
-                  tooltip: 'Open Spotify',
-                  onPressed: () => ref
-                      .read(spotifyRemoteRepositoryProvider)
-                      .launchSpotify(),
-                ),
-              IconButton(
-                icon: const Icon(
-                  Icons.volume_up,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .adjustVolume(0.05),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.volume_down,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .adjustVolume(-0.05),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.help_outline,
-                  color: Colors.white70,
-                  size: 24,
-                ),
-                tooltip: 'Help',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LetsPlayHelpScreen(),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.volume_down,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () => ref
+                        .read(spotifyRemoteRepositoryProvider)
+                        .adjustVolume(-0.05),
                   ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.bug_report,
-                  color: Colors.white70,
-                  size: 24,
-                ),
-                tooltip: 'Debug log',
-                onPressed: () => DebugLogSheet.show(context),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.backspace,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  widget.refreshCallback?.call();
-                },
-              ),
-            ],      // close Row.children
-          ),        // close Row
-        ),          // close SizedBox
-      ],            // close Column.children
-    ),              // close Column
-    ),              // close SafeArea
+                  IconButton(
+                    icon: const Icon(
+                      Icons.help_outline,
+                      color: Colors.white70,
+                      size: 24,
+                    ),
+                    tooltip: 'Help',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LetsPlayHelpScreen(),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.bug_report,
+                      color: Colors.white70,
+                      size: 24,
+                    ),
+                    tooltip: 'Debug log',
+                    onPressed: () => DebugLogSheet.show(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.backspace,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      widget.refreshCallback?.call();
+                    },
+                  ),
+                ], // close Row.children
+              ), // close Row
+            ), // close SizedBox
+          ], // close Column.children
+        ), // close Column
+      ), // close SafeArea
     );
   }
 
@@ -605,14 +599,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                 flex: 85,
                 child: SafeArea(child: _buildBoard(allPlaylists)),
               );
-              final sidebar = Expanded(
-                flex: 15,
-                child: _buildSidebar(),
-              );
+              final sidebar = Expanded(flex: 15, child: _buildSidebar());
               return Row(
-                children: sidebarOnRight
-                    ? [board, sidebar]
-                    : [sidebar, board],
+                children: sidebarOnRight ? [board, sidebar] : [sidebar, board],
               );
             }
 

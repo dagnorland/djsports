@@ -45,8 +45,10 @@ class DJPlaylistEditScreen extends StatefulHookConsumerWidget {
     this.appleMusicPlaylistId = '',
     this.refreshCallback,
   });
-  factory DJPlaylistEditScreen.fromDJPlaylist(DJPlaylist playlist,
-      {VoidCallback? refreshCallback}) {
+  factory DJPlaylistEditScreen.fromDJPlaylist(
+    DJPlaylist playlist, {
+    VoidCallback? refreshCallback,
+  }) {
     return DJPlaylistEditScreen(
       isNew: false,
       id: playlist.id,
@@ -131,16 +133,18 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       appleMusicPlaylistIdController.text = widget.appleMusicPlaylistId;
       positionController.text = position.toString();
     }
-    selectedType =
-        DJPlaylistType.values.firstWhere((e) => e.name == widget.type);
+    selectedType = DJPlaylistType.values.firstWhere(
+      (e) => e.name == widget.type,
+    );
     trackIds = widget.trackIds;
     positionController.addListener(_validateInput);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(hiveTrackData.notifier).fetchDJTrack();
       setState(() {
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        playlistTrackList = ref
+            .read(hiveTrackData.notifier)
+            .getDJTracks(trackIds);
       });
       if (!widget.isNew &&
           widget.spotifyUri.isNotEmpty &&
@@ -167,30 +171,31 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   Future<void> _checkSpotifyForNewTracks() async {
     if (!mounted) return;
 
-    unawaited(showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Checking Spotify for new tracks...'),
-          ],
+    unawaited(
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Checking Spotify for new tracks...'),
+            ],
+          ),
         ),
       ),
-    ));
+    );
 
     Iterable<Track> spotifyTracks = [];
     try {
       final service = ref.read(playlistServiceProvider);
       spotifyTracks = await service.searchRepository
           .getTracksByUri(widget.spotifyUri)
-          .then((value) => value.when(
-                (tracks) => tracks,
-                error: (_) => <Track>[],
-              ));
+          .then(
+            (value) => value.when((tracks) => tracks, error: (_) => <Track>[]),
+          );
     } catch (_) {
       // ignore fetch errors
     }
@@ -250,14 +255,18 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     if (mounted) {
       setState(() {
         trackIds = playlist.trackIds;
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        playlistTrackList = ref
+            .read(hiveTrackData.notifier)
+            .getDJTracks(trackIds);
       });
     }
   }
 
   Future<void> _spotifyPlaylistSync(
-      BuildContext context, WidgetRef ref, String playlistUri) async {
+    BuildContext context,
+    WidgetRef ref,
+    String playlistUri,
+  ) async {
     String playlistId = widget.id;
 
     if (playlistId.isEmpty && playlistUri.isNotEmpty) {
@@ -265,9 +274,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         playlistId = newPlaylistFromFormData();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.toString())));
         }
         return;
       }
@@ -275,15 +284,17 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     if (widget.isNew && playlistId.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Playlist must be saved before syncing'),
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Close',
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Playlist must be saved before syncing'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Close',
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
-        ));
+        );
       }
       return;
     }
@@ -310,16 +321,19 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     Iterable<Track> result = await service.searchRepository
         .getTracksByUri(playlistUri)
-        .then((value) => value.when(
-              (tracks) => tracks,
-              error: (error) {
-                debugPrint('error: $error');
-                return <Track>[];
-              },
-            ));
+        .then(
+          (value) => value.when(
+            (tracks) => tracks,
+            error: (error) {
+              debugPrint('error: $error');
+              return <Track>[];
+            },
+          ),
+        );
 
-    String syncName =
-        await service.searchRepository.getSpotifyNameUri(playlistUri);
+    String syncName = await service.searchRepository.getSpotifyNameUri(
+      playlistUri,
+    );
 
     int addedCount = 0;
     int skippedCount = 0;
@@ -340,10 +354,13 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'La til $addedCount spor, hoppet over $skippedCount spor. Spillelisten har nå ${playlist.trackIds.length} spor'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'La til $addedCount spor, hoppet over $skippedCount spor. Spillelisten har nå ${playlist.trackIds.length} spor',
+          ),
+        ),
+      );
     }
 
     if (mounted) {
@@ -362,18 +379,23 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   }
 
   Future<void> _spotifyTrackSync(
-      BuildContext context, WidgetRef ref, String playlistId) async {
+    BuildContext context,
+    WidgetRef ref,
+    String playlistId,
+  ) async {
     if (widget.isNew) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Playlist must be saved before syncing'),
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Close',
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Playlist must be saved before syncing'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Close',
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
-        ));
+        );
       }
       return;
     }
@@ -389,8 +411,11 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         .getDJTracksSpotifyUri(playlist.trackIds);
 
     final service = ref.read(playlistServiceProvider);
-    final searchDelegate =
-        SpotifyPlaylistTrackDelegate(playlistId, service, trackIds);
+    final searchDelegate = SpotifyPlaylistTrackDelegate(
+      playlistId,
+      service,
+      trackIds,
+    );
 
     final track = await showSearch<Track?>(
       context: context,
@@ -398,15 +423,17 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     );
     if (track != null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('adding track: ${track.name}'),
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Close',
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('adding track: ${track.name}'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Close',
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
-        ));
+        );
       }
       DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
@@ -422,8 +449,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       if (mounted) {
         setState(() {
           trackIds = playlist.trackIds;
-          playlistTrackList =
-              ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+          playlistTrackList = ref
+              .read(hiveTrackData.notifier)
+              .getDJTracks(trackIds);
         });
       }
     } else {
@@ -440,15 +468,17 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     );
     if (track != null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('adding track: ${track.name}'),
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Close',
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('adding track: ${track.name}'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Close',
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
-        ));
+        );
       }
       DJTrack addTrack = DJTrack.fromSpotifyTrack(track);
       ref.read(hiveTrackData.notifier).addDJTrack(addTrack);
@@ -464,20 +494,25 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       if (mounted) {
         setState(() {
           trackIds = playlist.trackIds;
-          playlistTrackList =
-              ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+          playlistTrackList = ref
+              .read(hiveTrackData.notifier)
+              .getDJTracks(trackIds);
         });
       }
     }
   }
 
   Future<void> _showAppleMusicSearch(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     if (widget.isNew) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Save the playlist first before adding tracks'),
-        duration: Duration(seconds: 3),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Save the playlist first before adding tracks'),
+          duration: Duration(seconds: 3),
+        ),
+      );
       return;
     }
     final amTrack = await showSearch(
@@ -486,10 +521,12 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     );
     if (amTrack == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Adding: ${amTrack.name}'),
-      duration: const Duration(seconds: 2),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Adding: ${amTrack.name}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
     final djTrack = DJTrack.fromAppleMusicTrack(amTrack);
     ref.read(hiveTrackData.notifier).addDJTrack(djTrack);
     final playlist = ref
@@ -502,8 +539,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     if (mounted) {
       setState(() {
         trackIds = playlist.trackIds;
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        playlistTrackList = ref
+            .read(hiveTrackData.notifier)
+            .getDJTracks(trackIds);
       });
     }
   }
@@ -523,28 +561,32 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     if (playlistId.isEmpty) return;
 
     if (widget.isNew) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Save the playlist first before syncing'),
-        duration: Duration(seconds: 3),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Save the playlist first before syncing'),
+          duration: Duration(seconds: 3),
+        ),
+      );
       return;
     }
 
     if (!mounted) return;
-    unawaited(showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Fetching Apple Music playlist…'),
-          ],
+    unawaited(
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Fetching Apple Music playlist…'),
+            ],
+          ),
         ),
       ),
-    ));
+    );
 
     final repo = ref.read(appleMusicRepositoryProvider);
     final result = await repo.syncPlaylist(playlistId);
@@ -553,11 +595,15 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     Navigator.of(context).pop(); // dismiss loading dialog
 
     if (result.tracks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(repo.lastError.isNotEmpty
-            ? repo.lastError
-            : 'No tracks found in playlist'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            repo.lastError.isNotEmpty
+                ? repo.lastError
+                : 'No tracks found in playlist',
+          ),
+        ),
+      );
       return;
     }
 
@@ -583,7 +629,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       }
       final djTrack = DJTrack.fromAppleMusicTrack(amTrack);
       ref.read(hiveTrackData.notifier).addDJTrack(djTrack);
-      ref.read(hivePlaylistData.notifier).addTrackToDJPlaylist(playlist, djTrack);
+      ref
+          .read(hivePlaylistData.notifier)
+          .addTrackToDJPlaylist(playlist, djTrack);
       added++;
     }
 
@@ -601,20 +649,25 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     if (mounted) {
       setState(() {
         trackIds = playlist.trackIds;
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        playlistTrackList = ref
+            .read(hiveTrackData.notifier)
+            .getDJTracks(trackIds);
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          'Added $added tracks, skipped $skipped. '
-          'Playlist now has ${playlist.trackIds.length} tracks.',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Added $added tracks, skipped $skipped. '
+            'Playlist now has ${playlist.trackIds.length} tracks.',
+          ),
         ),
-      ));
+      );
     }
   }
 
   String newPlaylistFromFormData() {
-    return ref.read(hivePlaylistData.notifier).addDJplaylist(
+    return ref
+        .read(hivePlaylistData.notifier)
+        .addDJplaylist(
           DJPlaylist(
             id: '',
             name: nameController.text,
@@ -668,9 +721,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   Widget _buildTypeDropdown() {
     return DropdownButtonFormField<DJPlaylistType>(
       value: selectedType,
-      decoration: const InputDecoration(
-        labelText: 'Type',
-      ),
+      decoration: const InputDecoration(labelText: 'Type'),
       items: DJPlaylistType.values
           .where((t) => t != DJPlaylistType.all)
           .map(
@@ -726,8 +777,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
           icon: Icons.sync,
           tooltip: 'Sync from Spotify playlist',
           onPressed: () => setState(() {
-            _spotifyPlaylistSync(
-                context, ref, spotifyUriController.text);
+            _spotifyPlaylistSync(context, ref, spotifyUriController.text);
           }),
         ),
         DJIconActionButton(
@@ -804,10 +854,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
 
     final trackCount = Text(
       'Tracks: ${trackIds.length}',
-      style: TextStyle(
-        color: primary,
-        fontWeight: FontWeight.w600,
-      ),
+      style: TextStyle(color: primary, fontWeight: FontWeight.w600),
     );
 
     if (isWide) {
@@ -885,8 +932,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         .firstWhere((element) => element.id == widget.id);
     setState(() {
       trackIds = playlist.trackIds;
-      playlistTrackList =
-          ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+      playlistTrackList = ref
+          .read(hiveTrackData.notifier)
+          .getDJTracks(trackIds);
     });
   }
 
@@ -895,7 +943,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     if (widget.id.isEmpty) {
       newPlayListId = newPlaylistFromFormData();
     } else {
-      ref.read(hivePlaylistData.notifier).updateDJPlaylist(
+      ref
+          .read(hivePlaylistData.notifier)
+          .updateDJPlaylist(
             DJPlaylist(
               id: widget.id,
               name: nameController.text,
@@ -959,10 +1009,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         ),
         title: Text(
           widget.id.isEmpty ? 'Create Playlist' : 'Edit Playlist',
-          style: TextStyle(
-            color: primary,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: primary, fontWeight: FontWeight.bold),
         ),
         actions: [
           if (ref
@@ -1013,22 +1060,15 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             Row(
               children: [
                 DJTextIconButton(
-                  icon: _showDetails
-                      ? Icons.expand_less
-                      : Icons.expand_more,
-                  label:
-                      _showDetails ? 'Hide details' : 'Show details',
-                  onPressed: () =>
-                      setState(() => _showDetails = !_showDetails),
+                  icon: _showDetails ? Icons.expand_less : Icons.expand_more,
+                  label: _showDetails ? 'Hide details' : 'Show details',
+                  onPressed: () => setState(() => _showDetails = !_showDetails),
                 ),
                 const Spacer(),
-                DJCancelButton(
-                  onPressed: () => Navigator.pop(context),
-                ),
+                DJCancelButton(onPressed: () => Navigator.pop(context)),
                 DJPrimaryButton(
                   label: widget.id.isEmpty ? 'Create' : 'Update',
-                  onPressed:
-                      _errorMessage.isNotEmpty ? null : _savePlaylist,
+                  onPressed: _errorMessage.isNotEmpty ? null : _savePlaylist,
                 ),
               ],
             ),
@@ -1066,8 +1106,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
-                          flex: 75, child: _buildAppleMusicUriField()),
+                      Expanded(flex: 75, child: _buildAppleMusicUriField()),
                       const SizedBox(width: 8),
                       if (appleMusicPlaylistIdController.text.isNotEmpty)
                         _buildAppleMusicSyncButtons()
@@ -1128,10 +1167,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _errorMessage,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
                 ),
               ],
               const SizedBox(height: 8),
@@ -1143,8 +1179,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     DJTextIconButton(
                       icon: Icons.sync,
                       label: 'Sync start times',
-                      onPressed: () =>
-                          syncMissingStartTimes(playlistTrackList),
+                      onPressed: () => syncMissingStartTimes(playlistTrackList),
                     ),
                     const Gap(4),
                     DJTextIconButton(
@@ -1156,8 +1191,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
                     DJIconActionButton(
                       icon: Icons.sync,
                       tooltip: 'Sync start times',
-                      onPressed: () =>
-                          syncMissingStartTimes(playlistTrackList),
+                      onPressed: () => syncMissingStartTimes(playlistTrackList),
                     ),
                     DJIconActionButton(
                       icon: Icons.shuffle,
@@ -1184,8 +1218,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
   void _refreshTracks() {
     ref.read(hiveTrackData.notifier).fetchDJTrack();
     setState(() {
-      playlistTrackList =
-          ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+      playlistTrackList = ref
+          .read(hiveTrackData.notifier)
+          .getDJTracks(trackIds);
     });
   }
 
@@ -1217,12 +1252,17 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             onDelete: () {
               final playlist = ref
                   .read(hivePlaylistData.notifier)
-                  .removeDJTrackFromPlaylist(ref.read(hiveTrackData.notifier),
-                      widget.id, tracks[index].id, index);
+                  .removeDJTrackFromPlaylist(
+                    ref.read(hiveTrackData.notifier),
+                    widget.id,
+                    tracks[index].id,
+                    index,
+                  );
               setState(() {
                 trackIds = playlist.trackIds;
-                playlistTrackList =
-                    ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+                playlistTrackList = ref
+                    .read(hiveTrackData.notifier)
+                    .getDJTracks(trackIds);
               });
             },
           );
@@ -1296,8 +1336,9 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
         );
       } else {
         setState(() {
-          playlistTrackList =
-              ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+          playlistTrackList = ref
+              .read(hiveTrackData.notifier)
+              .getDJTracks(trackIds);
         });
       }
     });
@@ -1330,14 +1371,15 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     }
     ref.invalidate(dataTrackProvider);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Updated $updatedCount tracks'),
-      ));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Updated $updatedCount tracks')));
     }
     if (mounted) {
       setState(() {
-        playlistTrackList =
-            ref.read(hiveTrackData.notifier).getDJTracks(trackIds);
+        playlistTrackList = ref
+            .read(hiveTrackData.notifier)
+            .getDJTracks(trackIds);
       });
     }
   }

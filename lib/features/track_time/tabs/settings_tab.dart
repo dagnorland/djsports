@@ -173,9 +173,9 @@ class _FadeVolumeSetting extends ConsumerWidget {
             max: AppSettings.fadeVolumeMaxMs.toDouble(),
             divisions: AppSettings.fadeVolumeMaxMs ~/ 100,
             value: ms.toDouble().clamp(
-                  0.0,
-                  AppSettings.fadeVolumeMaxMs.toDouble(),
-                ),
+              0.0,
+              AppSettings.fadeVolumeMaxMs.toDouble(),
+            ),
             label: enabled ? '$ms ms' : 'Off',
             onChanged: (v) =>
                 ref.read(fadeVolumeMsProvider.notifier).setMs(v.round()),
@@ -193,9 +193,9 @@ class _FadeVolumeSetting extends ConsumerWidget {
             Text(
               'Note: Android system volume has 15 discrete steps — fades '
               'under ~750 ms can sound stepped.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.orange,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.orange),
             ),
           ],
         ],

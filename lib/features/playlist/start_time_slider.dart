@@ -42,8 +42,9 @@ class StartTimeSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ?? Theme.of(context).primaryColor;
     final clamped = valueMs.clamp(0, maxMs).toDouble();
-    final fraction =
-        maxMs > 0 ? valueMs.clamp(0, maxMs) / maxMs.toDouble() : 0.0;
+    final fraction = maxMs > 0
+        ? valueMs.clamp(0, maxMs) / maxMs.toDouble()
+        : 0.0;
 
     return Row(
       children: [
@@ -64,10 +65,11 @@ class StartTimeSlider extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final w = constraints.maxWidth;
-              final thumbX =
-                  _thumbRadius + fraction * (w - 2 * _thumbRadius);
-              final labelLeft =
-                  (thumbX - _labelWidth / 2).clamp(0.0, w - _labelWidth);
+              final thumbX = _thumbRadius + fraction * (w - 2 * _thumbRadius);
+              final labelLeft = (thumbX - _labelWidth / 2).clamp(
+                0.0,
+                w - _labelWidth,
+              );
 
               return Column(
                 mainAxisSize: MainAxisSize.min,
