@@ -65,7 +65,7 @@ dependencies:
   cloud_firestore: ^5.0.0
   intl: ^0.20.0
   http: ^1.2.2
-  font_awesome_flutter: ^10.8.0
+  font_awesome_flutter: ^11.0.0
 
 
 dependency_overrides:

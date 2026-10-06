@@ -290,7 +290,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ? 'Apple Music connected'
               : 'Connect Apple Music',
           child: IconButton(
-            icon: Icon(
+            icon: FaIcon(
               FontAwesomeIcons.apple,
               color: appleMusicConnected
                   ? Colors.green.shade700
