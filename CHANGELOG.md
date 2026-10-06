@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.6.0] - Unreleased
+## [4.0.0] - Unreleased
+
+First release under the new Apple Developer account (Team ID `4SRFW7L9XH`),
+after transferring the app from Flow Retail.
 
 ### Added
 - **Bring Your Own Spotify Client ID** — Spotify's February 2026 Development
@@ -28,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.env` is now optional at startup — end-user builds run without it and
   rely on user-supplied credentials; startup logging no longer prints
   secret values, only the loaded keys
+- **Apple Developer account moved** — app transferred from Flow Retail to
+  the new team `4SRFW7L9XH`; `DEVELOPMENT_TEAM` updated in all iOS and
+  macOS build configurations and in the App Store export options
+- **Toolchain upgrade** — Flutter 3.47.6 (via FVM) and Xcode 27; iOS
+  project format upgraded (`objectVersion 77`)
+- Xcode Cloud configuration removed (required for the app transfer)
 
 ## [3.5.2] - Release 2026-05-14
 
