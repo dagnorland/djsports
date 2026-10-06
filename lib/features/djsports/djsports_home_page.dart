@@ -25,6 +25,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
+import 'package:toastification/toastification.dart';
 
 const _kMatchModeLabel = "Let's Play!";
 
@@ -147,6 +148,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
     _initializeSpotifyConnection();
     _startConnectionHealthCheck();
+    final repo = ref.read(spotifyRemoteRepositoryProvider);
+    repo.playIssueNotifier.addListener(_onPlayIssue);
+    _playIssueRepo = repo;
     if (Platform.isIOS || Platform.isMacOS) _initializeAppleMusicConnection();
   }
 
@@ -162,6 +166,23 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
     // Check existing authorization without prompting the user
     repo.connect();
+  }
+
+  SpotifyRemoteRepository? _playIssueRepo;
+
+  /// Spotify accepted a play but didn't play it (see PLAY-CHECK).
+  void _onPlayIssue() {
+    final issue = _playIssueRepo?.playIssueNotifier.value;
+    if (issue == null || !mounted) return;
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      style: ToastificationStyle.flat,
+      title: const Text('Spotify did not start playback'),
+      description: Text(issue),
+      alignment: Alignment.topCenter,
+      autoCloseDuration: const Duration(seconds: 8),
+    );
   }
 
   void _onConnectionStatus(bool connected) {
@@ -188,6 +209,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     _connectionSubscription?.cancel();
     _appleMusicSubscription?.cancel();
     _connectionHealthCheckTimer?.cancel();
+    _playIssueRepo?.playIssueNotifier.removeListener(_onPlayIssue);
     super.dispose();
   }
 

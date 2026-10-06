@@ -89,6 +89,11 @@ class SpotifyRemoteRepository {
   /// the UI to disable the fade button mid-fade and by [resumePlayer] to
   /// abort an in-flight fade if the user hits play before it finishes.
   final ValueNotifier<bool> fadePausingNotifier = ValueNotifier(false);
+
+  /// Set when Spotify accepted a play command but didn't actually play it
+  /// (other device kept playing, nothing loaded, …). The UI shows it.
+  final ValueNotifier<String?> playIssueNotifier = ValueNotifier(null);
+  int _playCheckSeq = 0;
   Timer? _fadeTimer;
   int latestDurationStartupMS = 0;
   DateTime lastConnectionTime = DateTime(1970, 1, 1);
@@ -278,11 +283,31 @@ class SpotifyRemoteRepository {
     }
   }
 
-  String? get _preferredDeviceIdOrNull =>
-      session.preferredDeviceId.isEmpty ? null : session.preferredDeviceId;
+  /// Device for the next play only (from the play-time prompt).
+  String? _oneShotDeviceId;
 
-  /// Records where a play actually went and logs "who → where".
-  void _recordPlayed(SpotifyDevice? used) {
+  /// Sends the next play/resume to [device] once, without remembering it.
+  void playNextOn(SpotifyDevice device) => _oneShotDeviceId = device.id;
+
+  /// `device_id` for the next play: the one-off pick, else the device the
+  /// user explicitly set, else null = follow Spotify's active device.
+  String? _takeTargetDeviceId() {
+    final oneShot = _oneShotDeviceId;
+    _oneShotDeviceId = null;
+    if (oneShot != null) return oneShot;
+    return session.preferredDeviceId.isEmpty ? null : session.preferredDeviceId;
+  }
+
+  /// Records where a play actually went and logs "who → where". With
+  /// [requestedUri], also checks shortly after what Spotify really plays.
+  void _recordPlayed(
+    SpotifyDevice? used, {
+    String? requestedUri,
+    String? requestedDeviceId,
+  }) {
+    if (requestedUri != null) {
+      unawaited(_verifyPlayback(requestedUri, requestedDeviceId));
+    }
     if (used == null) return;
     final known = session.devices.where((d) => d.id == used.id).firstOrNull;
     final device = known ?? used;
@@ -307,6 +332,112 @@ class SpotifyRemoteRepository {
       SpotifyConnectionStatus.connectedSpotifyRemoteApp,
       'Playing on ${device.name.isEmpty ? device.id : device.name} as $who',
     );
+  }
+
+  /// A 204 from `PUT /me/player/play` only means "command accepted". Ask
+  /// Spotify ~1.5 s later what is actually playing, log it, and publish a
+  /// user-facing message on [playIssueNotifier] when the play didn't land:
+  /// another device kept playing, or nothing / another track was loaded.
+  Future<void> _verifyPlayback(
+    String requestedUri,
+    String? requestedDeviceId,
+  ) async {
+    if (Platform.isAndroid || lastValidAccessToken.isEmpty) return;
+    final seq = ++_playCheckSeq;
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    // A newer play started meanwhile – its own check will report.
+    if (seq != _playCheckSeq) return;
+    final requestedName = _deviceName(requestedDeviceId);
+    try {
+      final resp = await http.get(
+        Uri.parse('https://api.spotify.com/v1/me/player?market=from_token'),
+        headers: {'Authorization': 'Bearer $lastValidAccessToken'},
+      );
+      final String report;
+      String? issue;
+      if (resp.statusCode == 204 || resp.body.isEmpty) {
+        report = 'nothing playing (no active device / no player state)';
+        issue =
+            'Spotify accepted the command but nothing is playing'
+            '${requestedName == null ? '' : ' on "$requestedName"'}. '
+            'Check that the device can be controlled from the Spotify app '
+            'on your phone.';
+      } else if (resp.statusCode != 200) {
+        report = 'HTTP ${resp.statusCode}: ${resp.body}';
+      } else {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final device = data['device'] as Map<String, dynamic>? ?? {};
+        final deviceId = device['id'] as String? ?? '';
+        final deviceName = device['name'] as String? ?? '?';
+        final item = data['item'] as Map<String, dynamic>?;
+        final linkedFrom =
+            (item?['linked_from'] as Map<String, dynamic>?)?['uri'];
+        final itemMatches =
+            item != null &&
+            (item['uri'] == requestedUri || linkedFrom == requestedUri);
+        final deviceSwitched =
+            requestedDeviceId == null || deviceId == requestedDeviceId;
+        final disallows =
+            (data['actions'] as Map<String, dynamic>?)?['disallows']
+                as Map<String, dynamic>? ??
+            {};
+        final context = data['context'] as Map<String, dynamic>?;
+        report = [
+          'device=$deviceName (active=${device['is_active']}, '
+              'restricted=${device['is_restricted']})',
+          'is_playing=${data['is_playing']}',
+          'progress_ms=${data['progress_ms']}',
+          'type=${data['currently_playing_type']}',
+          'context=${context?['uri'] ?? 'none'}',
+          'disallows=${disallows.keys.join(',')}',
+          if (item == null)
+            'item=NONE (track not loaded)'
+          else ...[
+            'item=${item['name']} ${item['uri']}',
+            'is_playable=${item['is_playable']}',
+            if (linkedFrom != null) 'linked_from=$linkedFrom',
+          ],
+          if (!deviceSwitched)
+            '⚠️ device NOT switched (requested ${requestedName ?? requestedDeviceId})'
+          else if (!itemMatches)
+            '⚠️ requested track not loaded ($requestedUri)',
+        ].join(' | ');
+        if (!deviceSwitched) {
+          issue =
+              'Spotify did not switch to "$requestedName" – it is '
+              'still playing on "$deviceName". Check that '
+              '"$requestedName" can be controlled from the Spotify app on '
+              'your phone.';
+        } else if (!itemMatches) {
+          issue =
+              'Spotify on "$deviceName" accepted the command but did '
+              'not start the track. Try restarting the Spotify app there '
+              '(Cmd+Q on a Mac) or choose another device.';
+        }
+      }
+      debugPrint('[PLAY-CHECK] $report');
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+        'Play check: $report',
+      );
+      if (issue != null) {
+        // Re-assign through null so the same message fires again.
+        playIssueNotifier.value = null;
+        playIssueNotifier.value = issue;
+      }
+    } catch (e) {
+      debugPrint('[PLAY-CHECK] failed: $e');
+    }
+  }
+
+  String? _deviceName(String? id) {
+    if (id == null) return null;
+    final known = session.devices.where((d) => d.id == id).firstOrNull;
+    if (known != null) return known.name;
+    if (id == session.preferredDeviceId && session.preferredDeviceName != '') {
+      return session.preferredDeviceName;
+    }
+    return id;
   }
 
   /// Maps device / Premium errors to result strings the UI recognises:
@@ -734,7 +865,7 @@ class SpotifyRemoteRepository {
     // muting after resume kicks in.
     cancelFade();
     try {
-      _recordPlayed(await _bridge.resume(deviceId: _preferredDeviceIdOrNull));
+      _recordPlayed(await _bridge.resume(deviceId: _takeTargetDeviceId()));
       await _unMute();
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -753,9 +884,7 @@ class SpotifyRemoteRepository {
             SpotifyConnectionStatus.connectedSpotifyRemoteApp,
             'Reconnected. Retrying resume.',
           );
-          _recordPlayed(
-            await _bridge.resume(deviceId: _preferredDeviceIdOrNull),
-          );
+          _recordPlayed(await _bridge.resume(deviceId: _takeTargetDeviceId()));
           isPlaying = true;
           return isPlaying;
         }
@@ -809,12 +938,15 @@ class SpotifyRemoteRepository {
       debugPrint(
         '[PLAY] Calling bridge.playWithPosition uri=${track.spotifyUri}',
       );
+      final targetDeviceId = _takeTargetDeviceId();
       _recordPlayed(
         await _bridge.playWithPosition(
           spotifyUri: track.spotifyUri,
           positionMs: jumpStart > 0 ? jumpStart : 0,
-          deviceId: _preferredDeviceIdOrNull,
+          deviceId: targetDeviceId,
         ),
+        requestedUri: track.spotifyUri,
+        requestedDeviceId: targetDeviceId,
       );
       // Restore volume if a prior pause (regular Android mute or any
       // platform's fade-pause) left us muted. On Android the native bridge
@@ -887,12 +1019,15 @@ class SpotifyRemoteRepository {
 
     final startTime = DateTime.now();
     try {
+      final targetDeviceId = _takeTargetDeviceId();
       _recordPlayed(
         await _bridge.playWithPosition(
           spotifyUri: spotifyUri,
           positionMs: jumpStart,
-          deviceId: _preferredDeviceIdOrNull,
+          deviceId: targetDeviceId,
         ),
+        requestedUri: spotifyUri,
+        requestedDeviceId: targetDeviceId,
       );
       if (jumpStart > 0) {
         latestDurationStartupMS = DateTime.now()
@@ -943,11 +1078,11 @@ class SpotifyRemoteRepository {
     }
 
     try {
+      final targetDeviceId = _takeTargetDeviceId();
       _recordPlayed(
-        await _bridge.play(
-          spotifyUri: spotifyUri,
-          deviceId: _preferredDeviceIdOrNull,
-        ),
+        await _bridge.play(spotifyUri: spotifyUri, deviceId: targetDeviceId),
+        requestedUri: spotifyUri,
+        requestedDeviceId: targetDeviceId,
       );
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,

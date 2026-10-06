@@ -12,15 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now shows `account → device` coloured by status; tapping it opens a
   "Spotify output" sheet with the logged-in account (name, email, Premium),
   every Spotify Connect device on the account, and a device selector
-  - The chosen device is remembered (Hive `settings`:
-    `spotifyPreferredDeviceId/Name`) and passed as `device_id` on play/resume
+  - By default djSports sends no `device_id` and follows the device chosen
+    in Spotify. Only a device set with the explicit **Set device** button is
+    remembered (Hive `settings`: `spotifyPreferredDeviceId/Name`) and sent
+    as `device_id` on play/resume; **Clear** returns to following Spotify
   - Warns when Spotify on this Mac is running but missing from the
     account's device list — i.e. the Spotify app is signed in with a
     different account than djSports
   - Every play logs `Playing on <device> as <account>`
+- **Play check** — ~1.5 s after each play (iOS/macOS) djSports asks Spotify
+  what is actually playing (`GET /me/player`) and logs a `[PLAY-CHECK]`
+  line. If Spotify accepted the command (204) but the device didn't switch
+  or the track didn't load, an error toast explains it — e.g. a Mac whose
+  Spotify app can't be controlled remotely (stale Spotify Connect
+  registration after switching account in the Spotify app)
 - **"Where should djSports play?" prompt** — when no usable device exists
-  (or the chosen one is gone), playback asks instead of guessing, then
-  retries on the picked device. Used by Let's Play, the playlist track list
+  (or the set one is gone), playback asks instead of guessing, then
+  retries once on the picked device (not remembered). Used by Let's Play, the playlist track list
   and the track editor preview
 
 ### Changed

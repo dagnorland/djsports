@@ -7,8 +7,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 /// Runs [play]; when it fails because no usable Spotify device exists
-/// (`[Error][NoDevice]`), asks the user where to play, remembers the choice and
-/// retries once. Returns the final play result string.
+/// (`[Error][NoDevice]`), asks the user where to play and retries once on
+/// that device. Returns the final play result string.
 Future<String> playWithDevicePrompt(
   BuildContext context,
   WidgetRef ref,
@@ -33,7 +33,7 @@ String playResultMessage(String result) =>
     result.replaceAll(RegExp(r'^(\[\w+\])+\s*'), '');
 
 /// Dialog: "Where should djSports play?". Returns true when a device was
-/// picked (and saved as the preferred device).
+/// picked; the next play goes there once (not remembered).
 Future<bool> showSpotifyDevicePicker(
   BuildContext context, {
   String? message,
@@ -134,6 +134,13 @@ class _StatusView {
           'Checking Spotify devices…',
         );
       case SpotifyTargetStatus.preferred:
+        return _StatusView(
+          green,
+          '$who → $where (set)',
+          'Spotify account: $who\nPlays on: $where\n'
+              'Device set in djSports – clear it in Spotify output to '
+              'follow Spotify again',
+        );
       case SpotifyTargetStatus.active:
       case SpotifyTargetStatus.thisDevice:
         return _StatusView(
@@ -363,23 +370,31 @@ class _DeviceList extends ConsumerWidget {
         ),
         _DeviceTile(
           icon: Icons.auto_mode,
-          title: 'Spotify\'s active device',
+          title: 'Follow Spotify (default)',
           subtitle: session.activeDevice == null
-              ? 'None active – djSports will ask'
-              : 'Now: ${session.activeDevice!.name}',
+              ? 'No active device in Spotify – djSports will ask'
+              : 'Spotify plays on: ${session.activeDevice!.name}',
           selected: session.preferredDeviceId.isEmpty,
-          onTap: () => repo.setPreferredDevice(null),
+          action: session.preferredDeviceId.isEmpty
+              ? null
+              : TextButton(
+                  onPressed: () => repo.setPreferredDevice(null),
+                  child: const Text('Use this'),
+                ),
         ),
         if (session.preferredDeviceId.isNotEmpty &&
             session.preferredDevice == null)
           _DeviceTile(
             icon: Icons.portable_wifi_off,
             title: session.preferredDeviceName.isEmpty
-                ? 'Selected device'
+                ? 'Set device'
                 : session.preferredDeviceName,
-            subtitle: 'Not available right now – djSports will ask',
+            subtitle: 'Set in djSports, not available right now',
             selected: true,
-            onTap: () {},
+            action: TextButton(
+              onPressed: () => repo.setPreferredDevice(null),
+              child: const Text('Clear'),
+            ),
           ),
         for (final device in session.devices)
           _DeviceTile(
@@ -394,7 +409,15 @@ class _DeviceList extends ConsumerWidget {
                 'will play here',
             ].join(' · '),
             selected: device.id == session.preferredDeviceId,
-            onTap: () => repo.setPreferredDevice(device),
+            action: device.id == session.preferredDeviceId
+                ? TextButton(
+                    onPressed: () => repo.setPreferredDevice(null),
+                    child: const Text('Clear'),
+                  )
+                : TextButton(
+                    onPressed: () => repo.setPreferredDevice(device),
+                    child: const Text('Set device'),
+                  ),
           ),
         if (session.devicesLoaded && session.devices.isEmpty)
           const Padding(
@@ -426,32 +449,33 @@ IconData _iconFor(SpotifyDevice device) {
   }
 }
 
+/// A device row. Selecting only happens through the explicit [action]
+/// button, never by tapping the row.
 class _DeviceTile extends StatelessWidget {
   const _DeviceTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.selected,
-    required this.onTap,
+    this.action,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final bool selected;
-  final VoidCallback onTap;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: subtitle.isEmpty ? null : Text(subtitle),
-      trailing: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: selected ? Colors.green.shade700 : null,
+      leading: Icon(icon, color: selected ? Colors.green.shade700 : null),
+      title: Text(
+        title,
+        style: selected ? const TextStyle(fontWeight: FontWeight.bold) : null,
       ),
-      onTap: onTap,
+      subtitle: subtitle.isEmpty ? null : Text(subtitle),
+      trailing: action,
     );
   }
 }
@@ -559,6 +583,11 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
                 children: [
                   if (widget.message != null) Text(widget.message!),
                   Text('Spotify account: $who'),
+                  const Text(
+                    'Used for this play only. To always use one device, '
+                    'press "Set device" in Spotify output.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
                   if (session.suspectsOtherAccount)
                     _MismatchBanner(session: session),
                   const SizedBox(height: 8),
@@ -574,9 +603,11 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
                           if (device.isActive) 'active',
                         ].join(' · '),
                       ),
-                      onTap: () async {
-                        await repo.setPreferredDevice(device);
-                        if (context.mounted) Navigator.pop(context, true);
+                      onTap: () {
+                        // One-off: not remembered. Once it plays there,
+                        // Spotify keeps it as the active device anyway.
+                        repo.playNextOn(device);
+                        Navigator.pop(context, true);
                       },
                     ),
                   if (session.devices.isEmpty && !_busy)
