@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     in Spotify. Only a device set with the explicit **Set device** button is
     remembered (Hive `settings`: `spotifyPreferredDeviceId/Name`) and sent
     as `device_id` on play/resume; **Clear** returns to following Spotify
+  - **Set device** also transfers Spotify playback to that device right
+    away (`PUT /me/player`, play/pause state kept — the public equivalent
+    of the web player's "Connect to a device"); a refusal is shown in red
+    in the sheet
+- **macOS: control Spotify on this Mac directly** (default on) — play,
+  pause and resume aimed at this Mac go through AppleScript instead of the
+  Web API: faster, and works around Spotify for Mac 1.3.3.264 accepting Web
+  API plays (204) without loading the track. Other devices use the Web API;
+  if AppleScript fails (e.g. Automation permission denied) djSports falls
+  back to the Web API and says why. Toggle in Spotify output. Start
+  positions wait for a fresh start and are re-checked at 0.5 s / 1.2 s;
+  djSports takes focus back when Spotify raises its window (sandbox
+  exception `temporary-exception.apple-events` for `com.spotify.client`)
+
+### Fixed
+- **iOS 27 launch** — migrated to the UIScene lifecycle; the app quit right
+  after the launch screen on iOS 27
+- Apple Music `prewarmCache` no longer throws `MissingPluginException` on iOS
   - Warns when Spotify on this Mac is running but missing from the
     account's device list — i.e. the Spotify app is signed in with a
     different account than djSports

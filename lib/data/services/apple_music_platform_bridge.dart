@@ -130,13 +130,18 @@ class AppleMusicPlatformBridge {
   }
 
   /// Pre-fetches songs into the native cache to avoid catalog latency on play.
-  /// Returns the number of songs successfully cached.
+  /// Returns the number of songs successfully cached (0 on iOS, which has
+  /// no native cache).
   Future<int> prewarmCache(List<String> trackIds) async {
     if (trackIds.isEmpty) return 0;
-    return await _channel.invokeMethod<int>('prewarmCache', {
-          'trackIds': trackIds,
-        }) ??
-        0;
+    try {
+      return await _channel.invokeMethod<int>('prewarmCache', {
+            'trackIds': trackIds,
+          }) ??
+          0;
+    } on MissingPluginException {
+      return 0;
+    }
   }
 
   /// Stream of connection/authorization state changes.

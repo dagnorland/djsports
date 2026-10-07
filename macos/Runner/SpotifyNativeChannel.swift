@@ -54,6 +54,10 @@ class SpotifyNativeChannel: NSObject {
             getActiveDevices(result: result)
         case "getDevices":
             getDevices(result: result)
+        case "transferPlayback":
+            transferPlayback(args: args, result: result)
+        case "localPlayer":
+            localPlayer(args: args, result: result)
         case "getLocalDeviceName":
             result(localDeviceName)
         case "isSpotifyRunning":
@@ -849,6 +853,151 @@ class SpotifyNativeChannel: NSObject {
             return
         }
         spotifyWebAPI(method: "PUT", path: "/me/player/seek?position_ms=\(positionMs)", result: result)
+    }
+
+    // MARK: - localPlayer (AppleScript)
+
+    /// Bumped on every local play so stale seek guards can bail out.
+    private var localPlayGeneration = 0
+
+    /// Controls Spotify for Mac directly via AppleScript, bypassing the Web
+    /// API. Used when the desktop app accepts Web API commands (204) but
+    /// never loads the track. Commands: play (spotifyUri, positionMs),
+    /// pause, resume.
+    private func localPlayer(
+        args: [String: Any],
+        result: @escaping FlutterResult
+    ) {
+        let command = args["command"] as? String ?? ""
+        switch command {
+        case "play":
+            guard let uri = args["spotifyUri"] as? String,
+                  uri.hasPrefix("spotify:"),
+                  !uri.contains("\""), !uri.contains("\\")
+            else {
+                result(FlutterError(
+                    code: "INVALID_ARGS",
+                    message: "Missing or invalid spotifyUri",
+                    details: nil
+                ))
+                return
+            }
+            let positionMs = args["positionMs"] as? Int ?? 0
+            localPlayGeneration += 1
+            var script = """
+            tell application "Spotify"
+                play track "\(uri)"
+
+            """
+            var seconds: String?
+            if positionMs > 0 {
+                // Wait (max ~2 s) for a FRESH start before seeking: when the
+                // same track was already loaded (playing or paused), the old
+                // state matches at first and Spotify restarts the track from
+                // 0 right after our seek. No track-id check: Spotify may
+                // play a relinked id.
+                let target = String(format: "%.3f", Double(positionMs) / 1000)
+                seconds = target
+                script += """
+                    repeat 40 times
+                        try
+                            if player state is playing and player position < 2 then exit repeat
+                        end try
+                        delay 0.05
+                    end repeat
+                    set player position to \(target)
+
+                """
+            }
+            script += "end tell"
+            ensureSpotifyRunning {
+                self.runLocalScript(script) { [weak self] value in
+                    result(value)
+                    if let seconds = seconds {
+                        self?.guardSeek(to: seconds)
+                    }
+                }
+            }
+        case "pause":
+            runLocalScript("tell application \"Spotify\" to pause", result: result)
+        case "resume":
+            runLocalScript("tell application \"Spotify\" to play", result: result)
+        default:
+            result(FlutterError(
+                code: "INVALID_ARGS",
+                message: "Unknown localPlayer command: \(command)",
+                details: nil
+            ))
+        }
+    }
+
+    /// Spotify sometimes restarts a just-started track from 0 after our
+    /// seek. Re-seek twice in the background if the position fell back to
+    /// the start (< 3 s) and is short of [seconds].
+    private func guardSeek(to seconds: String) {
+        let generation = localPlayGeneration
+        let script = """
+        tell application "Spotify"
+            if player state is playing and player position < 3 and player position < (\(seconds) - 0.5) then set player position to \(seconds)
+        end tell
+        """
+        for delay in [0.5, 1.2] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                // A newer play started – don't seek that track.
+                guard generation == self.localPlayGeneration else { return }
+                self.runAppleScript(script) { _ in }
+            }
+        }
+    }
+
+    /// Runs [script] and, if djSports was the active app, takes focus back:
+    /// Spotify's `play track` brings its own window to the front.
+    private func runLocalScript(
+        _ script: String,
+        result: @escaping FlutterResult
+    ) {
+        let wasActive = NSApp.isActive
+        runAppleScript(script) { [weak self] value in
+            result(value)
+            guard wasActive else { return }
+            self?.reclaimFocusFromSpotify()
+            // Spotify can raise its window a moment after the command.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                self?.reclaimFocusFromSpotify()
+            }
+        }
+    }
+
+    private func reclaimFocusFromSpotify() {
+        guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+                == "com.spotify.client"
+        else { return }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - transferPlayback
+
+    /// Moves playback to the given device via PUT /v1/me/player.
+    /// `play` is omitted so Spotify keeps the current play/pause state
+    /// (same as the web player's `restore_paused: "restore"`).
+    private func transferPlayback(
+        args: [String: Any],
+        result: @escaping FlutterResult
+    ) {
+        guard let deviceId = args["deviceId"] as? String, !deviceId.isEmpty else {
+            result(FlutterError(
+                code: "INVALID_ARGS",
+                message: "Missing deviceId",
+                details: nil
+            ))
+            return
+        }
+        spotifyWebAPI(
+            method: "PUT",
+            path: "/me/player",
+            body: ["device_ids": [deviceId]],
+            result: result
+        )
     }
 
     // MARK: - Spotify Web API helper

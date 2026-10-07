@@ -75,6 +75,19 @@ abstract class SpotifyPlatformBridge {
   /// Empty on Android (App Remote SDK has no device list).
   Future<List<SpotifyDevice>> getDevices();
 
+  /// Moves playback to [deviceId] (Web API `PUT /me/player`), keeping
+  /// the current play/pause state. No-op on Android.
+  Future<void> transferPlayback(String deviceId);
+
+  /// macOS only: drives Spotify on this Mac via AppleScript instead of the
+  /// Web API. [command] is `play` (with [spotifyUri], [positionMs]),
+  /// `pause` or `resume`. Throws [UnsupportedError] elsewhere.
+  Future<void> localPlayer(
+    String command, {
+    String? spotifyUri,
+    int positionMs = 0,
+  });
+
   /// Name Spotify uses for this machine. Empty when unknown.
   Future<String> getLocalDeviceName();
 
@@ -206,6 +219,17 @@ class _IosBridge implements SpotifyPlatformBridge {
 
   @override
   Future<List<SpotifyDevice>> getDevices() => _invokeGetDevices(_mc);
+
+  @override
+  Future<void> transferPlayback(String deviceId) =>
+      _mc.invokeMethod('transferPlayback', {'deviceId': deviceId});
+
+  @override
+  Future<void> localPlayer(
+    String command, {
+    String? spotifyUri,
+    int positionMs = 0,
+  }) => throw UnsupportedError('localPlayer is macOS-only');
 
   @override
   Future<String> getLocalDeviceName() async =>
@@ -344,6 +368,21 @@ class _MacOSBridge implements SpotifyPlatformBridge {
 
   @override
   Future<List<SpotifyDevice>> getDevices() => _invokeGetDevices(_mc);
+
+  @override
+  Future<void> transferPlayback(String deviceId) =>
+      _mc.invokeMethod('transferPlayback', {'deviceId': deviceId});
+
+  @override
+  Future<void> localPlayer(
+    String command, {
+    String? spotifyUri,
+    int positionMs = 0,
+  }) => _mc.invokeMethod('localPlayer', {
+    'command': command,
+    'spotifyUri': ?spotifyUri,
+    if (positionMs > 0) 'positionMs': positionMs,
+  });
 
   @override
   Future<String> getLocalDeviceName() async =>
@@ -494,6 +533,16 @@ class _AndroidBridge implements SpotifyPlatformBridge {
 
   @override
   Future<List<SpotifyDevice>> getDevices() async => [];
+
+  @override
+  Future<void> transferPlayback(String deviceId) async {}
+
+  @override
+  Future<void> localPlayer(
+    String command, {
+    String? spotifyUri,
+    int positionMs = 0,
+  }) => throw UnsupportedError('localPlayer is macOS-only');
 
   @override
   Future<String> getLocalDeviceName() async => '';

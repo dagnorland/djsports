@@ -188,6 +188,10 @@ class SpotifyRemoteRepository {
 
   /// Remembers [device] as the playback target (null = follow Spotify's
   /// active device). Persisted in the Hive `settings` box.
+  ///
+  /// A non-null [device] also moves Spotify playback there right away
+  /// (keeping play/pause state). The choice is kept even if Spotify
+  /// refuses the transfer; the error is rethrown so the UI can show it.
   Future<void> setPreferredDevice(SpotifyDevice? device) async {
     final id = device?.id ?? '';
     final name = device?.name ?? '';
@@ -202,6 +206,34 @@ class SpotifyRemoteRepository {
           ? 'Playback device: follow Spotify active device'
           : 'Playback device set to ${device.name} (${device.type})',
     );
+    if (device == null || Platform.isAndroid) return;
+    await _transferPlayback(device);
+    // Give Spotify a moment to report the new active device.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await refreshDevices();
+  }
+
+  Future<void> _transferPlayback(
+    SpotifyDevice device, {
+    bool retry = true,
+  }) async {
+    try {
+      await _bridge.transferPlayback(device.id);
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.connectedSpotify,
+        'Transferred playback to ${device.name}',
+      );
+    } on PlatformException catch (e) {
+      if (retry && _needsReconnect(e) && await connect()) {
+        return _transferPlayback(device, retry: false);
+      }
+      final reason = e.message ?? e.code;
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.notConnected,
+        'Transfer to ${device.name} failed: $reason',
+      );
+      throw Exception('Spotify did not switch to ${device.name}: $reason');
+    }
   }
 
   /// Reloads the device list, this machine's name and (macOS) whether
@@ -410,9 +442,15 @@ class SpotifyRemoteRepository {
               'your phone.';
         } else if (!itemMatches) {
           issue =
-              'Spotify on "$deviceName" accepted the command but did '
-              'not start the track. Try restarting the Spotify app there '
-              '(Cmd+Q on a Mac) or choose another device.';
+              Platform.isMacOS &&
+                  !macLocalControlNotifier.value &&
+                  _isThisMac(deviceId)
+              ? 'Spotify for Mac accepted the command but did not start '
+                    'the track. Turn on "Control Spotify on this Mac '
+                    'directly" in Spotify output.'
+              : 'Spotify on "$deviceName" accepted the command but did '
+                    'not start the track. Try restarting the Spotify app '
+                    'there (Cmd+Q on a Mac) or choose another device.';
         }
       }
       debugPrint('[PLAY-CHECK] $report');
@@ -420,14 +458,121 @@ class SpotifyRemoteRepository {
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
         'Play check: $report',
       );
-      if (issue != null) {
-        // Re-assign through null so the same message fires again.
-        playIssueNotifier.value = null;
-        playIssueNotifier.value = issue;
-      }
+      if (issue != null) _reportPlayIssue(issue);
     } catch (e) {
       debugPrint('[PLAY-CHECK] failed: $e');
     }
+  }
+
+  void _reportPlayIssue(String issue) {
+    // Re-assign through null so the same message fires again.
+    playIssueNotifier.value = null;
+    playIssueNotifier.value = issue;
+  }
+
+  // ── macOS local control (AppleScript) ───────────────────────────────────
+
+  static const _macLocalControlKey = 'spotifyMacLocalControl';
+
+  /// macOS: play/pause/resume on Spotify for THIS Mac via AppleScript
+  /// instead of the Web API (default on). Faster, and works when Spotify
+  /// for Mac accepts Web API plays without loading the track. Other devices
+  /// always use the Web API. Persisted in the Hive `settings` box.
+  late final ValueNotifier<bool> macLocalControlNotifier = ValueNotifier(
+    Platform.isMacOS && _settingsGet(_macLocalControlKey) != 'off',
+  );
+
+  Future<void> setMacLocalControl(bool enabled) async {
+    macLocalControlNotifier.value = enabled;
+    await _settingsPut(_macLocalControlKey, enabled ? 'on' : 'off');
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.connectedSpotify,
+      'Control Spotify on this Mac directly: ${enabled ? 'on' : 'off'}',
+    );
+  }
+
+  bool _isThisMac(String deviceId) {
+    final known = session.devices.where((d) => d.id == deviceId).firstOrNull;
+    return known != null && session.isLocal(known);
+  }
+
+  /// Whether a command for [deviceId] (null = Spotify's active device)
+  /// should go to Spotify on this Mac via AppleScript.
+  bool _useLocalControl(String? deviceId) {
+    if (!Platform.isMacOS || !macLocalControlNotifier.value) return false;
+    if (deviceId != null) return _isThisMac(deviceId);
+    final current = session.activeDevice ?? session.lastPlayedDevice;
+    return current == null || session.isLocal(current);
+  }
+
+  /// Runs [command] via AppleScript. Returns false (after telling the user
+  /// once) when AppleScript fails, so the caller can use the Web API.
+  Future<bool> _tryLocal(
+    String command, {
+    String? spotifyUri,
+    int positionMs = 0,
+  }) async {
+    try {
+      await _bridge.localPlayer(
+        command,
+        spotifyUri: spotifyUri,
+        positionMs: positionMs,
+      );
+      return true;
+    } on PlatformException catch (e) {
+      debugPrint('[PLAY] AppleScript $command failed: ${e.message}');
+      SpotifyConnectionLog().addSimpleEntry(
+        SpotifyConnectionStatus.notConnected,
+        'AppleScript $command failed (${e.message}) – using Web API',
+      );
+      if (!_localFailureReported) {
+        _localFailureReported = true;
+        _reportPlayIssue(
+          'Could not control Spotify on this Mac directly (${e.message}). '
+          'Using the Spotify Web API instead. Allow djSports in System '
+          'Settings → Privacy & Security → Automation.',
+        );
+      }
+      return false;
+    }
+  }
+
+  bool _localFailureReported = false;
+
+  Future<SpotifyDevice?> _playOn(
+    String spotifyUri,
+    String? deviceId, {
+    int? positionMs,
+  }) async {
+    if (_useLocalControl(deviceId)) {
+      debugPrint('[PLAY] via AppleScript (local control)');
+      final ok = await _tryLocal(
+        'play',
+        spotifyUri: spotifyUri,
+        positionMs: positionMs ?? 0,
+      );
+      if (ok) return session.localDevice;
+    }
+    if (positionMs == null) {
+      return _bridge.play(spotifyUri: spotifyUri, deviceId: deviceId);
+    }
+    return _bridge.playWithPosition(
+      spotifyUri: spotifyUri,
+      positionMs: positionMs,
+      deviceId: deviceId,
+    );
+  }
+
+  Future<void> _pause() async {
+    if (_useLocalControl(null) && await _tryLocal('pause')) return;
+    await _bridge.pause();
+  }
+
+  Future<SpotifyDevice?> _resume(String? deviceId) async {
+    if (_useLocalControl(deviceId) && await _tryLocal('resume')) {
+      return session.localDevice;
+    }
+    return _bridge.resume(deviceId: deviceId);
   }
 
   String? _deviceName(String? id) {
@@ -789,7 +934,7 @@ class SpotifyRemoteRepository {
           await _setFadeStepVolume(0);
           // Execute the platform pause. On Android we don't call _mute()
           // here because the volume is already at 0 from the sweep.
-          await _bridge.pause();
+          await _pause();
           if (Platform.isIOS) silencePlayingNotifier.value = true;
           isPlaying = false;
           SpotifyConnectionLog().addSimpleEntry(
@@ -828,7 +973,7 @@ class SpotifyRemoteRepository {
         _preMuteVolume = volume;
         await _mute();
       }
-      await _bridge.pause();
+      await _pause();
       if (Platform.isIOS) silencePlayingNotifier.value = true;
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -847,7 +992,7 @@ class SpotifyRemoteRepository {
             SpotifyConnectionStatus.connectedSpotifyRemoteApp,
             'Reconnected. Retrying pause.',
           );
-          await _bridge.pause();
+          await _pause();
           isPlaying = false;
           return isPlaying;
         }
@@ -865,7 +1010,7 @@ class SpotifyRemoteRepository {
     // muting after resume kicks in.
     cancelFade();
     try {
-      _recordPlayed(await _bridge.resume(deviceId: _takeTargetDeviceId()));
+      _recordPlayed(await _resume(_takeTargetDeviceId()));
       await _unMute();
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
@@ -884,7 +1029,7 @@ class SpotifyRemoteRepository {
             SpotifyConnectionStatus.connectedSpotifyRemoteApp,
             'Reconnected. Retrying resume.',
           );
-          _recordPlayed(await _bridge.resume(deviceId: _takeTargetDeviceId()));
+          _recordPlayed(await _resume(_takeTargetDeviceId()));
           isPlaying = true;
           return isPlaying;
         }
@@ -939,12 +1084,9 @@ class SpotifyRemoteRepository {
         '[PLAY] Calling bridge.playWithPosition uri=${track.spotifyUri}',
       );
       final targetDeviceId = _takeTargetDeviceId();
+      final positionMs = jumpStart > 0 ? jumpStart : 0;
       _recordPlayed(
-        await _bridge.playWithPosition(
-          spotifyUri: track.spotifyUri,
-          positionMs: jumpStart > 0 ? jumpStart : 0,
-          deviceId: targetDeviceId,
-        ),
+        await _playOn(track.spotifyUri, targetDeviceId, positionMs: positionMs),
         requestedUri: track.spotifyUri,
         requestedDeviceId: targetDeviceId,
       );
@@ -1021,11 +1163,7 @@ class SpotifyRemoteRepository {
     try {
       final targetDeviceId = _takeTargetDeviceId();
       _recordPlayed(
-        await _bridge.playWithPosition(
-          spotifyUri: spotifyUri,
-          positionMs: jumpStart,
-          deviceId: targetDeviceId,
-        ),
+        await _playOn(spotifyUri, targetDeviceId, positionMs: jumpStart),
         requestedUri: spotifyUri,
         requestedDeviceId: targetDeviceId,
       );
@@ -1080,7 +1218,7 @@ class SpotifyRemoteRepository {
     try {
       final targetDeviceId = _takeTargetDeviceId();
       _recordPlayed(
-        await _bridge.play(spotifyUri: spotifyUri, deviceId: targetDeviceId),
+        await _playOn(spotifyUri, targetDeviceId),
         requestedUri: spotifyUri,
         requestedDeviceId: targetDeviceId,
       );

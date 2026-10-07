@@ -68,6 +68,8 @@ class SpotifyNativeChannel: NSObject {
             getActiveDevices(result: result)
         case "getDevices":
             getDevices(result: result)
+        case "transferPlayback":
+            transferPlayback(args: args, result: result)
         case "getLocalDeviceName":
             result(localDeviceName)
         case "clearSession":
@@ -1008,6 +1010,31 @@ class SpotifyNativeChannel: NSObject {
                 result(names)
             }
         }.resume()
+    }
+
+    // MARK: - transferPlayback
+
+    /// Moves playback to the given device via PUT /v1/me/player.
+    /// `play` is omitted so Spotify keeps the current play/pause state
+    /// (same as the web player's `restore_paused: "restore"`).
+    private func transferPlayback(
+        args: [String: Any],
+        result: @escaping FlutterResult
+    ) {
+        guard let deviceId = args["deviceId"] as? String, !deviceId.isEmpty else {
+            result(FlutterError(
+                code: "INVALID_ARGS",
+                message: "Missing deviceId",
+                details: nil
+            ))
+            return
+        }
+        spotifyWebAPI(
+            method: "PUT",
+            path: "/me/player",
+            body: ["device_ids": [deviceId]],
+            result: result
+        )
     }
 
     // MARK: - Spotify Web API helper

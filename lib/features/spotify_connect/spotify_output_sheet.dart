@@ -226,7 +226,10 @@ class _SpotifyOutputSheetState extends ConsumerState<SpotifyOutputSheet> {
                   session: session,
                   busy: _busy,
                   onRefresh: () => _run(repo.refreshDevices),
+                  onSetDevice: (device) =>
+                      _run(() => repo.setPreferredDevice(device)),
                 ),
+                if (Platform.isMacOS) const _MacLocalControlSwitch(),
                 if (_error.isNotEmpty) _ErrorText(_error),
                 const SizedBox(height: 12),
                 _SheetActions(
@@ -334,11 +337,13 @@ class _DeviceList extends ConsumerWidget {
     required this.session,
     required this.busy,
     required this.onRefresh,
+    required this.onSetDevice,
   });
 
   final SpotifySession session;
   final bool busy;
   final VoidCallback onRefresh;
+  final ValueChanged<SpotifyDevice> onSetDevice;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -415,7 +420,7 @@ class _DeviceList extends ConsumerWidget {
                     child: const Text('Clear'),
                   )
                 : TextButton(
-                    onPressed: () => repo.setPreferredDevice(device),
+                    onPressed: busy ? null : () => onSetDevice(device),
                     child: const Text('Set device'),
                   ),
           ),
@@ -451,6 +456,31 @@ IconData _iconFor(SpotifyDevice device) {
 
 /// A device row. Selecting only happens through the explicit [action]
 /// button, never by tapping the row.
+/// macOS: play/pause/resume on this Mac via AppleScript (default) or the
+/// Spotify Web API only.
+class _MacLocalControlSwitch extends ConsumerWidget {
+  const _MacLocalControlSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.read(spotifyRemoteRepositoryProvider);
+    return ValueListenableBuilder<bool>(
+      valueListenable: repo.macLocalControlNotifier,
+      builder: (context, enabled, _) => SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Control Spotify on this Mac directly'),
+        subtitle: const Text(
+          'Uses AppleScript for this Mac: faster, and works when Spotify '
+          'for Mac ignores Web API play commands. Other devices always use '
+          'the Web API. Turn off to use the Web API only.',
+        ),
+        value: enabled,
+        onChanged: repo.setMacLocalControl,
+      ),
+    );
+  }
+}
+
 class _DeviceTile extends StatelessWidget {
   const _DeviceTile({
     required this.icon,
