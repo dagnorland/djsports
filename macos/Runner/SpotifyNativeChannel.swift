@@ -14,8 +14,18 @@ class SpotifyNativeChannel: NSObject {
 
     private let refreshTokenKey = "spotify_macos_refresh_token"
     private var storedAccessToken: String?
+    /// Client ID from the last `getAccessToken`, for silent refreshes.
+    private var clientId: String?
 
-    func setup(messenger: FlutterBinaryMessenger) {
+    /// The in-app Spotify Web Playback SDK player (see SpotifyWebPlayer).
+    let webPlayer = SpotifyWebPlayer()
+
+    func setup(messenger: FlutterBinaryMessenger, hostView: NSView) {
+        webPlayer.setup(messenger: messenger, hostView: hostView)
+        webPlayer.tokenProvider = { [weak self] refresh, completion in
+            self?.webPlayerToken(refresh: refresh, completion: completion)
+        }
+
         let mc = FlutterMethodChannel(
             name: Self.methodChannelName,
             binaryMessenger: messenger
@@ -58,6 +68,18 @@ class SpotifyNativeChannel: NSObject {
             transferPlayback(args: args, result: result)
         case "localPlayer":
             localPlayer(args: args, result: result)
+        case "webPlayerStart":
+            webPlayer.start(name: args["name"] as? String ?? "djSports")
+            result(nil)
+        case "webPlayerStop":
+            webPlayer.stop()
+            result(nil)
+        case "webPlayerCommand":
+            webPlayer.command(
+                args["command"] as? String ?? "",
+                value: (args["value"] as? NSNumber)?.doubleValue,
+                result: result
+            )
         case "getLocalDeviceName":
             result(localDeviceName)
         case "isSpotifyRunning":
@@ -101,6 +123,7 @@ class SpotifyNativeChannel: NSObject {
             return
         }
 
+        self.clientId = clientId
         let normalizedScope = scope
             .replacingOccurrences(of: ", ", with: " ")
             .replacingOccurrences(of: ",", with: " ")
@@ -324,6 +347,26 @@ class SpotifyNativeChannel: NSObject {
                 completion(accessToken)
             }
         }.resume()
+    }
+
+    /// Token for the web player: refreshed via the stored refresh token
+    /// when possible, else the current one.
+    private func webPlayerToken(
+        refresh: Bool,
+        completion: @escaping (String?) -> Void
+    ) {
+        guard
+            refresh,
+            let clientId,
+            let refreshToken = UserDefaults.standard.string(forKey: refreshTokenKey)
+        else {
+            completion(storedAccessToken)
+            return
+        }
+        refreshAccessToken(clientId: clientId, refreshToken: refreshToken) {
+            [weak self] token in
+            completion(token ?? self?.storedAccessToken)
+        }
     }
 
     // MARK: - PKCE helpers

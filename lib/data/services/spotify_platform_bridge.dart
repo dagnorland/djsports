@@ -59,7 +59,9 @@ abstract class SpotifyPlatformBridge {
   Future<double> getSystemVolume();
 
   /// Sets the volume. [volume] is in [0.0, 1.0].
-  Future<void> setSystemVolume(double volume);
+  /// Sets the system volume. On macOS [spotifyToo] also sets the active
+  /// Spotify device's volume via the Web API; ignored elsewhere.
+  Future<void> setSystemVolume(double volume, {bool spotifyToo = true});
 
   /// Opens Spotify: activates it if running, launches it if not.
   Future<void> launchSpotify();
@@ -87,6 +89,21 @@ abstract class SpotifyPlatformBridge {
     String? spotifyUri,
     int positionMs = 0,
   });
+
+  /// macOS only: starts the in-app Spotify Web Playback SDK player, which
+  /// registers djSports as a Spotify Connect device called [name]. Its
+  /// events arrive on [webPlayerEvents]. Throws [UnsupportedError]
+  /// elsewhere.
+  Future<void> startWebPlayer(String name);
+
+  /// macOS only: `pause`, `resume`, `seek` ([value] = ms), `setVolume`
+  /// ([value] = 0–1) or `activate` on the in-app web player.
+  Future<void> webPlayerCommand(String command, {num? value});
+
+  /// macOS only: web player events as maps with an `event` key (`ready`
+  /// with `deviceId`, `not_ready`, `state`, `log`, `*_error` with
+  /// `message`). Empty elsewhere.
+  Stream<Map<String, dynamic>> webPlayerEvents();
 
   /// Name Spotify uses for this machine. Empty when unknown.
   Future<String> getLocalDeviceName();
@@ -201,7 +218,7 @@ class _IosBridge implements SpotifyPlatformBridge {
       await FlutterVolumeController.getVolume() ?? 0.5;
 
   @override
-  Future<void> setSystemVolume(double volume) =>
+  Future<void> setSystemVolume(double volume, {bool spotifyToo = true}) =>
       FlutterVolumeController.setVolume(volume);
 
   @override
@@ -230,6 +247,17 @@ class _IosBridge implements SpotifyPlatformBridge {
     String? spotifyUri,
     int positionMs = 0,
   }) => throw UnsupportedError('localPlayer is macOS-only');
+
+  @override
+  Future<void> startWebPlayer(String name) =>
+      throw UnsupportedError('The web player is macOS-only');
+
+  @override
+  Future<void> webPlayerCommand(String command, {num? value}) =>
+      throw UnsupportedError('The web player is macOS-only');
+
+  @override
+  Stream<Map<String, dynamic>> webPlayerEvents() => const Stream.empty();
 
   @override
   Future<String> getLocalDeviceName() async =>
@@ -345,9 +373,10 @@ class _MacOSBridge implements SpotifyPlatformBridge {
       await FlutterVolumeController.getVolume() ?? _cachedVolume;
 
   @override
-  Future<void> setSystemVolume(double volume) async {
+  Future<void> setSystemVolume(double volume, {bool spotifyToo = true}) async {
     _cachedVolume = volume;
     await FlutterVolumeController.setVolume(volume);
+    if (!spotifyToo) return;
     await _mc.invokeMethod('setVolume', {
       'volumePercent': (volume * 100).round(),
     });
@@ -383,6 +412,23 @@ class _MacOSBridge implements SpotifyPlatformBridge {
     'spotifyUri': ?spotifyUri,
     if (positionMs > 0) 'positionMs': positionMs,
   });
+
+  static const _webPlayerEc = EventChannel(
+    'com.djsports/spotify_web_player_events',
+  );
+
+  @override
+  Future<void> startWebPlayer(String name) =>
+      _mc.invokeMethod('webPlayerStart', {'name': name});
+
+  @override
+  Future<void> webPlayerCommand(String command, {num? value}) => _mc
+      .invokeMethod('webPlayerCommand', {'command': command, 'value': ?value});
+
+  @override
+  Stream<Map<String, dynamic>> webPlayerEvents() => _webPlayerEc
+      .receiveBroadcastStream()
+      .map((e) => Map<String, dynamic>.from(e as Map));
 
   @override
   Future<String> getLocalDeviceName() async =>
@@ -518,7 +564,7 @@ class _AndroidBridge implements SpotifyPlatformBridge {
       await FlutterVolumeController.getVolume() ?? 0.5;
 
   @override
-  Future<void> setSystemVolume(double volume) =>
+  Future<void> setSystemVolume(double volume, {bool spotifyToo = true}) =>
       FlutterVolumeController.setVolume(volume);
 
   @override
@@ -543,6 +589,17 @@ class _AndroidBridge implements SpotifyPlatformBridge {
     String? spotifyUri,
     int positionMs = 0,
   }) => throw UnsupportedError('localPlayer is macOS-only');
+
+  @override
+  Future<void> startWebPlayer(String name) =>
+      throw UnsupportedError('The web player is macOS-only');
+
+  @override
+  Future<void> webPlayerCommand(String command, {num? value}) =>
+      throw UnsupportedError('The web player is macOS-only');
+
+  @override
+  Stream<Map<String, dynamic>> webPlayerEvents() => const Stream.empty();
 
   @override
   Future<String> getLocalDeviceName() async => '';

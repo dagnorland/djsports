@@ -229,7 +229,7 @@ class _SpotifyOutputSheetState extends ConsumerState<SpotifyOutputSheet> {
                   onSetDevice: (device) =>
                       _run(() => repo.setPreferredDevice(device)),
                 ),
-                if (Platform.isMacOS) const _MacLocalControlSwitch(),
+                if (Platform.isMacOS) const _MacPlaybackChoice(),
                 if (_error.isNotEmpty) _ErrorText(_error),
                 const SizedBox(height: 12),
                 _SheetActions(
@@ -348,7 +348,45 @@ class _DeviceList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(spotifyRemoteRepositoryProvider);
+    // Rebuild when the djSports web player comes up or goes offline.
+    return ValueListenableBuilder<String?>(
+      valueListenable: repo.webPlayerDeviceIdNotifier,
+      builder: (context, webPlayerId, _) => _DeviceRows(
+        session: session,
+        busy: busy,
+        onRefresh: onRefresh,
+        onSetDevice: onSetDevice,
+        webPlayerId: webPlayerId,
+      ),
+    );
+  }
+}
+
+class _DeviceRows extends ConsumerWidget {
+  const _DeviceRows({
+    required this.session,
+    required this.busy,
+    required this.onRefresh,
+    required this.onSetDevice,
+    required this.webPlayerId,
+  });
+
+  final SpotifySession session;
+  final bool busy;
+  final VoidCallback onRefresh;
+  final ValueChanged<SpotifyDevice> onSetDevice;
+
+  /// This Mac's djSports web player, shown first as the recommended output.
+  final String? webPlayerId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.read(spotifyRemoteRepositoryProvider);
     final target = session.targetDevice;
+    final devices = [
+      ...session.devices.where((d) => d.id == webPlayerId),
+      ...session.devices.where((d) => d.id != webPlayerId),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -401,11 +439,12 @@ class _DeviceList extends ConsumerWidget {
               child: const Text('Clear'),
             ),
           ),
-        for (final device in session.devices)
+        for (final device in devices)
           _DeviceTile(
             icon: _iconFor(device),
             title: device.name,
             subtitle: [
+              if (device.id == webPlayerId) 'WebKit playback (recommended)',
               if (session.isLocal(device)) _localLabel,
               device.type,
               if (device.isActive) 'active',
@@ -458,24 +497,59 @@ IconData _iconFor(SpotifyDevice device) {
 /// button, never by tapping the row.
 /// macOS: play/pause/resume on this Mac via AppleScript (default) or the
 /// Spotify Web API only.
-class _MacLocalControlSwitch extends ConsumerWidget {
-  const _MacLocalControlSwitch();
+class _MacPlaybackChoice extends ConsumerWidget {
+  const _MacPlaybackChoice();
+
+  static const _options = [
+    (
+      MacPlayback.webPlayer,
+      'djSports player (recommended)',
+      'Plays inside djSports (WebKit). No Spotify app needed, exact start '
+          'positions, and fades only lower the music.',
+    ),
+    (
+      MacPlayback.appleScript,
+      'Spotify app (AppleScript)',
+      'Controls the Spotify app on this Mac directly.',
+    ),
+    (
+      MacPlayback.webApi,
+      'Spotify app (Web API)',
+      'Sends commands through Spotify. Spotify for Mac 1.3.3 may accept '
+          'them without playing.',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(spotifyRemoteRepositoryProvider);
-    return ValueListenableBuilder<bool>(
-      valueListenable: repo.macLocalControlNotifier,
-      builder: (context, enabled, _) => SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Control Spotify on this Mac directly'),
-        subtitle: const Text(
-          'Uses AppleScript for this Mac: faster, and works when Spotify '
-          'for Mac ignores Web API play commands. Other devices always use '
-          'the Web API. Turn off to use the Web API only.',
+    return ValueListenableBuilder<MacPlayback>(
+      valueListenable: repo.macPlaybackNotifier,
+      builder: (context, mode, _) => RadioGroup<MacPlayback>(
+        groupValue: mode,
+        onChanged: (value) {
+          if (value != null) repo.setMacPlayback(value);
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'This Mac plays through',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            for (final (value, title, subtitle) in _options)
+              RadioListTile<MacPlayback>(
+                contentPadding: EdgeInsets.zero,
+                value: value,
+                title: Text(title),
+                subtitle: Text(subtitle),
+              ),
+            const Text(
+              'Other devices always use the Spotify Web API. A device '
+              'chosen with "Set device" always wins.',
+            ),
+          ],
         ),
-        value: enabled,
-        onChanged: repo.setMacLocalControl,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:djsports/data/provider/theme_color_provider.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
@@ -504,7 +505,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         onPressed: () => _navigateTo(
           DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
         ),
-        backgroundColor: Colors.green.shade700,
+        // Settings → display colour, like the Let's Play controls.
+        backgroundColor: strongDisplayColor(ref.watch(themeColorProvider)),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.sports_handball),
         label: const Text(

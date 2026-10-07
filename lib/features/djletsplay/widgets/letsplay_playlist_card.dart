@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:async';
 
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
@@ -88,11 +90,6 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
       playlist.shuffleAtEnd,
       playlist.autoNext,
     );
-  }
-
-  String _truncate(String text, int max) {
-    if (text.length > max) return '${text.substring(0, max - 3)}...';
-    return text;
   }
 
   String _formatMs(int ms) {
@@ -426,8 +423,9 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     }
     final track = tracks[idx];
     final typeColor = widget.playlistType.color;
+    // Pre-match is black – use a grey that shows on the dark stage.
     final borderColor = typeColor == Colors.black
-        ? Colors.grey.shade700
+        ? Colors.grey.shade500
         : typeColor;
 
     return AnimatedBuilder(
@@ -435,6 +433,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
       builder: (context, child) {
         final flashOpacity = (1.0 - _flashController.value) * 0.55;
         return Card(
+          clipBehavior: Clip.antiAlias,
           margin: const EdgeInsets.all(4),
           elevation: 2,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -455,216 +454,218 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
           ),
         );
       },
-      child: InkWell(
-        onTap: () => _playTrack(
-          track,
-          idx,
-          tracks.length,
-          playlist.shuffleAtEnd,
-          playlist.autoNext,
-        ),
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: borderColor, width: 5)),
-            borderRadius: BorderRadius.circular(6),
-            image: track.networkImageUri.isNotEmpty
-                ? DecorationImage(
-                    image: NetworkImage(track.networkImageUri),
-                    fit: BoxFit.cover,
-                    opacity: 0.23,
-                  )
-                : null,
+      child: GestureDetector(
+        // Swipe left/right to change track (the only way on narrow tiles).
+        onHorizontalDragEnd: (details) {
+          final v = details.primaryVelocity ?? 0;
+          if (v < -200) _goNext(idx, tracks.length);
+          if (v > 200) _goPrev(idx, tracks.length);
+        },
+        child: InkWell(
+          onTap: () => _playTrack(
+            track,
+            idx,
+            tracks.length,
+            playlist.shuffleAtEnd,
+            playlist.autoNext,
           ),
-          padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header: shortcut key + playlist name + track counter
-              Row(
-                children: [
-                  if (widget.shortcutKey != null) ...[
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: borderColor,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        widget.shortcutKey!.toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                          color: Colors.white,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                  ],
-                  Expanded(
-                    child: Text(
-                      widget.playlistName.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '#${idx + 1}/${tracks.length}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: borderColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: borderColor, width: 5)),
+              image: track.networkImageUri.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(track.networkImageUri),
+                      fit: BoxFit.cover,
+                      opacity: 0.2,
+                    )
+                  : null,
+            ),
+            // Dark veil behind the text so busy covers don't compete with it.
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xE61E1E1E), Color(0x801E1E1E)],
+                ),
               ),
-              const SizedBox(height: 2),
-              // Navigation row: ◄  [art]  name  ►  ▶
-              Row(
-                children: [
-                  // Prev button
-                  _NavButton(
-                    icon: Icons.chevron_left,
-                    enabled: true,
-                    onPressed: () => _goPrev(idx, tracks.length),
-                  ),
-                  const SizedBox(width: 4),
-                  // Album art + track info (animated on track change)
-                  Expanded(
-                    child: ClipRect(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 280),
-                        transitionBuilder: (child, animation) {
-                          final key = child.key;
-                          final isEntering =
-                              key is ValueKey<int> &&
-                              key.value == _currentIndex;
-                          final beginX = isEntering
-                              ? (_goingForward ? 0.5 : -0.5)
-                              : (_goingForward ? -0.5 : 0.5);
-                          return SlideTransition(
-                            position:
-                                Tween<Offset>(
-                                  begin: Offset(beginX, 0),
-                                  end: Offset.zero,
-                                ).animate(
-                                  CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOut,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(6, 4, 4, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: shortcut key, playlist name, ‹ #n/m ›.
+                    // Narrow tiles (iPhone) drop the arrows so the name
+                    // fits – swipe the tile to change track instead.
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final showArrows = constraints.maxWidth >= 260;
+                        return Row(
+                          children: [
+                            if (widget.shortcutKey != null) ...[
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: borderColor,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  widget.shortcutKey!.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    height: 1,
                                   ),
                                 ),
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Row(
-                          key: ValueKey<int>(_currentIndex),
-                          children: [
-                            _AlbumArt(uri: track.networkImageUri),
-                            const SizedBox(width: 6),
+                              ),
+                              const SizedBox(width: 5),
+                            ],
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                              child: Text(
+                                widget.playlistName.toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            if (showArrows)
+                              _NavButton(
+                                icon: Icons.chevron_left,
+                                enabled: true,
+                                onPressed: () => _goPrev(idx, tracks.length),
+                              ),
+                            Text(
+                              '#${idx + 1}/${tracks.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: borderColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (showArrows)
+                              _NavButton(
+                                icon: Icons.chevron_right,
+                                enabled: true,
+                                onPressed: () => _goNext(idx, tracks.length),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    // Cover with play button, then title / artist / start.
+                    // Everything scales with the tile height.
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final h = constraints.maxHeight;
+                          final startMs = track.startTime + track.startTimeMS;
+                          final titleSize = (h / 5).clamp(13.0, 20.0);
+                          // Square cover, but leave the text at least 60 %.
+                          final coverSize = math
+                              .min(h, constraints.maxWidth * 0.4)
+                              .clamp(36.0, 160.0);
+                          return ClipRect(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 280),
+                              transitionBuilder: (child, animation) {
+                                final key = child.key;
+                                final isEntering =
+                                    key is ValueKey<int> &&
+                                    key.value == _currentIndex;
+                                final beginX = isEntering
+                                    ? (_goingForward ? 0.5 : -0.5)
+                                    : (_goingForward ? -0.5 : 0.5);
+                                return SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: Offset(beginX, 0),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOut,
+                                        ),
+                                      ),
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                key: ValueKey<int>(_currentIndex),
                                 children: [
-                                  Text(
-                                    _truncate(track.name, 22),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
+                                  _CoverWithPlay(
+                                    uri: track.networkImageUri,
+                                    size: coverSize,
+                                    color: borderColor,
+                                    onPlay: () => _playTrack(
+                                      track,
+                                      idx,
+                                      tracks.length,
+                                      playlist.shuffleAtEnd,
+                                      playlist.autoNext,
                                     ),
                                   ),
-                                  Text(
-                                    track.artist,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade600,
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          track.name,
+                                          maxLines: h >= 80 ? 2 : 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: titleSize,
+                                            height: 1.15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          track.artist,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: titleSize * 0.8,
+                                            color: StageColors.textMuted,
+                                          ),
+                                        ),
+                                        if (startMs > 0)
+                                          Text(
+                                            'Start ${_formatMs(startMs)}',
+                                            maxLines: 1,
+                                            style: TextStyle(
+                                              fontSize: titleSize * 0.75,
+                                              color: borderColor,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
-                  ),
-                  // Play button with optional start time label
-                  GestureDetector(
-                    onTap: () => _playTrack(
-                      track,
-                      idx,
-                      tracks.length,
-                      playlist.shuffleAtEnd,
-                      playlist.autoNext,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.play_arrow, color: borderColor, size: 38),
-                          if (track.startTime + track.startTimeMS > 0)
-                            Text(
-                              _formatMs(track.startTime + track.startTimeMS),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: borderColor,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  // Next button
-                  _NavButton(
-                    icon: Icons.chevron_right,
-                    enabled: true,
-                    onPressed: () => _goNext(idx, tracks.length),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              // Current track name — updates immediately as the user
-              // navigates between tracks.
-              Row(
-                children: [
-                  Icon(Icons.music_note, size: 11, color: borderColor),
-                  const SizedBox(width: 2),
-                  Expanded(
-                    child: Text(
-                      track.artist.isNotEmpty
-                          ? '${track.name}  •  ${track.artist}'
-                          : track.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: borderColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -690,35 +691,78 @@ class _NavButton extends StatelessWidget {
       iconSize: 20,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(),
-      color: enabled ? null : Colors.grey.shade400,
+      color: enabled ? null : Colors.white24,
       onPressed: enabled ? onPressed : null,
     );
   }
 }
 
-class _AlbumArt extends StatelessWidget {
-  const _AlbumArt({required this.uri});
+/// Spotify-style: the cover with a round play button in the type colour
+/// in its lower right corner.
+class _CoverWithPlay extends StatelessWidget {
+  const _CoverWithPlay({
+    required this.uri,
+    required this.size,
+    required this.color,
+    required this.onPlay,
+  });
 
   final String uri;
+  final double size;
+  final Color color;
+  final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context) {
-    if (uri.isEmpty) {
-      return const SizedBox(
-        width: 58,
-        height: 58,
-        child: Icon(Icons.featured_play_list_outlined, size: 40),
-      );
-    }
-    return Image.network(
-      uri,
-      width: 58,
-      height: 58,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => const SizedBox(
-        width: 58,
-        height: 58,
-        child: Icon(Icons.cloud_off_outlined, size: 40, color: Colors.black38),
+    final placeholder = Container(
+      width: size,
+      height: size,
+      color: StageColors.surfaceHigh,
+      child: Icon(
+        uri.isEmpty ? Icons.featured_play_list_outlined : Icons.cloud_off,
+        size: size / 2,
+        color: Colors.white24,
+      ),
+    );
+    final button = (size * 0.38).clamp(24.0, 52.0);
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: uri.isEmpty
+                ? placeholder
+                : Image.network(
+                    uri,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => placeholder,
+                  ),
+          ),
+          Positioned(
+            right: 4,
+            bottom: 4,
+            child: Material(
+              color: color,
+              shape: const CircleBorder(),
+              elevation: 4,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onPlay,
+                child: SizedBox.square(
+                  dimension: button,
+                  child: Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: button * 0.65,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/models/spotify_device.dart';
+import 'package:djsports/data/models/web_player_state.dart';
 import 'package:djsports/data/provider/spotify_credentials_provider.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,26 @@ import 'package:hive_ce/hive.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:spotify/spotify.dart';
+
+/// How djSports plays Spotify on this Mac (macOS only).
+enum MacPlayback {
+  /// djSports' own Spotify player (Web Playback SDK in WebKit).
+  webPlayer('webPlayer'),
+
+  /// The Spotify app on this Mac, driven via AppleScript.
+  appleScript('appleScript'),
+
+  /// The Spotify app on this Mac, driven via the Spotify Web API only.
+  webApi('webApi');
+
+  const MacPlayback(this.key);
+
+  /// Value stored in the Hive `settings` box.
+  final String key;
+
+  static MacPlayback fromKey(String key) =>
+      values.firstWhere((m) => m.key == key, orElse: () => webPlayer);
+}
 
 class SpotifyRemoteRepository {
   SpotifyRemoteRepository(this._credentials, this._spotifyRedirectUrl) {
@@ -32,7 +53,7 @@ class SpotifyRemoteRepository {
     });
     final v = await _bridge.getSystemVolume();
     if (v == 0) {
-      await _bridge.setSystemVolume(0.85);
+      await _setSystemVolume(0.85);
       volume = 0.85;
       _preMuteVolume = 0.85;
       volumeNotifier.value = 0.85;
@@ -125,7 +146,7 @@ class SpotifyRemoteRepository {
     final rounded = double.parse(newVolume.toStringAsFixed(2));
     volume = rounded;
     volumeNotifier.value = rounded;
-    await _bridge.setSystemVolume(rounded);
+    await _setSystemVolume(rounded);
     // Android uses discrete integer volume steps (typically 15 on the media
     // stream). setVolume() floor-truncates the float, so adding 0.05 often
     // maps to the same step and produces no change when increasing.
@@ -135,7 +156,7 @@ class SpotifyRemoteRepository {
       final actual = await _bridge.getSystemVolume();
       if (actual <= currentVolume + 0.001) {
         final bumped = (currentVolume + 0.07).clamp(0.0, 1.0);
-        await _bridge.setSystemVolume(bumped);
+        await _setSystemVolume(bumped);
         final finalActual = await _bridge.getSystemVolume();
         volume = finalActual;
         volumeNotifier.value = finalActual;
@@ -441,13 +462,10 @@ class SpotifyRemoteRepository {
               '"$requestedName" can be controlled from the Spotify app on '
               'your phone.';
         } else if (!itemMatches) {
-          issue =
-              Platform.isMacOS &&
-                  !macLocalControlNotifier.value &&
-                  _isThisMac(deviceId)
+          issue = Platform.isMacOS && _isThisMac(deviceId)
               ? 'Spotify for Mac accepted the command but did not start '
-                    'the track. Turn on "Control Spotify on this Mac '
-                    'directly" in Spotify output.'
+                    'the track. Choose "djSports player" under "This Mac '
+                    'plays through" in Spotify output.'
               : 'Spotify on "$deviceName" accepted the command but did '
                     'not start the track. Try restarting the Spotify app '
                     'there (Cmd+Q on a Mac) or choose another device.';
@@ -472,22 +490,22 @@ class SpotifyRemoteRepository {
 
   // ── macOS local control (AppleScript) ───────────────────────────────────
 
-  static const _macLocalControlKey = 'spotifyMacLocalControl';
+  static const _macPlaybackKey = 'spotifyMacPlayback';
 
-  /// macOS: play/pause/resume on Spotify for THIS Mac via AppleScript
-  /// instead of the Web API (default on). Faster, and works when Spotify
-  /// for Mac accepts Web API plays without loading the track. Other devices
-  /// always use the Web API. Persisted in the Hive `settings` box.
-  late final ValueNotifier<bool> macLocalControlNotifier = ValueNotifier(
-    Platform.isMacOS && _settingsGet(_macLocalControlKey) != 'off',
+  /// macOS: how "this Mac" plays – djSports' own player (default), the
+  /// Spotify app via AppleScript, or the Spotify app via the Web API.
+  /// Other devices always use the Web API. Persisted in the Hive
+  /// `settings` box.
+  late final ValueNotifier<MacPlayback> macPlaybackNotifier = ValueNotifier(
+    MacPlayback.fromKey(_settingsGet(_macPlaybackKey)),
   );
 
-  Future<void> setMacLocalControl(bool enabled) async {
-    macLocalControlNotifier.value = enabled;
-    await _settingsPut(_macLocalControlKey, enabled ? 'on' : 'off');
+  Future<void> setMacPlayback(MacPlayback mode) async {
+    macPlaybackNotifier.value = mode;
+    await _settingsPut(_macPlaybackKey, mode.key);
     SpotifyConnectionLog().addSimpleEntry(
       SpotifyConnectionStatus.connectedSpotify,
-      'Control Spotify on this Mac directly: ${enabled ? 'on' : 'off'}',
+      'This Mac plays through: ${mode.key}',
     );
   }
 
@@ -499,7 +517,9 @@ class SpotifyRemoteRepository {
   /// Whether a command for [deviceId] (null = Spotify's active device)
   /// should go to Spotify on this Mac via AppleScript.
   bool _useLocalControl(String? deviceId) {
-    if (!Platform.isMacOS || !macLocalControlNotifier.value) return false;
+    if (!Platform.isMacOS || macPlaybackNotifier.value == MacPlayback.webApi) {
+      return false;
+    }
     if (deviceId != null) return _isThisMac(deviceId);
     final current = session.activeDevice ?? session.lastPlayedDevice;
     return current == null || session.isLocal(current);
@@ -544,6 +564,27 @@ class SpotifyRemoteRepository {
     String? deviceId, {
     int? positionMs,
   }) async {
+    if (_useWebPlayer(deviceId)) {
+      final id = webPlayerDeviceIdNotifier.value!;
+      debugPrint('[PLAY] via djSports player ($id)');
+      cancelFade();
+      await _restoreWebPlayerVolume();
+      try {
+        final used = await _bridge.playWithPosition(
+          spotifyUri: spotifyUri,
+          positionMs: positionMs ?? 0,
+          deviceId: id,
+        );
+        _webPlayerInUse = true;
+        return used ?? _webPlayerDevice(id);
+      } on PlatformException catch (e) {
+        // A device the user picked: report it. Following Spotify: try
+        // the Spotify app on this Mac instead.
+        if (deviceId != null) rethrow;
+        _logWebPlayer('play failed (${e.message}), using Spotify app');
+      }
+    }
+    _webPlayerInUse = false;
     if (_useLocalControl(deviceId)) {
       debugPrint('[PLAY] via AppleScript (local control)');
       final ok = await _tryLocal(
@@ -564,15 +605,252 @@ class SpotifyRemoteRepository {
   }
 
   Future<void> _pause() async {
+    if (_webPlayerInUse && await _tryWebPlayer('pause')) return;
     if (_useLocalControl(null) && await _tryLocal('pause')) return;
     await _bridge.pause();
   }
 
   Future<SpotifyDevice?> _resume(String? deviceId) async {
+    final webId = webPlayerDeviceIdNotifier.value;
+    if (_webPlayerInUse &&
+        webId != null &&
+        (deviceId == null || deviceId == webId)) {
+      await _restoreWebPlayerVolume();
+      if (await _tryWebPlayer('resume')) return _webPlayerDevice(webId);
+    }
     if (_useLocalControl(deviceId) && await _tryLocal('resume')) {
       return session.localDevice;
     }
     return _bridge.resume(deviceId: deviceId);
+  }
+
+  // ── macOS in-app web player (Web Playback SDK) ──────────────────────────
+
+  /// Spotify Connect name of the in-app web player.
+  static const webPlayerName = 'djSports';
+
+  /// Device ID of the in-app web player while it is ready, else null.
+  final ValueNotifier<String?> webPlayerDeviceIdNotifier = ValueNotifier(null);
+  StreamSubscription<Map<String, dynamic>>? _webPlayerEvents;
+  bool _webPlayerStarted = false;
+
+  /// macOS: starts the in-app web player once per app run, after login.
+  Future<void> _startWebPlayer() async {
+    if (!Platform.isMacOS || _webPlayerStarted) return;
+    _webPlayerStarted = true;
+    _webPlayerEvents ??= _bridge.webPlayerEvents().listen(_onWebPlayerEvent);
+    try {
+      await _bridge.startWebPlayer(webPlayerName);
+    } on PlatformException catch (e) {
+      _webPlayerStarted = false;
+      _logWebPlayer('could not start: ${e.message}', ok: false);
+    }
+  }
+
+  void _onWebPlayerEvent(Map<String, dynamic> e) {
+    final event = e['event'] as String? ?? '';
+    final message = e['message'] as String? ?? '';
+    switch (event) {
+      case 'ready':
+        final id = e['deviceId'] as String? ?? '';
+        webPlayerDeviceIdNotifier.value = id;
+        // A new player starts at full volume.
+        _webPlayerVolume = 1;
+        _followNewWebPlayerId(id);
+        _logWebPlayer('ready as "$webPlayerName" ($id)');
+        // Spotify needs a moment before the device shows up in the list.
+        unawaited(
+          Future<void>.delayed(const Duration(seconds: 1), refreshDevices),
+        );
+      case 'not_ready':
+        webPlayerDeviceIdNotifier.value = null;
+        webPlayerStateNotifier.value = null;
+        _webPlayerInUse = false;
+        _logWebPlayer('went offline (${e['deviceId']})', ok: false);
+      case 'state':
+        // Inactive = Spotify moved playback to another device.
+        _webPlayerInUse = e['active'] == true;
+        webPlayerStateNotifier.value = _webPlayerInUse
+            ? WebPlayerState.fromEvent(e)
+            : null;
+        debugPrint(
+          '[WEB-PLAYER] state active=${e['active']} paused=${e['paused']} '
+          'position=${e['positionMs']} ${e['name']} ${e['uri']}',
+        );
+      case 'log':
+        _logWebPlayer(message);
+      case 'account_error':
+        _logWebPlayer('account error: $message', ok: false);
+        _reportPlayIssue(
+          'The djSports player needs Spotify Premium ($message).',
+        );
+      default:
+        _logWebPlayer('$event: $message', ok: false);
+    }
+  }
+
+  /// The player gets a new device ID every launch. If "Set device" points
+  /// at an earlier djSports player that is gone, move it to this one.
+  void _followNewWebPlayerId(String id) {
+    final s = session;
+    final stale =
+        s.preferredDeviceName == webPlayerName &&
+        s.preferredDeviceId != id &&
+        !s.devices.any((d) => d.id == s.preferredDeviceId);
+    if (!stale) return;
+    unawaited(_settingsPut(_preferredDeviceIdKey, id));
+    _updateSession((s) => s.copyWith(preferredDeviceId: id));
+    _logWebPlayer('Set device moved to the new player ID ($id)');
+  }
+
+  void _logWebPlayer(String text, {bool ok = true}) {
+    debugPrint('[WEB-PLAYER] $text');
+    SpotifyConnectionLog().addSimpleEntry(
+      ok
+          ? SpotifyConnectionStatus.connectedSpotify
+          : SpotifyConnectionStatus.notConnected,
+      'Web player $text',
+    );
+  }
+
+  /// What the djSports player plays; null while it isn't the active
+  /// Spotify device. Drives the now-playing panel.
+  final ValueNotifier<WebPlayerState?> webPlayerStateNotifier = ValueNotifier(
+    null,
+  );
+
+  /// The expanded now-playing panel is on screen (macOS djSports player).
+  bool get webPlayerPanelShowing =>
+      webPlayerStateNotifier.value != null &&
+      webPlayerPanelVisibleNotifier.value;
+
+  static const _panelVisibleKey = 'webPlayerPanelVisible';
+  static const _panelHeightKey = 'webPlayerPanelHeight';
+
+  /// Now-playing panel: shown or collapsed (Hive `settings`).
+  late final ValueNotifier<bool> webPlayerPanelVisibleNotifier = ValueNotifier(
+    _settingsGet(_panelVisibleKey) != 'off',
+  );
+
+  /// Now-playing panel height in logical pixels (Hive `settings`).
+  late final ValueNotifier<double> webPlayerPanelHeightNotifier =
+      ValueNotifier(double.tryParse(_settingsGet(_panelHeightKey)) ?? 96);
+
+  Future<void> setWebPlayerPanelVisible(bool visible) async {
+    webPlayerPanelVisibleNotifier.value = visible;
+    await _settingsPut(_panelVisibleKey, visible ? 'on' : 'off');
+  }
+
+  /// Updates the height live; pass [persist] when the drag ends.
+  Future<void> setWebPlayerPanelHeight(
+    double height, {
+    bool persist = false,
+  }) async {
+    webPlayerPanelHeightNotifier.value = height;
+    if (persist) {
+      await _settingsPut(_panelHeightKey, height.toStringAsFixed(0));
+    }
+  }
+
+  /// Jumps the djSports player to [positionMs].
+  Future<void> seekWebPlayer(int positionMs) async {
+    await _tryWebPlayer('seek', value: positionMs);
+  }
+
+  /// True while djSports' own player is the device we play on (set when a
+  /// play/resume goes there, cleared when Spotify moves elsewhere).
+  bool _webPlayerInUse = false;
+
+  /// Player volume (0–1) inside djSports; only a fade lowers it.
+  double _webPlayerVolume = 1;
+
+  /// Whether a play for [deviceId] (null = follow Spotify) should go to
+  /// djSports' own player.
+  bool _useWebPlayer(String? deviceId) {
+    final id = webPlayerDeviceIdNotifier.value;
+    if (!Platform.isMacOS || id == null) return false;
+    if (deviceId != null) return deviceId == id;
+    if (macPlaybackNotifier.value != MacPlayback.webPlayer) return false;
+    final current = session.activeDevice ?? session.lastPlayedDevice;
+    return current == null || current.id == id || session.isLocal(current);
+  }
+
+  SpotifyDevice _webPlayerDevice(String id) =>
+      session.devices.where((d) => d.id == id).firstOrNull ??
+      SpotifyDevice(
+        id: id,
+        name: webPlayerName,
+        type: 'Computer',
+        isActive: true,
+      );
+
+  /// Runs [command] on djSports' own player. Returns false (logged) when
+  /// it fails, so the caller can use the Web API instead.
+  Future<bool> _tryWebPlayer(String command, {num? value}) async {
+    try {
+      await _bridge.webPlayerCommand(command, value: value);
+      return true;
+    } on PlatformException catch (e) {
+      _logWebPlayer('$command failed: ${e.message}', ok: false);
+      return false;
+    }
+  }
+
+  Future<void> _setWebPlayerVolume(double v) async {
+    _webPlayerVolume = v.clamp(0.0, 1.0);
+    await _tryWebPlayer('setVolume', value: _webPlayerVolume);
+  }
+
+  /// Undoes a fade: back to full player volume before playing again.
+  Future<void> _restoreWebPlayerVolume() async {
+    if (_webPlayerVolume < 1) await _setWebPlayerVolume(1);
+  }
+
+  /// Fades only djSports' own player to silence and pauses it. The Mac's
+  /// system volume is left alone; the next play/resume restores the
+  /// player volume.
+  Future<bool> _fadeAndPauseWebPlayer(int totalMs) {
+    // Local calls into WebKit – cheap, so a smooth ~40 ms cadence.
+    const stepMs = 40;
+    final stepCount = math.max(1, totalMs ~/ stepMs);
+    final startVolume = _webPlayerVolume;
+    final completer = Completer<bool>();
+    var step = 0;
+    var finalizing = false;
+    fadePausingNotifier.value = true;
+    SpotifyConnectionLog().addSimpleEntry(
+      SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+      'Fade-pause (djSports player) start: ${totalMs}ms, $stepCount steps',
+    );
+    _fadeTimer = Timer.periodic(const Duration(milliseconds: stepMs), (
+      timer,
+    ) async {
+      if (finalizing) return;
+      step++;
+      final fraction = (step / stepCount).clamp(0.0, 1.0);
+      if (step < stepCount) {
+        await _setWebPlayerVolume(startVolume * (1 - fraction));
+        return;
+      }
+      finalizing = true;
+      timer.cancel();
+      _fadeTimer = null;
+      try {
+        await _setWebPlayerVolume(0);
+        await _pause();
+        isPlaying = false;
+        SpotifyConnectionLog().addSimpleEntry(
+          SpotifyConnectionStatus.connectedSpotifyRemoteApp,
+          'Fade-pause (djSports player) complete (${totalMs}ms)',
+        );
+      } catch (e) {
+        debugPrint('fadeAndPausePlayer: web player pause failed: $e');
+      } finally {
+        fadePausingNotifier.value = false;
+        if (!completer.isCompleted) completer.complete(isPlaying);
+      }
+    });
+    return completer.future;
   }
 
   String? _deviceName(String? id) {
@@ -801,14 +1079,20 @@ class SpotifyRemoteRepository {
     return connect();
   }
 
+  /// Sets the device's system volume. On macOS this also sets the Spotify
+  /// app's volume via the Web API – except on djSports' own player, whose
+  /// volume stays at full so the two don't multiply.
+  Future<void> _setSystemVolume(double v) =>
+      _bridge.setSystemVolume(v, spotifyToo: !_webPlayerInUse);
+
   Future<void> _mute() async {
     _isMuted = true;
-    await _bridge.setSystemVolume(0);
+    await _setSystemVolume(0);
   }
 
   Future<void> _unMute() async {
     _isMuted = false;
-    await _bridge.setSystemVolume(_preMuteVolume);
+    await _setSystemVolume(_preMuteVolume);
   }
 
   /// Writes [v] to system volume during a fade sweep.
@@ -833,7 +1117,7 @@ class SpotifyRemoteRepository {
     // and skips re-entering setVolume().
     volume = clamped;
     volumeNotifier.value = clamped;
-    await _bridge.setSystemVolume(clamped);
+    await _setSystemVolume(clamped);
   }
 
   /// Cancels any in-flight fade timer without restoring volume.
@@ -870,6 +1154,7 @@ class SpotifyRemoteRepository {
     // Cancel any prior fade so two rapid fade-pauses don't stack timers.
     _fadeTimer?.cancel();
     _fadeTimer = null;
+    if (_webPlayerInUse) return _fadeAndPauseWebPlayer(totalMs);
 
     // Snapshot the current volume so resume can restore it. Prefer the live
     // system reading over our cached [volume] field — the user may have
@@ -1305,6 +1590,7 @@ class SpotifyRemoteRepository {
           );
         }
         unawaited(refreshDevices());
+        unawaited(_startWebPlayer());
       }
     } catch (e) {
       debugPrint('[Spotify] connectAccessToken error: $e');

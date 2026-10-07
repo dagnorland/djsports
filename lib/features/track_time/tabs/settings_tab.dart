@@ -62,28 +62,45 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   }
 
   Widget _matchCenterSettingsSection(BuildContext context) {
-    final sidebarOnRight = AppSettings.sidebarOnRight;
+    final sidebarPosition = AppSettings.sidebarPosition;
     final keyboardShortcuts = AppSettings.keyboardShortcutsEnabled;
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('Sidebar on right (if not on bottom)'),
+        ListTile(
+          leading: const Icon(Icons.view_sidebar),
+          title: const Text("Let's Play controls"),
           subtitle: Text(
-            sidebarOnRight
-                ? 'Controls are on the right side'
-                : 'Controls are on the left side',
+            'On wide screens. Bottom needs a tall enough window – '
+            'otherwise the controls go to the right.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          secondary: Icon(
-            sidebarOnRight
-                ? Icons.align_horizontal_right
-                : Icons.align_horizontal_left,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: SegmentedButton<SidebarPosition>(
+            segments: const [
+              ButtonSegment(
+                value: SidebarPosition.left,
+                icon: Icon(Icons.align_horizontal_left),
+                label: Text('Left'),
+              ),
+              ButtonSegment(
+                value: SidebarPosition.right,
+                icon: Icon(Icons.align_horizontal_right),
+                label: Text('Right'),
+              ),
+              ButtonSegment(
+                value: SidebarPosition.bottom,
+                icon: Icon(Icons.align_vertical_bottom),
+                label: Text('Bottom'),
+              ),
+            ],
+            selected: {sidebarPosition},
+            onSelectionChanged: (selection) async {
+              await AppSettings.setSidebarPosition(selection.first);
+              setState(() {});
+            },
           ),
-          value: sidebarOnRight,
-          onChanged: (value) async {
-            await AppSettings.setSidebarOnRight(value);
-            setState(() {});
-          },
         ),
         SwitchListTile(
           title: const Text('Keyboard shortcuts in match center'),
