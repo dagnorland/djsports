@@ -12,10 +12,7 @@ class PlaylistHelpScreen extends StatelessWidget {
         elevation: 0,
         title: const Text(
           'Playlist Help',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -48,8 +45,10 @@ class PlaylistHelpScreen extends StatelessWidget {
                     SizedBox(height: 8),
                     _InlineChip(icon: Icons.add, label: '+ New Playlist'),
                     SizedBox(height: 8),
-                    Text('Give the playlist a name that makes it easy to '
-                        'identify during the event.'),
+                    Text(
+                      'Give the playlist a name that makes it easy to '
+                      'identify during the event.',
+                    ),
                   ],
                 ),
               ),
@@ -110,11 +109,11 @@ class PlaylistHelpScreen extends StatelessWidget {
                           'Spotify URI',
                     ),
                     _StepItem(
-                      text:
-                          'The URI looks like: spotify:playlist:37i9dQZF…',
+                      text: 'The URI looks like: spotify:playlist:37i9dQZF…',
                     ),
                     _StepItem(
-                      text: 'Paste it into the Spotify URI field in the '
+                      text:
+                          'Paste it into the Spotify URI field in the '
                           'playlist editor.',
                     ),
                     SizedBox(height: 8),
@@ -147,7 +146,8 @@ class PlaylistHelpScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 8),
                     _StepItem(
-                      text: 'You can re-sync later to pick up new tracks '
+                      text:
+                          'You can re-sync later to pick up new tracks '
                           'added to the Spotify playlist.',
                     ),
                   ],
@@ -168,15 +168,18 @@ class PlaylistHelpScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 8),
                     _StepItem(
-                      text: 'Tap a track in the playlist to open the track '
+                      text:
+                          'Tap a track in the playlist to open the track '
                           'editor.',
                     ),
                     _StepItem(
-                      text: 'Use the start time slider to set minutes and '
+                      text:
+                          'Use the start time slider to set minutes and '
                           'seconds.',
                     ),
                     _StepItem(
-                      text: 'Save the track — the start time will be used '
+                      text:
+                          'Save the track — the start time will be used '
                           'every time that track plays.',
                     ),
                     SizedBox(height: 8),
@@ -236,10 +239,7 @@ class _HelpHeader extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -345,26 +345,17 @@ class _TypeRow extends StatelessWidget {
           Container(
             width: 12,
             height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
           const SizedBox(width: 6),
           Text(
             '— $description',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -396,9 +387,7 @@ class _StepItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(text),
-          ),
+          Expanded(child: Text(text)),
         ],
       ),
     );

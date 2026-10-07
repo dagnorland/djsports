@@ -20,17 +20,32 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
     this.fadeMs = 0,
     required this.onBack,
     required this.refreshCallback,
+    this.axis = Axis.vertical,
+    this.showNowPlaying = true,
+    this.foreground = Colors.white,
   });
 
   final VoidCallback onResume;
   final Future<void> Function() onPause;
   final Future<void> Function()? onHardPause;
+
   /// When non-null and [fadeMs] > 0, an extra fade pause button is shown.
   final Future<void> Function()? onFadePause;
+
   /// Fade duration in milliseconds — used for the tooltip / label.
   final int fadeMs;
   final VoidCallback onBack;
   final VoidCallback? refreshCallback;
+
+  /// [Axis.vertical] for a sidebar, [Axis.horizontal] for a bottom bar.
+  final Axis axis;
+
+  /// Shows the last played track's cover and name. Off while the
+  /// now-playing panel shows the same thing.
+  final bool showNowPlaying;
+
+  /// Icon and text colour: white on a dark background, dark on a light one.
+  final Color foreground;
 
   @override
   ConsumerState<CenterControlWidget> createState() =>
@@ -43,14 +58,22 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
     final lastTrack = ref.watch(lastDjTrackPlayedProvider);
     final packageInfo = useFuture(useMemoized(PackageInfo.fromPlatform));
 
+    final axis = widget.axis;
+    final foreground = widget.foreground;
+    final muted = foreground.withValues(alpha: 0.7);
     return SingleChildScrollView(
+      scrollDirection: axis,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
+        padding: axis == Axis.vertical
+            ? const EdgeInsets.symmetric(vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 8),
+        child: Flex(
+          direction: axis,
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             IconButton(
-              icon: const Icon(Icons.play_arrow, color: Colors.white, size: 35),
+              icon: Icon(Icons.play_arrow, color: foreground, size: 35),
               onPressed: widget.onResume,
             ),
             if (Platform.isIOS || Platform.isMacOS || Platform.isAndroid) ...[
@@ -62,9 +85,8 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                   size: 28,
                 ),
                 tooltip: 'Open Spotify',
-                onPressed: () => ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .launchSpotify(),
+                onPressed: () =>
+                    ref.read(spotifyRemoteRepositoryProvider).launchSpotify(),
               ),
             ],
             const Gap(12),
@@ -72,80 +94,88 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
               valueListenable: ref
                   .read(spotifyRemoteRepositoryProvider)
                   .silencePlayingNotifier,
-              builder: (context, isSilence, _) => Column(
+              builder: (context, isSilence, _) => Flex(
+                direction: axis,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GestureDetector(
-                    onLongPress: widget.onHardPause == null
-                        ? null
-                        : () async {
-                            await widget.onHardPause!();
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onLongPress: widget.onHardPause == null
+                            ? null
+                            : () async {
+                                await widget.onHardPause!();
+                                if (!context.mounted) return;
+                                toastification.show(
+                                  context: context,
+                                  title: const Text('PAUSED'),
+                                  autoCloseDuration: const Duration(seconds: 2),
+                                  style: ToastificationStyle.flat,
+                                  alignment: Alignment.topCenter,
+                                );
+                              },
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.pause,
+                            color: isSilence ? Colors.orange : foreground,
+                            size: 70,
+                          ),
+                          splashColor: Colors.blue,
+                          highlightColor: Colors.black,
+                          onPressed: () async {
+                            await widget.onPause();
+                            final label =
+                                ref
+                                    .read(spotifyRemoteRepositoryProvider)
+                                    .silencePlayingNotifier
+                                    .value
+                                ? 'SILENCE 🔇'
+                                : 'PAUSED';
                             if (!context.mounted) return;
                             toastification.show(
                               context: context,
-                              title: const Text('PAUSED'),
+                              title: Text(label),
                               autoCloseDuration: const Duration(seconds: 2),
                               style: ToastificationStyle.flat,
                               alignment: Alignment.topCenter,
                             );
                           },
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.pause,
-                        color: isSilence ? Colors.orange : Colors.white,
-                        size: 70,
-                      ),
-                      splashColor: Colors.blue,
-                      highlightColor: Colors.black,
-                      onPressed: () async {
-                        await widget.onPause();
-                        final label = ref
-                                .read(spotifyRemoteRepositoryProvider)
-                                .silencePlayingNotifier
-                                .value
-                            ? 'SILENCE 🔇'
-                            : 'PAUSED';
-                        if (!context.mounted) return;
-                        toastification.show(
-                          context: context,
-                          title: Text(label),
-                          autoCloseDuration: const Duration(seconds: 2),
-                          style: ToastificationStyle.flat,
-                          alignment: Alignment.topCenter,
-                        );
-                      },
-                    ),
-                  ),
-                  if (isSilence)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        '🔇 SILENCE',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
+                      if (isSilence)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '🔇 SILENCE',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   if (widget.onFadePause != null && widget.fadeMs > 0)
                     _FadePauseButton(
                       onFadePause: widget.onFadePause!,
                       fadeMs: widget.fadeMs,
+                      onLight: foreground.computeLuminance() < 0.5,
                     ),
                 ],
               ),
             ),
             const Gap(12),
             IconButton(
-              icon: const Icon(Icons.volume_up, color: Colors.white, size: 50),
+              icon: Icon(Icons.volume_up, color: foreground, size: 50),
               onPressed: () =>
                   ref.read(spotifyRemoteRepositoryProvider).adjustVolume(0.05),
             ),
@@ -155,94 +185,102 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
             ),
             const Gap(6),
             IconButton(
-              icon:
-                  const Icon(Icons.volume_down, color: Colors.white, size: 50),
+              icon: Icon(Icons.volume_down, color: foreground, size: 50),
               onPressed: () =>
                   ref.read(spotifyRemoteRepositoryProvider).adjustVolume(-0.05),
             ),
-            const Gap(12),
-            SizedBox(
-              width: 70,
-              height: 70,
-              child: lastTrack.when(
-                data: (track) => AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.8, end: 1.0)
-                          .animate(CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOut,
-                      )),
-                      child: child,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    key: ValueKey(track?.spotifyUri ?? ''),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      track?.networkImageUri ?? '',
-                      width: 70,
-                      height: 70,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox(
-                        width: 50,
-                        height: 50,
-                        child: Icon(
-                          Icons.cloud_off_outlined,
-                          size: 50,
-                          color: Colors.black38,
+            if (widget.showNowPlaying) ...[
+              const Gap(12),
+              Flex(
+                direction: axis,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 70,
+                    height: 70,
+                    child: lastTrack.when(
+                      data: (track) => AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: ScaleTransition(
+                            scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOut,
+                              ),
+                            ),
+                            child: child,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          key: ValueKey(track?.spotifyUri ?? ''),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            track?.networkImageUri ?? '',
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child: Icon(
+                                    Icons.cloud_off_outlined,
+                                    size: 50,
+                                    color: Colors.black38,
+                                  ),
+                                ),
+                          ),
                         ),
                       ),
+                      loading: () => const CircularProgressIndicator(),
+                      error: (error, stack) => const SizedBox.shrink(),
                     ),
                   ),
-                ),
-                loading: () => const CircularProgressIndicator(),
-                error: (error, stack) => const SizedBox.shrink(),
-              ),
-            ),
-            lastTrack.maybeWhen(
-              data: (track) {
-                if (track == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: SizedBox(
-                    width: 80,
-                    child: Column(
-                      children: [
-                        Text(
-                          track.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                  lastTrack.maybeWhen(
+                    data: (track) {
+                      if (track == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: axis == Axis.vertical
+                            ? const EdgeInsets.only(top: 6)
+                            : const EdgeInsets.only(left: 6),
+                        child: SizedBox(
+                          width: 80,
+                          child: Column(
+                            children: [
+                              Text(
+                                track.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: foreground,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (track.artist.isNotEmpty)
+                                Text(
+                                  track.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: muted, fontSize: 10),
+                                ),
+                            ],
                           ),
                         ),
-                        if (track.artist.isNotEmpty)
-                          Text(
-                            track.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 10,
-                            ),
-                          ),
-                      ],
-                    ),
+                      );
+                    },
+                    orElse: () => const SizedBox.shrink(),
                   ),
-                );
-              },
-              orElse: () => const SizedBox.shrink(),
-            ),
+                ],
+              ),
+            ],
             const Gap(8),
             Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
                   'assets/images/djsports/djsports_v12_round.png',
@@ -253,13 +291,13 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                   'v${packageInfo.data?.version ?? '...'}',
                   style: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                  ).textTheme.bodySmall?.copyWith(color: muted),
                 ),
               ],
             ),
             const Gap(8),
             IconButton(
-              icon: const Icon(Icons.backspace, color: Colors.white),
+              icon: Icon(Icons.backspace, color: foreground),
               onPressed: widget.onBack,
             ),
             const Gap(8),
@@ -274,10 +312,17 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
 /// fade is already in progress (driven by
 /// [SpotifyRemoteRepository.fadePausingNotifier]).
 class _FadePauseButton extends ConsumerWidget {
-  const _FadePauseButton({required this.onFadePause, required this.fadeMs});
+  const _FadePauseButton({
+    required this.onFadePause,
+    required this.fadeMs,
+    required this.onLight,
+  });
 
   final Future<void> Function() onFadePause;
   final int fadeMs;
+
+  /// On a light background bright amber is unreadable – use a deeper one.
+  final bool onLight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -285,6 +330,9 @@ class _FadePauseButton extends ConsumerWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: repo.fadePausingNotifier,
       builder: (context, isFading, _) {
+        final color = onLight
+            ? (isFading ? Colors.orange.shade900 : Colors.amber.shade800)
+            : (isFading ? Colors.amber : Colors.amberAccent);
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -297,7 +345,7 @@ class _FadePauseButton extends ConsumerWidget {
                   IconButton(
                     icon: Icon(
                       Icons.pause_circle_outline,
-                      color: isFading ? Colors.amber : Colors.amberAccent,
+                      color: color,
                       size: 46,
                     ),
                     onPressed: isFading
@@ -316,11 +364,7 @@ class _FadePauseButton extends ConsumerWidget {
                   ),
                   Positioned(
                     bottom: 4,
-                    child: Icon(
-                      Icons.south,
-                      size: 14,
-                      color: isFading ? Colors.amber : Colors.amberAccent,
-                    ),
+                    child: Icon(Icons.south, size: 14, color: color),
                   ),
                 ],
               ),
@@ -328,7 +372,7 @@ class _FadePauseButton extends ConsumerWidget {
             Text(
               'FADE',
               style: TextStyle(
-                color: isFading ? Colors.amber : Colors.amberAccent,
+                color: color,
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.0,

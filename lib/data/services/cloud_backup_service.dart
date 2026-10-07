@@ -188,6 +188,7 @@ class CloudBackupService {
           mp3Uri: map['mp3Uri'] as String? ?? '',
           networkImageUri: map['networkImageUri'] as String? ?? '',
           shortcut: map['shortcut'] as String? ?? '',
+          appleMusicId: map['appleMusicId'] as String? ?? '',
         );
         if (track.id.isEmpty) continue;
         trackRepo.addDJTrack(track);
@@ -216,8 +217,8 @@ class CloudBackupService {
   }
 
   /// Sync-restore: adds playlists (with tracks + timings) from a backup that
-  /// don't already exist locally (matched by non-empty spotifyUri). Existing
-  /// playlists are left untouched.
+  /// don't already exist locally (matched by non-empty spotifyUri or Apple
+  /// Music playlist ID). Existing playlists are left untouched.
   Future<void> syncBackup({
     required String backupId,
     required DJPlaylistRepo playlistRepo,
@@ -243,6 +244,10 @@ class CloudBackupService {
     final localUris = localPlaylists
         .where((p) => p.spotifyUri.isNotEmpty)
         .map((p) => p.spotifyUri)
+        .toSet();
+    final localAppleMusicIds = localPlaylists
+        .where((p) => p.appleMusicPlaylistId.isNotEmpty)
+        .map((p) => p.appleMusicPlaylistId)
         .toSet();
     // Track IDs already in the local box — skip re-adding to avoid same-instance errors.
     final localTrackIds = localTracks.map((t) => t.id).toSet();
@@ -273,8 +278,12 @@ class CloudBackupService {
     int skipped = 0;
 
     for (final playlist in backupPlaylists) {
-      if (playlist.spotifyUri.isNotEmpty &&
-          localUris.contains(playlist.spotifyUri)) {
+      final alreadyLocal =
+          (playlist.spotifyUri.isNotEmpty &&
+              localUris.contains(playlist.spotifyUri)) ||
+          (playlist.appleMusicPlaylistId.isNotEmpty &&
+              localAppleMusicIds.contains(playlist.appleMusicPlaylistId));
+      if (alreadyLocal) {
         skipped++;
         continue;
       }

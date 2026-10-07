@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:spotify/spotify.dart';
 
 class SpotifyTrackSearchResultTile extends StatelessWidget {
-  const SpotifyTrackSearchResultTile(
-      {super.key,
-      required this.track,
-      required this.existInPlaylist,
-      required this.onSelected});
+  const SpotifyTrackSearchResultTile({
+    super.key,
+    required this.track,
+    required this.existInPlaylist,
+    required this.onSelected,
+  });
   final Track track;
   final bool existInPlaylist;
   final ValueChanged<Track> onSelected;
@@ -21,25 +22,27 @@ class SpotifyTrackSearchResultTile extends StatelessWidget {
         children: [
           if (track.album!.images!.first.url != null)
             SizedBox(
-                height: 125,
-                width: 130,
-                child: ClipPath(
-                  clipper: const ShapeBorderClipper(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                    ),
+              height: 125,
+              width: 130,
+              child: ClipPath(
+                clipper: const ShapeBorderClipper(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  child: CachedNetworkImage(
-                    fit: BoxFit.cover,
-                    imageUrl: track.album!.images!.first.url!,
-                  ),
-                )),
+                ),
+                child: CachedNetworkImage(
+                  fit: BoxFit.cover,
+                  imageUrl: track.album!.images!.first.url!,
+                ),
+              ),
+            ),
           const SizedBox(height: 8.0),
           Text(
             maxLines: 1,
             track.name!,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.start,
           ),
           Text(

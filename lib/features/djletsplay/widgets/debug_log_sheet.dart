@@ -68,7 +68,11 @@ class _DebugLogSheetState extends ConsumerState<DebugLogSheet> {
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
             child: Row(
               children: [
-                const Icon(Icons.bug_report, color: Colors.greenAccent, size: 18),
+                const Icon(
+                  Icons.bug_report,
+                  color: Colors.greenAccent,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Debug Log',
@@ -100,7 +104,11 @@ class _DebugLogSheetState extends ConsumerState<DebugLogSheet> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -302,8 +310,7 @@ class _DebugLogSheetState extends ConsumerState<DebugLogSheet> {
             child: ValueListenableBuilder<int>(
               valueListenable: SpotifyConnectionLog().changeCount,
               builder: (context2, v, _) {
-                final entries =
-                    SpotifyConnectionLog().log.reversed.toList();
+                final entries = SpotifyConnectionLog().log.reversed.toList();
                 if (entries.isEmpty) {
                   return const Center(
                     child: Text(
@@ -352,7 +359,8 @@ class _LogEntry extends StatelessWidget {
         color = Colors.redAccent;
         dot = '●';
     }
-    final ts = '${entry.timestamp.hour.toString().padLeft(2, '0')}:'
+    final ts =
+        '${entry.timestamp.hour.toString().padLeft(2, '0')}:'
         '${entry.timestamp.minute.toString().padLeft(2, '0')}:'
         '${entry.timestamp.second.toString().padLeft(2, '0')}.'
         '${(entry.timestamp.millisecond ~/ 10).toString().padLeft(2, '0')}';

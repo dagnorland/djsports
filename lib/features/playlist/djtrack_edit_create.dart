@@ -4,6 +4,7 @@ import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
+import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:djsports/features/playlist/start_time_slider.dart';
 import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:flutter/material.dart';
@@ -80,8 +81,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   int get _totalStartMs => editStartTime + editStartTimeMS;
 
-  int get _effectiveMaxMs =>
-      widget.duration > 0 ? widget.duration : 300000;
+  int get _effectiveMaxMs => widget.duration > 0 ? widget.duration : 300000;
 
   void _navigateTo(int targetIndex) {
     if (widget.appleMusicId.isNotEmpty) {
@@ -152,20 +152,31 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   void _onSliderChangeEnd(double value) {
     if (autoPreview) {
       if (widget.appleMusicId.isNotEmpty) {
-        ref.read(appleMusicRepositoryProvider).playAppleMusicIdAndJumpStart(
+        ref
+            .read(appleMusicRepositoryProvider)
+            .playAppleMusicIdAndJumpStart(
               widget.appleMusicId,
               parseStartTime(),
             );
       } else {
-        ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
-              spotifyUriController.text.isEmpty
-                  ? mp3UriController.text
-                  : spotifyUriController.text,
-              parseStartTime(),
-            );
+        _playSpotifyPreview();
         _startPositionPolling();
       }
     }
+  }
+
+  /// Spotify preview; asks where to play when no device is available.
+  void _playSpotifyPreview() {
+    final uri = spotifyUriController.text.isEmpty
+        ? mp3UriController.text
+        : spotifyUriController.text;
+    playWithDevicePrompt(
+      context,
+      ref,
+      () => ref
+          .read(spotifyRemoteRepositoryProvider)
+          .playSpotiyfyUriAndJumpStart(uri, parseStartTime()),
+    );
   }
 
   void _nudgeStart(int deltaMs) {
@@ -177,17 +188,11 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   void _playPreview() {
     if (widget.appleMusicId.isNotEmpty) {
-      ref.read(appleMusicRepositoryProvider).playAppleMusicIdAndJumpStart(
-            widget.appleMusicId,
-            parseStartTime(),
-          );
+      ref
+          .read(appleMusicRepositoryProvider)
+          .playAppleMusicIdAndJumpStart(widget.appleMusicId, parseStartTime());
     } else {
-      ref.read(spotifyRemoteRepositoryProvider).playSpotiyfyUriAndJumpStart(
-            spotifyUriController.text.isEmpty
-                ? mp3UriController.text
-                : spotifyUriController.text,
-            parseStartTime(),
-          );
+      _playSpotifyPreview();
       _startPositionPolling();
     }
   }
@@ -204,16 +209,15 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   void _startPositionPolling() {
     _positionTimer?.cancel();
     _isPolling = true;
-    _positionTimer = Timer.periodic(
-      const Duration(milliseconds: 500),
-      (_) async {
-        if (!mounted || !_isPolling) return;
-        final ms = await ref
-            .read(spotifyRemoteRepositoryProvider)
-            .getPlaybackPositionMs();
-        if (mounted) setState(() => _livePositionMs = ms);
-      },
-    );
+    _positionTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      _,
+    ) async {
+      if (!mounted || !_isPolling) return;
+      final ms = await ref
+          .read(spotifyRemoteRepositoryProvider)
+          .getPlaybackPositionMs();
+      if (mounted) setState(() => _livePositionMs = ms);
+    });
   }
 
   void _stopPositionPolling() {
@@ -239,7 +243,9 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   void updateTrack({bool goToNextTrack = false}) {
     if (widget.id.isEmpty) {
-      ref.read(hiveTrackData.notifier).addDJTrack(
+      ref
+          .read(hiveTrackData.notifier)
+          .addDJTrack(
             DJTrack(
               id: '',
               name: nameController.text,
@@ -257,7 +263,9 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
             ),
           );
     } else {
-      ref.read(hiveTrackData.notifier).updateDJTrack(
+      ref
+          .read(hiveTrackData.notifier)
+          .updateDJTrack(
             DJTrack(
               id: widget.id,
               name: nameController.text,
@@ -327,11 +335,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _field(
-              spotifyUriController,
-              'Spotify URI',
-              'spotify:track:...',
-            ),
+            _field(spotifyUriController, 'Spotify URI', 'spotify:track:...'),
           ],
         ),
       );
@@ -346,18 +350,13 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           const SizedBox(height: 12),
           _field(artistController, 'Artist', 'Artist name'),
           const SizedBox(height: 12),
-          _field(
-            spotifyUriController,
-            'Spotify URI',
-            'spotify:track:...',
-          ),
+          _field(spotifyUriController, 'Spotify URI', 'spotify:track:...'),
         ],
       ),
     );
   }
 
   Widget _buildStartTimeSection(bool isWide, Color primary) {
-
     final playBtn = IconButton(
       icon: const Icon(Icons.play_arrow),
       color: primary,
@@ -383,8 +382,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     );
 
     final volumeControls = ValueListenableBuilder<double>(
-      valueListenable:
-          ref.read(spotifyRemoteRepositoryProvider).volumeNotifier,
+      valueListenable: ref.read(spotifyRemoteRepositoryProvider).volumeNotifier,
       builder: (context, volume, _) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -502,14 +500,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Play/pause + auto preview
-          Row(
-            children: [
-              playBtn,
-              pauseBtn,
-              const Spacer(),
-              autoPreviewToggle,
-            ],
-          ),
+          Row(children: [playBtn, pauseBtn, const Spacer(), autoPreviewToggle]),
           // Row 3: volume
           Row(
             children: [
@@ -639,9 +630,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  DJCancelButton(
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  DJCancelButton(onPressed: () => Navigator.pop(context)),
                   const SizedBox(width: 4),
                   DJPrimaryButton(
                     label: widget.id.isEmpty ? 'Create' : 'Update',
@@ -650,9 +639,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                   if (widget.id.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     DJPrimaryButton(
-                      label: isWide
-                          ? 'Update & next track'
-                          : 'Update & next',
+                      label: isWide ? 'Update & next track' : 'Update & next',
                       onPressed: () => updateTrack(goToNextTrack: true),
                     ),
                   ],

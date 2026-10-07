@@ -75,9 +75,7 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(appleMusicSearchProvider.notifier)
-          .search(widget.query);
+      ref.read(appleMusicSearchProvider.notifier).search(widget.query);
     });
   }
 
@@ -85,9 +83,7 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
   void didUpdateWidget(_SearchResults oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query != widget.query) {
-      ref
-          .read(appleMusicSearchProvider.notifier)
-          .search(widget.query);
+      ref.read(appleMusicSearchProvider.notifier).search(widget.query);
     }
   }
 
@@ -126,10 +122,7 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
 }
 
 class _AppleMusicTrackTile extends StatelessWidget {
-  const _AppleMusicTrackTile({
-    required this.track,
-    required this.onSelected,
-  });
+  const _AppleMusicTrackTile({required this.track, required this.onSelected});
 
   final AppleMusicTrack track;
   final ValueChanged<AppleMusicTrack> onSelected;
@@ -161,8 +154,9 @@ class _AppleMusicTrackTile extends StatelessWidget {
             track.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           Text(
             track.artist,

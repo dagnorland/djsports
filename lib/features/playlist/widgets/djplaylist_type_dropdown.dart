@@ -15,8 +15,9 @@ class DJPlaylistTypeDropdown extends StatelessWidget {
     return djPlaylistTypeDropdownButton(
       value: initialValue,
       onChanged: onChanged,
-      items: DJPlaylistType.values
-          .map<DropdownMenuItem<String>>((DJPlaylistType value) {
+      items: DJPlaylistType.values.map<DropdownMenuItem<String>>((
+        DJPlaylistType value,
+      ) {
         return DropdownMenuItem<String>(
           value: value.name,
           child: Text(value.name.toUpperCase()),
@@ -26,16 +27,20 @@ class DJPlaylistTypeDropdown extends StatelessWidget {
   }
 }
 
-Widget djPlaylistTypeDropdownButton(
-    {required String value,
-    required void Function(String?) onChanged,
-    required List<DropdownMenuItem<String>> items}) {
+Widget djPlaylistTypeDropdownButton({
+  required String value,
+  required void Function(String?) onChanged,
+  required List<DropdownMenuItem<String>> items,
+}) {
   return DropdownButton<String>(
     value: value,
     hint: const Text(
       'Playlist type',
       style: TextStyle(
-          color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
+        color: Colors.black,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
     ),
     onChanged: (String? value) {
       onChanged(value);

@@ -11,7 +11,10 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
 
-    spotifyChannel.setup(messenger: flutterViewController.engine.binaryMessenger)
+    spotifyChannel.setup(
+      messenger: flutterViewController.engine.binaryMessenger,
+      hostView: flutterViewController.view
+    )
     if #available(macOS 14.0, *) {
       let amChannel = AppleMusicNativeChannel()
       appleMusicChannel = amChannel

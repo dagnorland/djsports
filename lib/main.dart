@@ -1,3 +1,4 @@
+import 'package:djsports/features/web_player/web_player_panel.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/track_time_model.dart';
@@ -106,6 +107,9 @@ class DJSportsApp extends ConsumerWidget {
       // useMaterial3: true,
       // ),
       home: const HomePage(),
+      // macOS: now-playing panel for the djSports player below every screen.
+      builder: (context, child) =>
+          WebPlayerPanelHost(child: child ?? const SizedBox.shrink()),
     ));
   }
 }

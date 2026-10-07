@@ -5,7 +5,116 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.6.0] - Unreleased
+## [Unreleased]
+
+### Added
+- **Spotify account & device visibility** (iOS + macOS) — the home AppBar
+  now shows `account → device` coloured by status; tapping it opens a
+  "Spotify output" sheet with the logged-in account (name, email, Premium),
+  every Spotify Connect device on the account, and a device selector
+  - By default djSports sends no `device_id` and follows the device chosen
+    in Spotify. Only a device set with the explicit **Set device** button is
+    remembered (Hive `settings`: `spotifyPreferredDeviceId/Name`) and sent
+    as `device_id` on play/resume; **Clear** returns to following Spotify
+  - **Set device** also transfers Spotify playback to that device right
+    away (`PUT /me/player`, play/pause state kept — the public equivalent
+    of the web player's "Connect to a device"); a refusal is shown in red
+    in the sheet
+- **macOS: djSports player** (default) — djSports runs Spotify's Web
+  Playback SDK in a hidden WebKit view and shows up as its own Spotify
+  Connect device "djSports" (marked "WebKit playback (recommended)" in
+  Spotify output). Plays for this Mac go there with `device_id` +
+  `position_ms`: no Spotify app needed, start positions land exactly,
+  pause/resume go straight to the player, and fade-pause lowers only the
+  player volume (the Mac's system volume is left alone; +/- no longer also
+  sets the player's Spotify volume). Works around Spotify for Mac
+  1.3.3.264 accepting Web API plays (204) without loading the track
+- **macOS: now-playing panel** for the djSports player, below every screen
+  while it is the active Spotify device — cover, title, artist, album,
+  position (slider to seek), play/pause. Drag the top edge to resize
+  (cover and text grow with it), collapse to a slim bar and back (Hive
+  `settings`: `webPlayerPanelVisible`, `webPlayerPanelHeight`). In Let's
+  Play the controls drop their own cover/track while the panel shows it
+- **macOS: "This Mac plays through"** in Spotify output — djSports player
+  (default), Spotify app via AppleScript, or Spotify app via Web API (Hive
+  `settings`: `spotifyMacPlayback`). A device chosen with Set device always
+  wins. If the djSports player fails, plays fall back to AppleScript, then
+  the Web API. AppleScript start positions wait for a fresh start and are
+  re-checked at 0.5 s / 1.2 s; djSports takes focus back when Spotify raises
+  its window (sandbox exception `temporary-exception.apple-events` for
+  `com.spotify.client`)
+
+- **Let's Play controls: Left / Right / Bottom** (Settings) — on wide
+  screens the controls can now also run as a bar along the bottom. Bottom
+  is used only when the board keeps at least 480 px of height; otherwise
+  the controls go to the right. Replaces the "Sidebar on right" switch
+  (Hive `settings`: `sidebarPosition`; the old `sidebarOnRight` value is
+  carried over)
+- **Let's Play and the now-playing panel are always dark** — a "stage"
+  palette like Spotify/Tidal and DJ software (`lib/core/theme/stage_colors.dart`:
+  #121212 background, #1E1E1E tiles, #181818 panel, white text, grey
+  secondary text), easy on the eyes in a dim arena and high-contrast in
+  bright light. The only colours are the playlist type colours (Hotspot
+  red, Match green, Fun Stuff blue, Pre-match grey); the display colour
+  from Settings is no longer used there (the home page's Let's Play
+  button follows it)
+- **Let's Play tiles, Spotify-style** — cover on the left with a round
+  play button in the type colour, then the track name in bold (up to two
+  lines on taller tiles), artist in grey and the start time; ‹ › moved up
+  next to the #n/m counter, the duplicate track line at the bottom is
+  gone, so titles get far more room. The faded cover background (20 %)
+  sits behind a dark veil so busy covers don't compete with the text. On
+  narrow tiles (iPhone) the arrows give way to the playlist name; swipe a
+  tile left/right to change track (works on every tile)
+- **iOS 27 launch** — migrated to the UIScene lifecycle; the app quit right
+  after the launch screen on iOS 27
+- Apple Music `prewarmCache` no longer throws `MissingPluginException` on iOS
+- **Cloud backup restore of Apple Music** — a full restore dropped each
+  track's `appleMusicId`, so restored Apple Music tracks couldn't play;
+  sync restore only de-duplicated by Spotify URI and re-added Apple Music
+  playlists on every sync (now also matched by `appleMusicPlaylistId`)
+- **macOS: Set device on the djSports player** survives a restart — the
+  player gets a new device ID every launch, and a stale one gave 404
+  "device no longer available"; the choice now moves to the new player
+- **Black screen when leaving Let's Play** — the back button popped the
+  screen's own nested MaterialApp instead of returning home (a builder's
+  `context` shadowed the screen's); all back buttons now go through one
+  `_close()` that always uses the screen's context
+- **Let's Play compact bar overflow on iPhone** ("RIGHT OVERFLOWED BY
+  2.0 PIXELS") — nine buttons now use 36 pt tap areas (same icon sizes) and
+  the row shrinks slightly on phones narrower than ~340 pt
+- **Let's Play card overflow** ("RenderFlex overflowed", 2 px on macOS,
+  ~22 px on iPhone) — the new tile layout scales with the tile size
+  - Warns when Spotify on this Mac is running but missing from the
+    account's device list — i.e. the Spotify app is signed in with a
+    different account than djSports
+  - Every play logs `Playing on <device> as <account>`
+- **Play check** — ~1.5 s after each play (iOS/macOS) djSports asks Spotify
+  what is actually playing (`GET /me/player`) and logs a `[PLAY-CHECK]`
+  line. If Spotify accepted the command (204) but the device didn't switch
+  or the track didn't load, an error toast explains it — e.g. a Mac whose
+  Spotify app can't be controlled remotely (stale Spotify Connect
+  registration after switching account in the Spotify app)
+- **"Where should djSports play?" prompt** — when no usable device exists
+  (or the set one is gone), playback asks instead of guessing, then
+  retries once on the picked device (not remembered). Used by Let's Play, the playlist track list
+  and the track editor preview
+
+### Changed
+- Playback never silently falls back to the first device in the list
+  (could be a phone or speaker elsewhere). macOS only auto-uses this Mac;
+  iOS only auto-activates this iPhone. Native errors are now typed
+  (`NO_ACTIVE_DEVICE` with the device list, `PREMIUM_REQUIRED`)
+- "Switch Spotify account" now forces Spotify's login / account picker
+  (`show_dialog=true`, ephemeral browser session) instead of silently
+  logging back into the same account
+- Added the `user-read-email` scope so the account email is shown (takes
+  effect after the next Spotify login)
+
+## [4.0.0] - Release 2026-10-06
+
+First release under the new Apple Developer account (Team ID `4SRFW7L9XH`),
+after transferring the app from Flow Retail.
 
 ### Added
 - **Bring Your Own Spotify Client ID** — Spotify's February 2026 Development
@@ -28,6 +137,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.env` is now optional at startup — end-user builds run without it and
   rely on user-supplied credentials; startup logging no longer prints
   secret values, only the loaded keys
+- **Apple Developer account moved** — app transferred from Flow Retail to
+  the new team `4SRFW7L9XH`; `DEVELOPMENT_TEAM` updated in all iOS and
+  macOS build configurations and in the App Store export options
+- **Toolchain upgrade** — Flutter 3.47.6 (via FVM) and Xcode 27; iOS
+  project format upgraded (`objectVersion 77`)
+- Xcode Cloud configuration removed (required for the app transfer)
 
 ## [3.5.2] - Release 2026-05-14
 

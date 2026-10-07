@@ -93,6 +93,5 @@ scripts/build_iphone_release.sh
 scripts/*
 
 custom_lint.log
-.fvm/flutter_sdk
 android/.kotlin/sessions/*
 **/.DS_Store

@@ -5,37 +5,37 @@ class PlaylistSpotifyUriExample {
     {
       'type': 'HOTSPOT',
       'uri': 'playlist/7w2SzKpEX07q2ormj6aDFi',
-      'name': 'Score Hjemme 1'
+      'name': 'Score Hjemme 1',
     },
     {
       'type': 'HOTSPOT',
       'uri': 'playlist/6fJXMdlIVFtbcHBFeViWqr',
-      'name': 'Score Hjemme 2'
+      'name': 'Score Hjemme 2',
     },
     {
       'type': 'HOTSPOT',
       'uri': 'playlist/3bPnAnhr5i5CZhVWhjcvqN',
-      'name': 'Score Borte'
+      'name': 'Score Borte',
     },
     {
       'type': 'HOTSPOT',
       'uri': 'playlist/3CowNHNZXYom1JqwdFHQal',
-      'name': 'Chill 2'
+      'name': 'Chill 2',
     },
     {
       'type': 'HOTSPOT',
       'uri': 'playlist/1pbQjl2mNrIzBBqZKTgqQ7',
-      'name': 'Pump It Up!'
+      'name': 'Pump It Up!',
     },
     {
       'type': 'MATCH',
       'uri': 'playlist/3s93nj36LDDHzz0njr5P3t',
-      'name': 'Funk Off'
+      'name': 'Funk Off',
     },
     {
       'type': 'FUNSTUFF',
       'uri': 'playlist/2ICHHgcQVkxfz6BnaRfEjD',
-      'name': 'Intervensjon'
+      'name': 'Intervensjon',
     },
     {'type': '--------', 'uri': '--------------------------------', 'name': ''},
     {'type': 'HOTSPOT', 'uri': 'playlist:5THsvdwlxPboeXPnMCqaYH', 'name': ''},
@@ -74,11 +74,12 @@ class PlaylistSpotifyUriExampleDropdown extends StatelessWidget {
     final dropdownItems = PlaylistSpotifyUriExample.values
         .where((item) => !existingUris.contains(item['uri']))
         .map<DropdownMenuItem<String>>((Map<String, String> item) {
-      return DropdownMenuItem<String>(
-        value: item['uri'],
-        child: Text('${item['type']} - ${item['name']} - ${item['uri']}'),
-      );
-    }).toList();
+          return DropdownMenuItem<String>(
+            value: item['uri'],
+            child: Text('${item['type']} - ${item['name']} - ${item['uri']}'),
+          );
+        })
+        .toList();
 
     return DropdownButton<String>(
       value: null,

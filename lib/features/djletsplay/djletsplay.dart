@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -5,6 +6,7 @@ import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
 import 'package:djsports/data/provider/fade_volume_provider.dart';
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
@@ -127,10 +129,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     if (type == null || index < 0) return false;
 
     final allPlaylists = ref.read(hivePlaylistData) ?? [];
-    final typePlaylists = allPlaylists
-        .where((p) => p.type == type!.name)
-        .toList()
-      ..sort((a, b) => a.position.compareTo(b.position));
+    final typePlaylists =
+        allPlaylists.where((p) => p.type == type!.name).toList()
+          ..sort((a, b) => a.position.compareTo(b.position));
 
     if (index < typePlaylists.length) {
       _getTrigger(typePlaylists[index].id).value++;
@@ -138,9 +139,12 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     return true;
   }
 
+  late final SpotifyRemoteRepository _repo;
+
   @override
   void initState() {
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    _repo = ref.read(spotifyRemoteRepositoryProvider);
     FlutterVolumeController.getVolume().then((v) {
       if (v != null && mounted) {
         final repo = ref.read(spotifyRemoteRepositoryProvider);
@@ -180,10 +184,12 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   }
 
   bool _lastWasAppleMusic() {
-    return ref.read(lastDjTrackPlayedProvider).maybeWhen(
-      data: (t) => t?.appleMusicId.isNotEmpty ?? false,
-      orElse: () => false,
-    );
+    return ref
+        .read(lastDjTrackPlayedProvider)
+        .maybeWhen(
+          data: (t) => t?.appleMusicId.isNotEmpty ?? false,
+          orElse: () => false,
+        );
   }
 
   Future<bool> pausePlayer() async {
@@ -214,8 +220,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     if (_lastWasAppleMusic()) {
       return ref.read(appleMusicRepositoryProvider).pausePlayer();
     }
-    isPlaying =
-        await ref.read(spotifyRemoteRepositoryProvider).hardPausePlayer();
+    isPlaying = await ref
+        .read(spotifyRemoteRepositoryProvider)
+        .hardPausePlayer();
     return isPlaying;
   }
 
@@ -223,18 +230,12 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     if (_lastWasAppleMusic()) {
       return ref.read(appleMusicRepositoryProvider).resumePlayer();
     }
-    isPlaying =
-        await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
+    isPlaying = await ref.read(spotifyRemoteRepositoryProvider).resumePlayer();
     return isPlaying;
   }
 
-  List<DJPlaylist> _filterByType(
-    List<DJPlaylist> all,
-    DJPlaylistType type,
-  ) {
-    return all
-        .where((p) => p.type == type.name)
-        .toList()
+  List<DJPlaylist> _filterByType(List<DJPlaylist> all, DJPlaylistType type) {
+    return all.where((p) => p.type == type.name).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
   }
 
@@ -245,8 +246,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   ) {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
-    final sectionColor =
-        type.color == Colors.black ? Colors.grey.shade400 : type.color;
+    final sectionColor = type.color == Colors.black
+        ? Colors.grey.shade400
+        : type.color;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,14 +345,43 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     );
   }
 
-  Widget _buildSidebar() {
+  /// Leaves Let's Play. Uses the State's own `context` on purpose: inside
+  /// a builder `context` can resolve to this screen's nested MaterialApp,
+  /// and popping that Navigator leaves a black screen.
+  void _close() {
+    Navigator.of(context).pop();
+    widget.refreshCallback?.call();
+  }
+
+  /// Height of the controls when they sit at the bottom.
+  static const _bottomBarHeight = 104.0;
+
+  /// The board needs at least this much height next to a bottom bar.
+  static const _minBoardHeight = 480.0;
+
+  /// The controls: a column for a sidebar ([Axis.vertical]) or a row for
+  /// the bottom bar ([Axis.horizontal]).
+  Widget _buildSidebar({Axis axis = Axis.vertical}) {
     final fadeMs = ref.watch(fadeVolumeMsProvider);
-    return Container(
-      color: Colors.red,
-      child: Column(
-        children: [
-          Expanded(
-            child: CenterControlWidget(
+    // Dark stage: white icons, colour only from the playlist types.
+    const accent = StageColors.text;
+    // No own background: it sits on the view's shared fade.
+    return Flex(
+      direction: axis,
+      children: [
+        Expanded(
+          // Hide the cover/track while the now-playing panel shows it.
+          child: ListenableBuilder(
+            listenable: Listenable.merge([
+              _repo.webPlayerStateNotifier,
+              _repo.webPlayerPanelVisibleNotifier,
+            ]),
+            // Don't name it `context`: onBack must pop the outer
+            // Navigator, not this screen's own MaterialApp.
+            builder: (_, _) => CenterControlWidget(
+              axis: axis,
+              foreground: accent,
+              showNowPlaying: !_repo.webPlayerPanelShowing,
               onResume: () async => resumePlayer(),
               onPause: () async => pausePlayer(),
               onHardPause: Platform.isIOS
@@ -358,274 +389,314 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                   : null,
               onFadePause: fadeMs > 0 ? () async => fadeAndPause() : null,
               fadeMs: fadeMs,
-              onBack: () {
-                Navigator.of(context).pop();
-                widget.refreshCallback?.call();
-              },
+              onBack: _close,
               refreshCallback: widget.refreshCallback,
             ),
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.help_outline,
-              color: Colors.white70,
-              size: 22,
-            ),
-            tooltip: 'Help',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const LetsPlayHelpScreen(),
-              ),
-            ),
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.help_outline,
+            color: accent.withValues(alpha: 0.6),
+            size: 22,
           ),
-          IconButton(
-            icon: const Icon(Icons.bug_report, color: Colors.white70, size: 22),
-            tooltip: 'Debug log',
-            onPressed: () => DebugLogSheet.show(context),
+          tooltip: 'Help',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LetsPlayHelpScreen()),
           ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.bug_report,
+            color: accent.withValues(alpha: 0.6),
+            size: 22,
+          ),
+          tooltip: 'Debug log',
+          onPressed: () => DebugLogSheet.show(context),
+        ),
+        const SizedBox(width: 8, height: 8),
+      ],
     );
   }
 
   Widget _buildCompactControls() {
     final lastTrack = ref.watch(lastDjTrackPlayedProvider);
     final fadeMs = ref.watch(fadeVolumeMsProvider);
-    return ColoredBox(
-      color: Colors.red,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            lastTrack.maybeWhen(
-              data: (track) {
-                if (track == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.music_note,
-                        color: Colors.white70,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          track.artist.isNotEmpty
-                              ? '${track.name}  •  ${track.artist}'
-                              : track.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+    // Dark stage: white icons, colour only from the playlist types.
+    const accent = StageColors.text;
+    // No own background: it sits on the view's shared fade.
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          lastTrack.maybeWhen(
+            data: (track) {
+              if (track == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.music_note,
+                      color: accent.withValues(alpha: 0.6),
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        track.artist.isNotEmpty
+                            ? '${track.name}  •  ${track.artist}'
+                            : track.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: StageColors.text,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
-                );
-              },
-              orElse: () => const SizedBox.shrink(),
-            ),
-            SizedBox(
-              height: 64,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.play_arrow,
-                  color: Colors.white,
-                  size: 32,
-                ),
-                onPressed: resumePlayer,
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .silencePlayingNotifier,
-                builder: (context, isSilence, _) => GestureDetector(
-                  onLongPress: (Platform.isIOS && isSilence)
-                      ? () async {
-                          await hardPausePlayer();
-                          if (!context.mounted) return;
-                          toastification.show(
-                            context: context,
-                            title: const Text('PAUSED'),
-                            autoCloseDuration: const Duration(seconds: 2),
-                            style: ToastificationStyle.flat,
-                            alignment: Alignment.topCenter,
-                          );
-                        }
-                      : null,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.pause,
-                      color: isSilence ? Colors.orange : Colors.white,
-                      size: 32,
                     ),
-                    onPressed: pausePlayer,
+                  ],
+                ),
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
+          // Nine buttons must fit a phone's width: tighter tap areas
+          // (36 instead of 48), same icon sizes.
+          SizedBox(
+            height: 64,
+            child: IconButtonTheme(
+              data: IconButtonThemeData(
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(36, 36),
+                  padding: const EdgeInsets.all(4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              // Below ~340 pt (small phones) shrink the whole row a
+              // little instead of overflowing.
+              child: LayoutBuilder(
+                builder: (_, box) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: max(box.maxWidth, 340),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.play_arrow, color: accent, size: 32),
+                          onPressed: resumePlayer,
+                        ),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: ref
+                              .read(spotifyRemoteRepositoryProvider)
+                              .silencePlayingNotifier,
+                          builder: (context, isSilence, _) => GestureDetector(
+                            onLongPress: (Platform.isIOS && isSilence)
+                                ? () async {
+                                    await hardPausePlayer();
+                                    if (!context.mounted) return;
+                                    toastification.show(
+                                      context: context,
+                                      title: const Text('PAUSED'),
+                                      autoCloseDuration: const Duration(
+                                        seconds: 2,
+                                      ),
+                                      style: ToastificationStyle.flat,
+                                      alignment: Alignment.topCenter,
+                                    );
+                                  }
+                                : null,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.pause,
+                                color: isSilence ? Colors.orange : accent,
+                                size: 32,
+                              ),
+                              onPressed: pausePlayer,
+                            ),
+                          ),
+                        ),
+                        if (fadeMs > 0)
+                          ValueListenableBuilder<bool>(
+                            valueListenable: ref
+                                .read(spotifyRemoteRepositoryProvider)
+                                .fadePausingNotifier,
+                            builder: (context, isFading, _) => Tooltip(
+                              message: isFading
+                                  ? 'Fading…'
+                                  : 'Fade pause ($fadeMs ms)',
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.pause_circle_outline,
+                                  color: isFading
+                                      ? Colors.amber
+                                      : Colors.amberAccent,
+                                  size: 32,
+                                ),
+                                onPressed: isFading
+                                    ? null
+                                    : () async {
+                                        await fadeAndPause();
+                                        if (!context.mounted) return;
+                                        toastification.show(
+                                          context: context,
+                                          title: Text('FADED ($fadeMs ms)'),
+                                          autoCloseDuration: const Duration(
+                                            seconds: 2,
+                                          ),
+                                          style: ToastificationStyle.flat,
+                                          alignment: Alignment.topCenter,
+                                        );
+                                      },
+                              ),
+                            ),
+                          ),
+                        if (Platform.isIOS || Platform.isMacOS)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.open_in_new,
+                              color: Color(0xFF1DB954),
+                              size: 26,
+                            ),
+                            tooltip: 'Open Spotify',
+                            onPressed: () => ref
+                                .read(spotifyRemoteRepositoryProvider)
+                                .launchSpotify(),
+                          ),
+                        IconButton(
+                          icon: Icon(Icons.volume_up, color: accent, size: 28),
+                          onPressed: () => ref
+                              .read(spotifyRemoteRepositoryProvider)
+                              .adjustVolume(0.05),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.volume_down,
+                            color: accent,
+                            size: 28,
+                          ),
+                          onPressed: () => ref
+                              .read(spotifyRemoteRepositoryProvider)
+                              .adjustVolume(-0.05),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.help_outline,
+                            color: accent.withValues(alpha: 0.6),
+                            size: 24,
+                          ),
+                          tooltip: 'Help',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LetsPlayHelpScreen(),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.bug_report,
+                            color: accent.withValues(alpha: 0.6),
+                            size: 24,
+                          ),
+                          tooltip: 'Debug log',
+                          onPressed: () => DebugLogSheet.show(context),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.backspace, color: accent, size: 24),
+                          onPressed: _close,
+                        ),
+                      ], // close Row.children
+                    ), // close Row
                   ),
                 ),
               ),
-              if (fadeMs > 0)
-                ValueListenableBuilder<bool>(
-                  valueListenable: ref
-                      .read(spotifyRemoteRepositoryProvider)
-                      .fadePausingNotifier,
-                  builder: (context, isFading, _) => Tooltip(
-                    message: isFading
-                        ? 'Fading…'
-                        : 'Fade pause ($fadeMs ms)',
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.pause_circle_outline,
-                        color: isFading
-                            ? Colors.amber
-                            : Colors.amberAccent,
-                        size: 32,
-                      ),
-                      onPressed: isFading
-                          ? null
-                          : () async {
-                              await fadeAndPause();
-                              if (!context.mounted) return;
-                              toastification.show(
-                                context: context,
-                                title: Text('FADED ($fadeMs ms)'),
-                                autoCloseDuration:
-                                    const Duration(seconds: 2),
-                                style: ToastificationStyle.flat,
-                                alignment: Alignment.topCenter,
-                              );
-                            },
-                    ),
-                  ),
-                ),
-              if (Platform.isIOS || Platform.isMacOS)
-                IconButton(
-                  icon: const Icon(
-                    Icons.open_in_new,
-                    color: Color(0xFF1DB954),
-                    size: 26,
-                  ),
-                  tooltip: 'Open Spotify',
-                  onPressed: () => ref
-                      .read(spotifyRemoteRepositoryProvider)
-                      .launchSpotify(),
-                ),
-              IconButton(
-                icon: const Icon(
-                  Icons.volume_up,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .adjustVolume(0.05),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.volume_down,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => ref
-                    .read(spotifyRemoteRepositoryProvider)
-                    .adjustVolume(-0.05),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.help_outline,
-                  color: Colors.white70,
-                  size: 24,
-                ),
-                tooltip: 'Help',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LetsPlayHelpScreen(),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.bug_report,
-                  color: Colors.white70,
-                  size: 24,
-                ),
-                tooltip: 'Debug log',
-                onPressed: () => DebugLogSheet.show(context),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.backspace,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  widget.refreshCallback?.call();
-                },
-              ),
-            ],      // close Row.children
-          ),        // close Row
-        ),          // close SizedBox
-      ],            // close Column.children
-    ),              // close Column
-    ),              // close SafeArea
+            ), // close IconButtonTheme
+          ), // close SizedBox
+        ], // close Column.children
+      ), // close Column
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final allPlaylists = ref.watch(typeFilteredAllDataProvider);
+    const divider = Divider(height: 1, color: StageColors.divider);
+    const sideDivider = VerticalDivider(
+      width: 1,
+      thickness: 1,
+      color: StageColors.divider,
+    );
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // Always dark, like Spotify/Tidal and DJ software.
+      theme: StageColors.theme(Theme.of(context)),
       home: Scaffold(
-        backgroundColor: Colors.black,
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 600;
-            // Only use sidebar on wide screens with enough height
-            // (tablets / macOS). On landscape phones the screen is too
-            // short to show all sidebar buttons without scrolling issues.
-            final isTallEnoughForSidebar = constraints.maxHeight >= 500;
+        backgroundColor: StageColors.background,
+        body: ColoredBox(
+          color: StageColors.background,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 600;
+              // Only use sidebar on wide screens with enough height
+              // (tablets / macOS). On landscape phones the screen is too
+              // short to show all sidebar buttons without scrolling issues.
+              final isTallEnoughForSidebar = constraints.maxHeight >= 500;
 
-            if (isWide && isTallEnoughForSidebar) {
-              final sidebarOnRight = AppSettings.sidebarOnRight;
-              final board = Expanded(
-                flex: 85,
-                child: SafeArea(child: _buildBoard(allPlaylists)),
-              );
-              final sidebar = Expanded(
-                flex: 15,
-                child: _buildSidebar(),
-              );
-              return Row(
-                children: sidebarOnRight
-                    ? [board, sidebar]
-                    : [sidebar, board],
-              );
-            }
+              if (isWide && isTallEnoughForSidebar) {
+                var position = AppSettings.sidebarPosition;
+                // Bottom only when the board keeps enough height; else right.
+                final roomForBottom =
+                    constraints.maxHeight - _bottomBarHeight >= _minBoardHeight;
+                if (position == SidebarPosition.bottom && !roomForBottom) {
+                  position = SidebarPosition.right;
+                }
+                if (position == SidebarPosition.bottom) {
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: SafeArea(
+                          bottom: false,
+                          child: _buildBoard(allPlaylists),
+                        ),
+                      ),
+                      divider,
+                      SizedBox(
+                        height: _bottomBarHeight,
+                        child: _buildSidebar(axis: Axis.horizontal),
+                      ),
+                    ],
+                  );
+                }
+                final board = Expanded(
+                  flex: 85,
+                  child: SafeArea(child: _buildBoard(allPlaylists)),
+                );
+                final sidebar = Expanded(flex: 15, child: _buildSidebar());
+                return Row(
+                  children: position == SidebarPosition.right
+                      ? [board, sideDivider, sidebar]
+                      : [sidebar, sideDivider, board],
+                );
+              }
 
-            // Phone portrait and landscape: board fills available space,
-            // compact control bar at the bottom with proper safe area.
-            return Column(
-              children: [
-                const SafeArea(bottom: false, child: SizedBox()),
-                Expanded(child: _buildBoard(allPlaylists)),
-                _buildCompactControls(),
-              ],
-            );
-          },
+              // Phone portrait and landscape: board fills available space,
+              // compact control bar at the bottom with proper safe area.
+              return Column(
+                children: [
+                  const SafeArea(bottom: false, child: SizedBox()),
+                  Expanded(child: _buildBoard(allPlaylists)),
+                  divider,
+                  _buildCompactControls(),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

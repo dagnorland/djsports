@@ -12,10 +12,7 @@ class LetsPlayHelpScreen extends StatelessWidget {
         elevation: 0,
         title: const Text(
           "Let's Play Help",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -29,8 +26,7 @@ class LetsPlayHelpScreen extends StatelessWidget {
                 icon: Icons.sports_handball,
                 iconColor: Colors.green.shade700,
                 title: "Let's Play",
-                subtitle:
-                    'Your live DJ control center during the event.',
+                subtitle: 'Your live DJ control center during the event.',
               ),
               const SizedBox(height: 24),
               const _HelpSection(
@@ -146,10 +142,7 @@ class LetsPlayHelpScreen extends StatelessWidget {
                           color: Colors.orange,
                         ),
                         SizedBox(width: 6),
-                        Text(
-                          'Volume up (+5%)',
-                          style: TextStyle(fontSize: 13),
-                        ),
+                        Text('Volume up (+5%)', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                     SizedBox(height: 6),
@@ -188,10 +181,7 @@ class LetsPlayHelpScreen extends StatelessWidget {
                       "Let's Play and return to the home screen.",
                     ),
                     SizedBox(height: 8),
-                    _ControlChip(
-                      icon: Icons.backspace,
-                      color: Colors.red,
-                    ),
+                    _ControlChip(icon: Icons.backspace, color: Colors.red),
                     SizedBox(height: 8),
                     Text(
                       'Music will keep playing in Spotify — use the pause '
@@ -252,10 +242,7 @@ class _HelpHeader extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
             ],
           ),

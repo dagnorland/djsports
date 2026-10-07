@@ -7,7 +7,10 @@ import 'package:spotify/spotify.dart';
 
 class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
   SpotifyPlaylistTrackDelegate(
-      this.searchQuery, this.playlistService, this.existingSpotifyTrackUris);
+    this.searchQuery,
+    this.playlistService,
+    this.existingSpotifyTrackUris,
+  );
 
   final SpotifyPlaylistService playlistService;
   final List<String> existingSpotifyTrackUris;
@@ -59,32 +62,35 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
           data: (result) {
             return result.when(
               (tracks) => GridView.builder(
-                  itemCount: tracks.length,
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 200,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemBuilder: (context, index) {
-                    final trackExist = existingSpotifyTrackUris
-                        .contains(tracks.elementAt(index).uri);
-                    return Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                              width: trackExist ? 0 : 3,
-                              color: trackExist
-                                  ? Colors.green.shade100
-                                  : Colors.blueGrey.shade100),
-                        ),
-                        child: SpotifyTrackSearchResultTile(
-                          track: tracks.elementAt(index),
-                          existInPlaylist: trackExist,
-                          onSelected: (value) => close(context, value),
-                        ));
-                  },
+                itemCount: tracks.length,
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 200,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.85,
                 ),
+                itemBuilder: (context, index) {
+                  final trackExist = existingSpotifyTrackUris.contains(
+                    tracks.elementAt(index).uri,
+                  );
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        width: trackExist ? 0 : 3,
+                        color: trackExist
+                            ? Colors.green.shade100
+                            : Colors.blueGrey.shade100,
+                      ),
+                    ),
+                    child: SpotifyTrackSearchResultTile(
+                      track: tracks.elementAt(index),
+                      existInPlaylist: trackExist,
+                      onSelected: (value) => close(context, value),
+                    ),
+                  );
+                },
+              ),
               error: (error) => SearchPlaceholder(title: error.message),
             );
           },
@@ -107,7 +113,7 @@ class SpotifyPlaylistTrackDelegate extends SearchDelegate<Track?> {
                 query = '';
                 showSuggestions(context);
               },
-            )
+            ),
           ];
   }
 }

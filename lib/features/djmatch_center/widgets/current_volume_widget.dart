@@ -11,9 +11,7 @@ class CurrentVolumeWidget extends ConsumerWidget {
     return ValueListenableBuilder<double>(
       valueListenable: repo.volumeNotifier,
       builder: (context, volume, child) {
-        return Chip(
-          label: Text('${(volume * 100).toStringAsFixed(0)}%'),
-        );
+        return Chip(label: Text('${(volume * 100).toStringAsFixed(0)}%'));
       },
     );
   }

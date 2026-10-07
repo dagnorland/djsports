@@ -33,10 +33,12 @@ class _SpotifyCredentialsSettingsState
     super.initState();
     // Show the user's own stored values (not the .env fallback) so it is
     // obvious whether they have configured anything themselves.
-    _clientIdController =
-        TextEditingController(text: AppSettings.spotifyClientId);
-    _clientSecretController =
-        TextEditingController(text: AppSettings.spotifyClientSecret);
+    _clientIdController = TextEditingController(
+      text: AppSettings.spotifyClientId,
+    );
+    _clientSecretController = TextEditingController(
+      text: AppSettings.spotifyClientSecret,
+    );
     _redirectUrlController = TextEditingController(
       text: AppSettings.spotifyRedirectUrl.isEmpty
           ? AppSettings.defaultSpotifyRedirectUrl
@@ -78,7 +80,9 @@ class _SpotifyCredentialsSettingsState
       });
       return;
     }
-    await ref.read(spotifyCredentialsProvider.notifier).save(
+    await ref
+        .read(spotifyCredentialsProvider.notifier)
+        .save(
           clientId: _clientIdController.text,
           clientSecret: _clientSecretController.text,
           redirectUrl: _redirectUrlController.text,
@@ -204,7 +208,7 @@ class _ActiveCredentialsBanner extends StatelessWidget {
             isUserProvided
                 ? 'Using your own Spotify app credentials'
                 : 'Using built-in developer credentials (limited to 5 '
-                    'authorized users by Spotify)',
+                      'authorized users by Spotify)',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
+/// Where the Let's Play controls sit on wide screens.
+enum SidebarPosition { left, right, bottom }
+
 /// Simple key-value settings backed by a plain Hive box named 'settings'.
 /// Open the box in main.dart before calling any getter/setter.
 class AppSettings {
   static const _boxName = 'settings';
   static const _sidebarOnRightKey = 'sidebarOnRight';
+  static const _sidebarPositionKey = 'sidebarPosition';
   static const _keyboardShortcutsEnabledKey = 'keyboardShortcutsEnabled';
   static const _themeColorKey = 'themeColor';
   static const _fadeVolumeMsKey = 'fadeVolumeMs';
@@ -18,13 +22,19 @@ class AppSettings {
 
   static Box<dynamic> get _box => Hive.box<dynamic>(_boxName);
 
-  /// Whether the sidebar is on the right side in landscape mode.
-  /// Defaults to true.
-  static bool get sidebarOnRight =>
-      _box.get(_sidebarOnRightKey, defaultValue: true) as bool;
+  /// Where the Let's Play controls sit on wide screens. Defaults to right;
+  /// falls back to the older `sidebarOnRight` switch when not set yet.
+  static SidebarPosition get sidebarPosition {
+    final name = _box.get(_sidebarPositionKey) as String?;
+    for (final position in SidebarPosition.values) {
+      if (position.name == name) return position;
+    }
+    final onRight = _box.get(_sidebarOnRightKey, defaultValue: true) as bool;
+    return onRight ? SidebarPosition.right : SidebarPosition.left;
+  }
 
-  static Future<void> setSidebarOnRight(bool value) =>
-      _box.put(_sidebarOnRightKey, value);
+  static Future<void> setSidebarPosition(SidebarPosition value) =>
+      _box.put(_sidebarPositionKey, value.name);
 
   /// Whether keyboard shortcuts are enabled in the match center.
   /// Defaults to false.
@@ -35,9 +45,8 @@ class AppSettings {
       _box.put(_keyboardShortcutsEnabledKey, value);
 
   /// Persisted primary theme color.
-  static Color get themeColor => Color(
-        _box.get(_themeColorKey, defaultValue: _defaultThemeColor) as int,
-      );
+  static Color get themeColor =>
+      Color(_box.get(_themeColorKey, defaultValue: _defaultThemeColor) as int);
 
   static Future<void> setThemeColor(Color color) =>
       _box.put(_themeColorKey, color.value);
