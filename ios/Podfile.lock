@@ -1440,7 +1440,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: e17c654ef1f1a616b0b33054e663ad1035c8fd40
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_native_splash: c32d145d68aeda5502d5f543ee38c192065986cf
-  flutter_volume_controller: c2be490cb0487e8b88d0d9fc2b7e1c139a4ebccb
+  flutter_volume_controller: d9e7a54cb39415100a7cd558240faa1b8e8da6d4
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
   gRPC-Core: 860978b7db482de8b4f5e10677216309b5ff6330
