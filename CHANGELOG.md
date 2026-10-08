@@ -156,6 +156,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   played, also for plays from 0:00)
 - `flutter_volume_controller` 1.3.4 → 2.0.2 (compileSdk 36 – AGP 8.13
   rejected the old plugin's compileSdk 31; API unchanged)
+- **Android on Gradle 9 / AGP 9** — Gradle 8.14.3 → 9.3.1, Android Gradle
+  Plugin 8.13.0 → 9.1.0, Kotlin 2.3.20 → 2.4.0, Google Services 4.3.15 →
+  4.4.4, foojay 0.8.0 → 1.0.0; Flutter's "support will soon be dropped"
+  warning is gone. `buildDir` → `layout.buildDirectory` (removed in
+  Gradle 9); the dead `include ":spotify-sdk"` (folder never existed –
+  Gradle 9 rejects it) removed; the app no longer applies `kotlin-android`
+  itself (as in Flutter's template). `android.builtInKotlin=false` /
+  `android.newDsl=false` stay, as in Flutter 3.47's template, until
+  `spotify_sdk` 4 – `audio_session` 0.2.4 and `package_info_plus` 10.2.2
+  already support Built-in Kotlin
 
 ## [4.0.0] - Release 2026-10-06
 
