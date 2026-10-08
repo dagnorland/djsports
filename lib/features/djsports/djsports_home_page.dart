@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:djsports/core/widgets/flashing_logo.dart';
 import 'package:djsports/data/repo/apple_music_repository.dart';
-import 'package:djsports/data/provider/theme_color_provider.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
@@ -19,7 +19,6 @@ import 'package:djsports/features/djsports/first_time_use_screen.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
 import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/track_time/settings_center_screen.dart';
-import 'package:djsports/features/playlist/widgets/dj_buttons.dart';
 import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -250,7 +249,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  List<Widget> _buildWideActions(BuildContext context, bool hasToken) {
+  List<Widget> _buildWideActions(
+    BuildContext context,
+    bool hasToken, {
+    required bool hasPlaylists,
+  }) {
     return [
       const CurrentVolumeWidget(),
       if (hasToken)
@@ -346,19 +349,25 @@ class _HomePageState extends ConsumerState<HomePage> {
         )
       else
         const SpotifyStatusChip(),
-      Padding(
-        padding: const EdgeInsets.only(right: 5),
-        child: DJPrimaryButton(
-          label: _kMatchModeLabel,
-          onPressed: () => _navigateTo(
-            DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
+      // Nothing to play yet: the welcome screen is shown instead.
+      if (hasPlaylists)
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 8),
+          child: _LetsPlayLogoButton(
+            showLabel: true,
+            onOpen: () => _navigateTo(
+              DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
+            ),
           ),
         ),
-      ),
     ];
   }
 
-  List<Widget> _buildNarrowActions(BuildContext context, bool hasToken) {
+  List<Widget> _buildNarrowActions(
+    BuildContext context,
+    bool hasToken, {
+    required bool hasPlaylists,
+  }) {
     return [
       const CurrentVolumeWidget(),
       if (hasToken)
@@ -417,6 +426,15 @@ class _HomePageState extends ConsumerState<HomePage> {
         )
       else
         const SpotifyStatusChip(compact: true),
+      if (hasPlaylists)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: _LetsPlayLogoButton(
+            onOpen: () => _navigateTo(
+              DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
+            ),
+          ),
+        ),
       PopupMenuButton<String>(
         icon: const Icon(Icons.more_vert, color: Colors.black),
         onSelected: _handlePopupAction,
@@ -503,24 +521,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // Nothing to play yet: the welcome screen is shown instead.
-      floatingActionButton: allPlaylists.isEmpty
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _navigateTo(
-                DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
-              ),
-              // Settings → display colour, like the Let's Play controls.
-              backgroundColor: strongDisplayColor(
-                ref.watch(themeColorProvider),
-              ),
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.sports_handball),
-              label: const Text(
-                _kMatchModeLabel,
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
       appBar: AppBar(
         centerTitle: true,
         backgroundColor: Colors.white,
@@ -569,8 +569,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ],
               ),
         actions: isWide
-            ? _buildWideActions(context, hasToken)
-            : _buildNarrowActions(context, hasToken),
+            ? _buildWideActions(
+                context,
+                hasToken,
+                hasPlaylists: allPlaylists.isNotEmpty,
+              )
+            : _buildNarrowActions(
+                context,
+                hasToken,
+                hasPlaylists: allPlaylists.isNotEmpty,
+              ),
       ),
       body: allPlaylists.isEmpty
           ? const FirstTimeUseScreen()
@@ -718,6 +726,41 @@ class _TypeSectionState extends State<_TypeSection> {
                 ),
               ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Opens Let's Play: the djSports logo flashes, then the screen opens.
+/// Replaces the old floating "Let's Play!" button.
+class _LetsPlayLogoButton extends StatelessWidget {
+  const _LetsPlayLogoButton({required this.onOpen, this.showLabel = false});
+
+  final VoidCallback onOpen;
+  final bool showLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = FlashingLogo(
+      size: 40,
+      tooltip: _kMatchModeLabel,
+      onTap: onOpen,
+    );
+    if (!showLabel) return logo;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        logo,
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: onOpen,
+          child: Text(
+            _kMatchModeLabel,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
         ),
       ],
     );
