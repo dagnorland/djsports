@@ -4,35 +4,36 @@ Things to do later. Newest decisions and context are in `CHANGELOG.md`.
 
 ## Next
 
-### Android: upgrade to Gradle 9 / Android Gradle Plugin 9
-Flutter 3.47 warns on every Android build:
+### Android: Built-in Kotlin via `spotify_sdk` 4
+Gradle 9.3.1 / AGP 9.1.0 / Kotlin 2.4.0 are done (branch
+`feature/android-gradle-9`). One warning is left on every Android build:
 
-> Flutter support for your project's Gradle version (8.14.3) will soon be
-> dropped. Please upgrade your Gradle version to a version of at least
-> 9.1.0 soon.
+> WARNING: Your app uses the following plugins that apply Kotlin Gradle
+> Plugin (KGP): audio_session, flutter_volume_controller, spotify_sdk
+> Future versions of Flutter will fail to build …
 
-(and the same for AGP 8.13.0 → at least 9.0.1). Today it is only a
-warning – the build works. `--android-skip-build-dependency-validation`
-hides it, but don't rely on that.
+`audio_session` and `flutter_volume_controller` already support Built-in
+Kotlin – they only apply KGP because `android.builtInKotlin=false`, which
+`spotify_sdk` 3.0.2 still needs. So the fix is `spotify_sdk` 4.x, then
+`android.builtInKotlin=true` (and later `android.newDsl=true`).
 
-- [ ] Target Flutter's template versions: Gradle **9.3.1**, AGP **9.1.0**,
-      Kotlin **2.4.0** (see `templateDefaultGradleVersion` etc. in
-      `flutter_tools/lib/src/android/gradle_utils.dart` of the Flutter in use)
-- [ ] Check every Android plugin against AGP 9 first – especially
-      `spotify_sdk` and the local `android/spotify-app-remote` /
-      `android/spotify-sdk` AAR modules
-- [ ] AGP 9 has built-in Kotlin and a new DSL: remove the opt-outs
-      `android.builtInKotlin=false` / `android.newDsl=false` in
-      `android/gradle.properties` (added by Flutter's migrator) and drop
-      the `kotlin-android` plugin from `app/build.gradle` if AGP 9 needs it
-- [ ] `rootProject.buildDir` / `project.buildDir` in `android/build.gradle`
-      are removed in Gradle 9 → `layout.buildDirectory`
-- [ ] `foojay-resolver-convention` 0.8.0 → 1.x (Gradle 9)
-- [ ] Don't use Android Studio's "AGP Upgrade Assistant" blindly – do the
-      upgrade as its own branch, then `fvm flutter build apk --debug`, then
-      test on the Lenovo (start positions, pause/fade, reconnect)
-- [ ] Should also remove the "Unsupported Kotlin plugin version" sync
-      warning (Gradle 9 has a newer embedded Kotlin)
+`spotify_sdk` 4 is a real migration (see its CHANGELOG "Breaking Changes"):
+- [ ] Spotify Android Auth SDK 2 → 5: register
+      `RedirectUriReceiverActivity` in `AndroidManifest.xml` (scheme/host of
+      our redirect URI); drop the `redirectSchemeName` / `redirectHostName`
+      manifest placeholders in `app/build.gradle`
+- [ ] App Remote SDK is downloaded by the plugin: remove
+      `include ":spotify-app-remote"`, the `android/spotify-app-remote`
+      folder and `implementation project(':spotify-app-remote')` /
+      `com.spotify.android:auth:2.1.0` in `app/build.gradle` (check the
+      `jackson-annotations` line is still needed)
+- [ ] Typed errors (`SpotifyException`, `SpotifyConnectionException`,
+      `SpotifyPlaybackException`, …) instead of `PlatformException`:
+      update `_AndroidBridge` and `SpotifyRemoteRepository` error handling
+      (`_needsReconnect`, `_classifyPlayError`, the seek retries)
+- [ ] Re-test on the Lenovo: login, connect, play, start positions,
+      pause/fade, reconnect after idle
+- [ ] Then `android.builtInKotlin=true` → the KGP warning should be gone
 
 ### Let's Play: a more visible back / close button
 The only way out of Let's Play is the small ⌫ (backspace) icon in the
