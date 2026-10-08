@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:djsports/data/repo/apple_music_repository.dart';
 import 'package:djsports/data/provider/theme_color_provider.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
@@ -84,7 +85,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     return ref
         .read(lastDjTrackPlayedProvider)
         .maybeWhen(
-          data: (t) => t?.appleMusicId.isNotEmpty ?? false,
+          data: (t) =>
+              t != null && playsWithAppleMusic(t.appleMusicId, t.spotifyUri),
           orElse: () => false,
         );
   }
@@ -501,19 +503,24 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateTo(
-          DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
-        ),
-        // Settings → display colour, like the Let's Play controls.
-        backgroundColor: strongDisplayColor(ref.watch(themeColorProvider)),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.sports_handball),
-        label: const Text(
-          _kMatchModeLabel,
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
+      // Nothing to play yet: the welcome screen is shown instead.
+      floatingActionButton: allPlaylists.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _navigateTo(
+                DJLetsPlayViewPage(refreshCallback: () => setState(() {})),
+              ),
+              // Settings → display colour, like the Let's Play controls.
+              backgroundColor: strongDisplayColor(
+                ref.watch(themeColorProvider),
+              ),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.sports_handball),
+              label: const Text(
+                _kMatchModeLabel,
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
       appBar: AppBar(
         centerTitle: true,
         backgroundColor: Colors.white,

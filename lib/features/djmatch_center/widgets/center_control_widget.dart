@@ -1,9 +1,9 @@
 import 'dart:io';
 
+import 'package:djsports/core/app_toast.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:toastification/toastification.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
@@ -107,12 +107,10 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                             : () async {
                                 await widget.onHardPause!();
                                 if (!context.mounted) return;
-                                toastification.show(
-                                  context: context,
+                                showAppToast(
+                                  context,
                                   title: const Text('PAUSED'),
-                                  autoCloseDuration: const Duration(seconds: 2),
-                                  style: ToastificationStyle.flat,
-                                  alignment: Alignment.topCenter,
+                                  duration: const Duration(seconds: 2),
                                 );
                               },
                         child: IconButton(
@@ -133,12 +131,10 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                                 ? 'SILENCE 🔇'
                                 : 'PAUSED';
                             if (!context.mounted) return;
-                            toastification.show(
-                              context: context,
+                            showAppToast(
+                              context,
                               title: Text(label),
-                              autoCloseDuration: const Duration(seconds: 2),
-                              style: ToastificationStyle.flat,
-                              alignment: Alignment.topCenter,
+                              duration: const Duration(seconds: 2),
                             );
                           },
                         ),
@@ -353,12 +349,10 @@ class _FadePauseButton extends ConsumerWidget {
                         : () async {
                             await onFadePause();
                             if (!context.mounted) return;
-                            toastification.show(
-                              context: context,
+                            showAppToast(
+                              context,
                               title: Text('FADED ($fadeMs ms)'),
-                              autoCloseDuration: const Duration(seconds: 2),
-                              style: ToastificationStyle.flat,
-                              alignment: Alignment.topCenter,
+                              duration: const Duration(seconds: 2),
                             );
                           },
                   ),

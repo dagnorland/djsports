@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:djsports/core/app_toast.dart';
+import 'package:djsports/data/repo/apple_music_repository.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djplaylist_provider.dart';
@@ -18,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:toastification/toastification.dart';
 
 class DJLetsPlayViewPage extends StatefulHookConsumerWidget {
   const DJLetsPlayViewPage({super.key, this.refreshCallback});
@@ -158,16 +159,15 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
         } else {
           repo.setVolume(v);
         }
-        toastification.show(
-          context: context,
+        showAppToast(
+          context,
+          level: autoSet ? ToastLevel.warning : ToastLevel.info,
           title: Text(
             autoSet
                 ? 'Volume auto-set to 85%'
                 : 'Volume: ${(v * 100).round()}%',
           ),
-          autoCloseDuration: const Duration(seconds: 3),
-          style: ToastificationStyle.flat,
-          alignment: Alignment.topCenter,
+          duration: const Duration(seconds: 3),
         );
       }
     });
@@ -187,7 +187,8 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
     return ref
         .read(lastDjTrackPlayedProvider)
         .maybeWhen(
-          data: (t) => t?.appleMusicId.isNotEmpty ?? false,
+          data: (t) =>
+              t != null && playsWithAppleMusic(t.appleMusicId, t.spotifyUri),
           orElse: () => false,
         );
   }
@@ -499,14 +500,10 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                                 ? () async {
                                     await hardPausePlayer();
                                     if (!context.mounted) return;
-                                    toastification.show(
-                                      context: context,
+                                    showAppToast(
+                                      context,
                                       title: const Text('PAUSED'),
-                                      autoCloseDuration: const Duration(
-                                        seconds: 2,
-                                      ),
-                                      style: ToastificationStyle.flat,
-                                      alignment: Alignment.topCenter,
+                                      duration: const Duration(seconds: 2),
                                     );
                                   }
                                 : null,
@@ -542,14 +539,10 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                                     : () async {
                                         await fadeAndPause();
                                         if (!context.mounted) return;
-                                        toastification.show(
-                                          context: context,
+                                        showAppToast(
+                                          context,
                                           title: Text('FADED ($fadeMs ms)'),
-                                          autoCloseDuration: const Duration(
-                                            seconds: 2,
-                                          ),
-                                          style: ToastificationStyle.flat,
-                                          alignment: Alignment.topCenter,
+                                          duration: const Duration(seconds: 2),
                                         );
                                       },
                               ),

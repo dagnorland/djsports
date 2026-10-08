@@ -1,5 +1,6 @@
 import 'package:djsports/features/web_player/web_player_panel.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
+import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/track_time_model.dart';
 import 'package:djsports/hive_registrar.g.dart';
@@ -62,6 +63,7 @@ Future<void> main() async {
   await Hive.openBox<DJTrack>('djtrack');
   await Hive.openBox<TrackTime>('trackTime');
   await Hive.openBox('settings');
+  await AppSettings.applyShowSystemVolumeUI();
 
   final audioHandler = await AudioService.init(
     builder: () => DJAudioHandler(),

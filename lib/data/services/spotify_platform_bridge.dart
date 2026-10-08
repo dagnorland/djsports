@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:djsports/data/models/spotify_device.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'package:spotify_sdk/models/player_state.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -470,8 +473,6 @@ class _MacOSBridge implements SpotifyPlatformBridge {
 }
 
 class _AndroidBridge implements SpotifyPlatformBridge {
-  static const _numberOfRetries = 8;
-
   @override
   Future<String> getAccessToken({
     required String clientId,
@@ -540,23 +541,106 @@ class _AndroidBridge implements SpotifyPlatformBridge {
     if (savedVolume == 0) savedVolume = 0.5;
     await FlutterVolumeController.setVolume(0); // mute
     try {
+      // Every millisecond counts: no extra request before play – the last
+      // state comes from Spotify's push events – and the seek fires the
+      // moment Spotify reports the new track playing.
+      _ensureStateListener();
+      // Unknown only on the first play after (re)connecting – then ask once,
+      // so an event about the old track isn't taken for the new one.
+      final previousUri =
+          _lastState?.track?.uri ?? (await _playerStateOrNull())?.track?.uri;
+      final started = _waitUntilStarted(spotifyUri, previousUri);
       await SpotifySdk.play(spotifyUri: spotifyUri);
-      await Future.delayed(const Duration(milliseconds: 80));
-      int retryCount = 0;
-      bool success = false;
-      while (retryCount < _numberOfRetries && !success) {
+      await started;
+      for (var attempt = 1; ; attempt++) {
         try {
           await SpotifySdk.seekTo(positionedMilliseconds: positionMs);
-          success = true;
-        } catch (_) {
-          retryCount++;
-          if (retryCount >= _numberOfRetries) rethrow;
+          break;
+        } catch (e) {
+          if (attempt >= _seekAttempts) {
+            // Keep playing from the start rather than failing the play.
+            debugPrint('[PLAY] Android seek to $positionMs failed: $e');
+            break;
+          }
+          await Future.delayed(const Duration(milliseconds: 50));
         }
       }
     } finally {
       await FlutterVolumeController.setVolume(savedVolume); // always restore
     }
     return null;
+  }
+
+  /// Seek attempts after the track started (50 ms apart).
+  static const _seekAttempts = 20;
+
+  static StreamSubscription<PlayerState>? _stateSub;
+  static PlayerState? _lastState;
+  static final _stateEvents = StreamController<PlayerState>.broadcast();
+
+  /// Spotify pushes a state event on every change. The native handler is
+  /// replaced on each reconnect, so a listener that missed a play is
+  /// dropped and re-created here.
+  static void _ensureStateListener() {
+    _stateSub ??= SpotifySdk.subscribePlayerState().listen(
+      (state) {
+        _lastState = state;
+        _stateEvents.add(state);
+      },
+      onError: (_) => _dropStateListener(),
+      onDone: _dropStateListener,
+    );
+  }
+
+  static void _dropStateListener() {
+    _stateSub?.cancel();
+    _stateSub = null;
+    _lastState = null; // may be stale – the next play asks Spotify once
+  }
+
+  static Future<PlayerState?> _playerStateOrNull() async {
+    try {
+      return await SpotifySdk.getPlayerState();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Completes as soon as Spotify plays the requested track from near the
+  /// start (max ~3 s). A relinked track has another URI, so "a different
+  /// track than before" counts too. Push events are the fast path; a
+  /// 150 ms poll covers a listener that went quiet.
+  static Future<void> _waitUntilStarted(
+    String spotifyUri,
+    String? previousUri,
+  ) {
+    bool started(PlayerState? state) {
+      final uri = state?.track?.uri;
+      if (state == null || uri == null || state.isPaused) return false;
+      final newTrack = uri == spotifyUri || uri != previousUri;
+      return newTrack && state.playbackPosition < 3000;
+    }
+
+    final done = Completer<void>();
+    late final StreamSubscription<PlayerState> events;
+    Timer? poll;
+    var polls = 0;
+    void finish({required bool byEvent}) {
+      if (done.isCompleted) return;
+      events.cancel();
+      poll?.cancel();
+      if (!byEvent) _dropStateListener();
+      done.complete();
+    }
+
+    events = _stateEvents.stream.listen((state) {
+      if (started(state)) finish(byEvent: true);
+    });
+    poll = Timer.periodic(const Duration(milliseconds: 150), (_) async {
+      if (++polls > 20) return finish(byEvent: false);
+      if (started(await _playerStateOrNull())) finish(byEvent: false);
+    });
+    return done.future;
   }
 
   @override

@@ -119,6 +119,36 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
           },
         ),
         const _FadeVolumeSetting(),
+        SwitchListTile(
+          title: const Text('Show info messages'),
+          subtitle: Text(
+            'Pop-ups like "PAUSED", "FADED" and the track that started. '
+            'Warnings and errors always show.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          secondary: const Icon(Icons.info_outline),
+          value: AppSettings.showInfoToasts,
+          onChanged: (value) async {
+            await AppSettings.setShowInfoToasts(value);
+            setState(() {});
+          },
+        ),
+        if (Platform.isAndroid || Platform.isIOS)
+          SwitchListTile(
+            title: const Text('Show system volume popup'),
+            subtitle: Text(
+              'When djSports changes the volume (+/−, fade). Off keeps it '
+              'from covering the Let\'s Play sidebar. On Android the '
+              'hardware buttons always show it.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            secondary: const Icon(Icons.volume_up),
+            value: AppSettings.showSystemVolumeUI,
+            onChanged: (value) async {
+              await AppSettings.setShowSystemVolumeUI(value);
+              setState(() {});
+            },
+          ),
       ],
     );
   }

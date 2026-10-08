@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:djsports/data/models/spotify_connection_log.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// Bottom sheet showing the Spotify connection log + native state snapshot.
 /// Open with [DebugLogSheet.show].
@@ -28,6 +32,36 @@ class _DebugLogSheetState extends ConsumerState<DebugLogSheet> {
   Map<String, String> _nativeInfo = {};
   List<String> _devices = [];
   bool _loading = false;
+
+  /// Shows "Copied" on the button for a moment after copying.
+  bool _copied = false;
+
+  /// Copies the log as plain text (oldest first) for pasting into a mail.
+  Future<void> _copyLog() async {
+    final info = await PackageInfo.fromPlatform();
+    final lines = <String>[
+      'djSports ${info.version}+${info.buildNumber} – debug log',
+      '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      'Copied ${DateTime.now().toIso8601String()}',
+      '',
+      'Native state:',
+      for (final e in _nativeInfo.entries) '  ${e.key}: ${e.value}',
+      if (_devices.isNotEmpty) ...[
+        'Devices:',
+        for (final d in _devices) '  $d',
+      ],
+      '',
+      'Log (${SpotifyConnectionLog().log.length} entries, oldest first):',
+      for (final entry in SpotifyConnectionLog().log)
+        '${_timestamp(entry.timestamp)} [${entry.status.name}] '
+            '${entry.message}',
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
 
   Future<void> _refresh() async {
     setState(() => _loading = true);
@@ -91,6 +125,18 @@ class _DebugLogSheetState extends ConsumerState<DebugLogSheet> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.lightBlueAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: Icon(_copied ? Icons.check : Icons.copy, size: 14),
+                  label: Text(
+                    _copied ? 'Copied' : 'Copy',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  onPressed: _copyLog,
+                ),
                 TextButton.icon(
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.redAccent,
@@ -359,11 +405,7 @@ class _LogEntry extends StatelessWidget {
         color = Colors.redAccent;
         dot = '●';
     }
-    final ts =
-        '${entry.timestamp.hour.toString().padLeft(2, '0')}:'
-        '${entry.timestamp.minute.toString().padLeft(2, '0')}:'
-        '${entry.timestamp.second.toString().padLeft(2, '0')}.'
-        '${(entry.timestamp.millisecond ~/ 10).toString().padLeft(2, '0')}';
+    final ts = _timestamp(entry.timestamp);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -396,3 +438,10 @@ class _LogEntry extends StatelessWidget {
     );
   }
 }
+
+/// HH:mm:ss.cc – shown in the sheet and in the copied text.
+String _timestamp(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:'
+    '${t.minute.toString().padLeft(2, '0')}:'
+    '${t.second.toString().padLeft(2, '0')}.'
+    '${(t.millisecond ~/ 10).toString().padLeft(2, '0')}';

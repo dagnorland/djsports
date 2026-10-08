@@ -1,8 +1,19 @@
+import 'dart:io';
+
 import 'package:djsports/data/models/apple_music_log.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/services/apple_music_platform_bridge.dart';
 import 'package:flutter/services.dart';
+
+/// Apple Music (MusicKit) exists on iOS and macOS only.
+bool get appleMusicAvailable => Platform.isIOS || Platform.isMacOS;
+
+/// Whether a track plays via Apple Music: on iOS/macOS whenever it has an
+/// Apple Music ID; elsewhere (Android) only when it has no Spotify URI –
+/// then [AppleMusicRepository] explains that it can't play here.
+bool playsWithAppleMusic(String appleMusicId, String spotifyUri) =>
+    appleMusicId.isNotEmpty && (appleMusicAvailable || spotifyUri.isEmpty);
 
 class AppleMusicRepository {
   AppleMusicRepository() : _bridge = AppleMusicPlatformBridge();
@@ -68,15 +79,14 @@ class AppleMusicRepository {
     int jumpStart, {
     bool retry = true,
   }) async {
+    if (!appleMusicAvailable) {
+      return '[Error] Apple Music is only available on iPhone, iPad and '
+          'Mac – add this track from Spotify to play it here.';
+    }
     final t0 = DateTime.now();
-    AppleMusicLog().info(
-      'play START id=$appleMusicId positionMs=$jumpStart',
-    );
+    AppleMusicLog().info('play START id=$appleMusicId positionMs=$jumpStart');
     try {
-      final response = await _bridge.play(
-        appleMusicId,
-        positionMs: jumpStart,
-      );
+      final response = await _bridge.play(appleMusicId, positionMs: jumpStart);
       final elapsedMs = DateTime.now().difference(t0).inMilliseconds;
       if (response.startsWith('playing')) {
         isPlaying = true;
@@ -106,6 +116,7 @@ class AppleMusicRepository {
   }
 
   Future<bool> pausePlayer() async {
+    if (!appleMusicAvailable) return false;
     try {
       final ok = await _bridge.pause();
       if (ok) isPlaying = false;
@@ -117,6 +128,7 @@ class AppleMusicRepository {
   }
 
   Future<bool> resumePlayer() async {
+    if (!appleMusicAvailable) return false;
     try {
       final ok = await _bridge.resume();
       if (ok) isPlaying = true;
@@ -128,6 +140,7 @@ class AppleMusicRepository {
   }
 
   Future<bool> seekTo(int positionMs) async {
+    if (!appleMusicAvailable) return false;
     try {
       return await _bridge.seekTo(positionMs);
     } on PlatformException catch (e) {

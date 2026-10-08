@@ -1391,7 +1391,11 @@ class SpotifyRemoteRepository {
 
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-        'play track ${track.spotifyUri}',
+        _playLogText(
+          '"${track.name}" ${track.spotifyUri}',
+          jumpStart,
+          startTime,
+        ),
       );
       final startupTimeMessage = jumpStart > 0 && latestDurationStartupMS > 0
           ? ' - startup time: $latestDurationStartupMS'
@@ -1435,6 +1439,16 @@ class SpotifyRemoteRepository {
     }
   }
 
+  /// Debug log line for a play: what, from where, and how long it took
+  /// until the track played (at its start position).
+  static String _playLogText(String what, int startMs, DateTime started) {
+    final elapsedMs = DateTime.now().difference(started).inMilliseconds;
+    final start = Duration(milliseconds: startMs > 0 ? startMs : 0);
+    final mmss =
+        '${start.inMinutes}:${(start.inSeconds % 60).toString().padLeft(2, '0')}';
+    return 'play track $what · start $mmss · startup $elapsedMs ms';
+  }
+
   Future<String> playSpotiyfyUriAndJumpStart(
     String spotifyUri,
     int jumpStart, {
@@ -1459,7 +1473,7 @@ class SpotifyRemoteRepository {
       }
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-        'play track $spotifyUri',
+        _playLogText(spotifyUri, jumpStart, startTime),
       );
       return '[Success] Playing track $spotifyUri';
     } on PlatformException catch (platformException) {
@@ -1500,6 +1514,7 @@ class SpotifyRemoteRepository {
       return '[Error] Not connected to Spotify';
     }
 
+    final startTime = DateTime.now();
     try {
       final targetDeviceId = _takeTargetDeviceId();
       _recordPlayed(
@@ -1509,7 +1524,7 @@ class SpotifyRemoteRepository {
       );
       SpotifyConnectionLog().addSimpleEntry(
         SpotifyConnectionStatus.connectedSpotifyRemoteApp,
-        'play track $spotifyUri',
+        _playLogText(spotifyUri, 0, startTime),
       );
       return '[Success] Playing track $spotifyUri';
     } on PlatformException catch (platformException) {
