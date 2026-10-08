@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
-import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
 /// Where the Let's Play controls sit on wide screens.
@@ -14,12 +13,9 @@ class AppSettings {
   static const _sidebarOnRightKey = 'sidebarOnRight';
   static const _sidebarPositionKey = 'sidebarPosition';
   static const _keyboardShortcutsEnabledKey = 'keyboardShortcutsEnabled';
-  static const _themeColorKey = 'themeColor';
   static const _fadeVolumeMsKey = 'fadeVolumeMs';
   static const _showSystemVolumeUIKey = 'showSystemVolumeUI';
   static const _showInfoToastsKey = 'showInfoToasts';
-  // Default: Spotify green
-  static const _defaultThemeColor = 0xFF1DB954;
   // Default: fade disabled (0 ms = feature off, only the regular pause shown).
   static const _defaultFadeVolumeMs = 0;
   // Hard upper bound — anything longer than 10 s is rarely useful.
@@ -48,13 +44,6 @@ class AppSettings {
 
   static Future<void> setKeyboardShortcutsEnabled(bool value) =>
       _box.put(_keyboardShortcutsEnabledKey, value);
-
-  /// Persisted primary theme color.
-  static Color get themeColor =>
-      Color(_box.get(_themeColorKey, defaultValue: _defaultThemeColor) as int);
-
-  static Future<void> setThemeColor(Color color) =>
-      _box.put(_themeColorKey, color.value);
 
   /// Duration in milliseconds for the volume fade-out when the user taps the
   /// "fade pause" button in the Let's Play screen. `0` disables the feature

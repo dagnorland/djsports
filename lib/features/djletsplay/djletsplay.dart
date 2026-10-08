@@ -240,10 +240,14 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
       ..sort((a, b) => a.position.compareTo(b.position));
   }
 
+  /// [maxPerSection] is the largest section's playlist count: every
+  /// section gets that many columns, so tiles fill the width and stay
+  /// aligned between sections.
   Widget _buildSection(
     DJPlaylistType type,
     String label,
     List<DJPlaylist> playlists,
+    int maxPerSection,
   ) {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
@@ -274,7 +278,11 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
         ),
         LayoutBuilder(
           builder: (context, constraints) {
-            final cols = max(1, (constraints.maxWidth / 200).floor());
+            // As many columns as the largest section needs (no empty
+            // columns on wide screens), but tiles never narrower than
+            // ~180 px.
+            final fit = max(1, (constraints.maxWidth / 180).floor());
+            final cols = maxPerSection.clamp(1, fit);
             final screenH = MediaQuery.of(context).size.height;
             final cardH = (screenH * 0.18).clamp(90.0, 260.0);
             return GridView.builder(
@@ -317,6 +325,12 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
   }
 
   Widget _buildBoard(List<DJPlaylist> allPlaylists) {
+    final maxPerSection = [
+      DJPlaylistType.hotspot,
+      DJPlaylistType.match,
+      DJPlaylistType.funStuff,
+      DJPlaylistType.preMatch,
+    ].map((t) => _filterByType(allPlaylists, t).length).fold(0, max);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,21 +339,25 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
             DJPlaylistType.hotspot,
             'Hotspot',
             _filterByType(allPlaylists, DJPlaylistType.hotspot),
+            maxPerSection,
           ),
           _buildSection(
             DJPlaylistType.match,
             'Match',
             _filterByType(allPlaylists, DJPlaylistType.match),
+            maxPerSection,
           ),
           _buildSection(
             DJPlaylistType.funStuff,
             'Fun Stuff',
             _filterByType(allPlaylists, DJPlaylistType.funStuff),
+            maxPerSection,
           ),
           _buildSection(
             DJPlaylistType.preMatch,
             'Pre-Match',
             _filterByType(allPlaylists, DJPlaylistType.preMatch),
+            maxPerSection,
           ),
         ],
       ),

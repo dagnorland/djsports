@@ -232,7 +232,7 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
                                   child: Icon(
                                     Icons.cloud_off_outlined,
                                     size: 50,
-                                    color: Colors.black38,
+                                    color: Colors.white24,
                                   ),
                                 ),
                           ),
