@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - Release 2026-10-08
+
 ### Added
 - **Spotify account & device visibility** (iOS + macOS) — the home AppBar
   now shows `account → device` coloured by status; tapping it opens a
@@ -170,6 +172,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Restore") and errors stay red. The stage palette got light outlines,
   labels and cursor for input fields (`inputDecorationTheme`), which the
   editors can use later
+- **Home page: Spotify-style playlist cards** — chips at the top (All +
+  one per type with its colour and count); "All" shows one horizontal
+  shelf per type, a single type shows a grid of bigger cards. Each card
+  has a square cover (2×2 mosaic of the first four different covers, or a
+  single cover), a round edit button in the type colour, a ⋮ menu (Open in
+  Spotify, Delete), and the name with "18 tracks · 12 with start".
+  Reorder within a shelf (the order still drives Let's Play): long-press
+  and drag on phones/tablets, grab and drag with the mouse on the Mac (a
+  click still edits). 210 px cards with 16 px gaps on tablet/Mac
+  landscape, ~2.2 per shelf on phones. On very wide screens two
+  neighbouring sections share a row (Hotspot | Match, Fun Stuff |
+  Pre-match) when both fit in half the width, so all playlists show
+  without scrolling. Replaces the list rows
+  (`DJPlaylistView` removed)
 
 ### Changed
 - Playback never silently falls back to the first device in the list

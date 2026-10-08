@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:djsports/features/djsports/widgets/playlist_browser.dart';
 import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/core/widgets/flashing_logo.dart';
 import 'package:djsports/data/repo/apple_music_repository.dart';
@@ -18,7 +19,6 @@ import 'package:djsports/features/djletsplay/djletsplay.dart';
 import 'package:djsports/features/djmatch_center/widgets/current_volume_widget.dart';
 import 'package:djsports/features/djsports/first_time_use_screen.dart';
 import 'package:djsports/features/playlist/djplaylist_edit_create.dart';
-import 'package:djsports/features/playlist/widgets/djplaylist_view.dart';
 import 'package:djsports/features/track_time/settings_center_screen.dart';
 import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:flutter/material.dart';
@@ -595,156 +595,28 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         body: allPlaylists.isEmpty
             ? const FirstTimeUseScreen()
-            : ListView(
-                padding: const EdgeInsets.only(bottom: 88),
-                children: DJPlaylistType.values
-                    .where((t) => t != DJPlaylistType.all)
-                    .map((type) {
-                      final typePlaylists =
-                          allPlaylists
-                              .where((p) => p.type == type.name)
-                              .toList()
-                            ..sort((a, b) => a.position.compareTo(b.position));
-                      if (typePlaylists.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return _TypeSection(
-                        type: type,
-                        playlists: typePlaylists,
-                        onEdit: (playlist) => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                DJPlaylistEditScreen.fromDJPlaylist(
-                                  playlist,
-                                  refreshCallback: () => setState(() {}),
-                                ),
-                          ),
-                        ),
-                        onDelete: (playlist) => ref
-                            .read(hivePlaylistData.notifier)
-                            .removeDJPlaylist(
-                              ref.read(hiveTrackData.notifier),
-                              playlist.id,
-                            ),
-                        onReorder: (oldIndex, newIndex) => ref
-                            .read(hivePlaylistData.notifier)
-                            .reorderPlaylistsOfType(
-                              type.name,
-                              oldIndex,
-                              newIndex,
-                            ),
-                      );
-                    })
-                    .toList(),
-              ),
-      ),
-    );
-  }
-}
-
-class _TypeSection extends StatefulWidget {
-  const _TypeSection({
-    required this.type,
-    required this.playlists,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onReorder,
-  });
-
-  final DJPlaylistType type;
-  final List<DJPlaylist> playlists;
-  final void Function(DJPlaylist) onEdit;
-  final void Function(DJPlaylist) onDelete;
-  final void Function(int oldIndex, int newIndex) onReorder;
-
-  @override
-  State<_TypeSection> createState() => _TypeSectionState();
-}
-
-class _TypeSectionState extends State<_TypeSection> {
-  bool _expanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = stageTypeColor(widget.type.color, context);
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return ExpansionTile(
-      initiallyExpanded: true,
-      onExpansionChanged: (v) => setState(() => _expanded = v),
-      shape: const Border(),
-      collapsedShape: const Border(),
-      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-      leading: Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-      title: Text(
-        widget.type.type.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-          letterSpacing: 0.5,
-        ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!_expanded)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${widget.playlists.length}',
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          const SizedBox(width: 4),
-          Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: muted),
-        ],
-      ),
-      children: [
-        ReorderableListView(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          buildDefaultDragHandles: false,
-          onReorder: widget.onReorder,
-          children: [
-            for (int i = 0; i < widget.playlists.length; i++)
-              DJPlaylistView(
-                key: ValueKey(widget.playlists[i].id),
-                name: widget.playlists[i].name,
-                type: widget.playlists[i].type,
-                spotifyUri: widget.playlists[i].spotifyUri,
-                trackIds: widget.playlists[i].trackIds,
-                shuffleAtEnd: widget.playlists[i].shuffleAtEnd,
-                autoNext: widget.playlists[i].autoNext,
-                currentTrack: widget.playlists[i].currentTrack,
-                onEdit: () => widget.onEdit(widget.playlists[i]),
-                onDelete: () => widget.onDelete(widget.playlists[i]),
-                dragHandle: ReorderableDragStartListener(
-                  index: i,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      Icons.drag_handle,
-                      color: muted.withValues(alpha: 0.5),
+            : PlaylistBrowser(
+                playlists: allPlaylists,
+                onEdit: (playlist) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DJPlaylistEditScreen.fromDJPlaylist(
+                      playlist,
+                      refreshCallback: () => setState(() {}),
                     ),
                   ),
                 ),
+                onDelete: (playlist) => ref
+                    .read(hivePlaylistData.notifier)
+                    .removeDJPlaylist(
+                      ref.read(hiveTrackData.notifier),
+                      playlist.id,
+                    ),
+                onReorder: (typeName, oldIndex, newIndex) => ref
+                    .read(hivePlaylistData.notifier)
+                    .reorderPlaylistsOfType(typeName, oldIndex, newIndex),
               ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }
