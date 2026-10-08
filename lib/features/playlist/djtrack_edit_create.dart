@@ -540,54 +540,51 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
         ),
         actions: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.id.isNotEmpty)
-                Text(
-                  '#${widget.index + 1} of ${widget.trackCount}',
-                  style: TextStyle(
-                    color: primary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              Row(
+          // Big, easy-to-hit steps between tracks, the position in between.
+          if (widget.id.isNotEmpty) ...[
+            _TrackStepButton(
+              icon: Icons.chevron_left_rounded,
+              tooltip: 'Previous track',
+              color: primary,
+              onPressed: widget.index > 0
+                  ? () => _navigateTo(widget.index - 1)
+                  : null,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous),
-                    tooltip: 'Previous track',
-                    color: primary,
-                    iconSize: 22,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                  Text(
+                    '${widget.index + 1}',
+                    style: TextStyle(
+                      color: primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
                     ),
-                    onPressed: widget.index > 0
-                        ? () => _navigateTo(widget.index - 1)
-                        : null,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_next),
-                    tooltip: 'Next track',
-                    color: primary,
-                    iconSize: 22,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                  Text(
+                    'of ${widget.trackCount}',
+                    style: TextStyle(
+                      color: primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
-                    onPressed: widget.index < widget.trackCount - 1
-                        ? () => _navigateTo(widget.index + 1)
-                        : null,
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            _TrackStepButton(
+              icon: Icons.chevron_right_rounded,
+              tooltip: 'Next track',
+              color: primary,
+              onPressed: widget.index < widget.trackCount - 1
+                  ? () => _navigateTo(widget.index + 1)
+                  : null,
+            ),
+          ],
           const SizedBox(width: 8),
         ],
         title: Column(
@@ -654,6 +651,40 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A round 44 px step button for the track editor's AppBar (the old ones
+/// were 32 px and hard to hit on a tablet).
+class _TrackStepButton extends StatelessWidget {
+  const _TrackStepButton({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      icon: Icon(icon),
+      tooltip: tooltip,
+      iconSize: 30,
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.12),
+        foregroundColor: color,
+        disabledBackgroundColor: Colors.black.withValues(alpha: 0.04),
+        disabledForegroundColor: Colors.black26,
+      ),
+      onPressed: onPressed,
     );
   }
 }

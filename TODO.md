@@ -39,6 +39,8 @@ Kotlin – they only apply KGP because `android.builtInKotlin=false`, which
 When you save a track's start time (or step to the next/previous track),
 the screen animation looks "shuffled": the editor closes and a new one
 slides in.
+Seen on macOS/iOS; not on Android (its page transition differs). The step
+buttons themselves were made bigger on `feature/home-dark-refresh`.
 
 Likely cause (`lib/features/playlist/`):
 - `DJTrackEditScreen` (`djtrack_edit_create.dart`) leaves with
@@ -74,6 +76,10 @@ the rest. Still open:
       (`lib/core/theme/stage_colors.dart`) like Let's Play
 - [ ] Editing screens (playlist edit, cloud backup, Track Time) through
       `showAppToast()` so "Show info messages" applies there too
+- [ ] Remove the legacy Settings pages "Playlists" and "Start times"
+      (now under ⋮ in Settings – `settings_center_screen.dart`,
+      `tabs/playlists_tab.dart`, `tabs/start_time_tab.dart`) once nothing
+      needs them
 - [ ] Windows version: test Spotify's Web Playback SDK in WebView2 (DRM)
 - [ ] Android log noise `Unable to resolve … ImageUri; annotation class
       40/41` – harmless; only goes away with `jackson-databind` (~2 MB).

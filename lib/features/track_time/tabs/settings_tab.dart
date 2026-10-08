@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:djsports/data/provider/fade_volume_provider.dart';
-import 'package:djsports/data/provider/theme_color_provider.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:djsports/features/spotify_connect/spotify_credentials_settings.dart';
 import 'package:djsports/features/track_time/settings_widgets.dart';
@@ -26,12 +25,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
           children: [
             globalInfoBox(
               context,
-              'DISPLAY SETTINGS',
-              _displaySettingsSection(context),
-            ),
-            const Gap(20),
-            globalInfoBox(
-              context,
               'LETS PLAY SETTINGS',
               _matchCenterSettingsSection(context),
             ),
@@ -45,19 +38,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _displaySettingsSection(BuildContext context) {
-    final currentColor = ref.watch(themeColorProvider);
-    return Column(
-      children: [
-        _ThemeColorPicker(
-          currentColor: currentColor,
-          onColorSelected: (Color color) =>
-              ref.read(themeColorProvider.notifier).setColor(color),
-        ),
-      ],
     );
   }
 
@@ -245,63 +225,6 @@ class _FadeVolumeSetting extends ConsumerWidget {
               ).textTheme.bodySmall?.copyWith(color: Colors.orange),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Standalone color-picker widget
-// ---------------------------------------------------------------------------
-
-class _ThemeColorPicker extends StatelessWidget {
-  const _ThemeColorPicker({
-    required this.currentColor,
-    required this.onColorSelected,
-  });
-
-  final Color currentColor;
-  final ValueChanged<Color> onColorSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.palette_outlined, size: 22),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text('App color', style: TextStyle(fontSize: 15)),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: kThemeColors.map((entry) {
-              final selected = currentColor.value == entry.color.value;
-              return Tooltip(
-                message: entry.name,
-                child: GestureDetector(
-                  onTap: () => onColorSelected(entry.color),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: entry.color,
-                      shape: BoxShape.circle,
-                      border: selected
-                          ? Border.all(color: Colors.black, width: 2.5)
-                          : Border.all(color: Colors.black12, width: 1),
-                    ),
-                    child: selected
-                        ? const Icon(Icons.check, color: Colors.white, size: 16)
-                        : null,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
         ],
       ),
     );

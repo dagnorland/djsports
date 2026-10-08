@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/core/widgets/flashing_logo.dart';
 import 'package:djsports/data/repo/apple_music_repository.dart';
 import 'package:djsports/data/models/spotify_connection_log.dart';
@@ -79,6 +80,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     spotifyConnect = await spotifyRemoteService.connect();
     debugPrint('_spotifyConnect: $spotifyConnect');
   }
+
+  /// Dark AppBar on the stage look (when there are playlists).
+  bool get _dark => (ref.read(hivePlaylistData) ?? const []).isNotEmpty;
+  Color get _barColor => _dark ? StageColors.text : Colors.black;
+  Color get _barMuted => _dark ? StageColors.textMuted : Colors.black54;
 
   bool _lastWasAppleMusic() {
     return ref
@@ -289,7 +295,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       Tooltip(
         message: 'Cloud Backup',
         child: IconButton(
-          icon: const Icon(Icons.cloud, color: Colors.black),
+          icon: Icon(Icons.cloud, color: _barColor),
           onPressed: () => _navigateTo(
             CloudBackupScreen(refreshCallback: () => setState(() {})),
           ),
@@ -298,21 +304,21 @@ class _HomePageState extends ConsumerState<HomePage> {
       Tooltip(
         message: 'Utilities',
         child: IconButton(
-          icon: const Icon(Icons.settings, color: Colors.black),
+          icon: Icon(Icons.settings, color: _barColor),
           onPressed: () => _navigateTo(TrackTimeCenterScreen()),
         ),
       ),
       Tooltip(
         message: 'Playlist help',
         child: IconButton(
-          icon: const Icon(Icons.help_outline, color: Colors.black54),
+          icon: Icon(Icons.help_outline, color: _barMuted),
           onPressed: () => _navigateTo(const PlaylistHelpScreen()),
         ),
       ),
       Tooltip(
         message: 'New playlist',
         child: IconButton(
-          icon: const Icon(Icons.add, color: Colors.black),
+          icon: Icon(Icons.add, color: _barColor),
           onPressed: () {
             _navigateTo(DJPlaylistEditScreen.empty());
           },
@@ -436,7 +442,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
       PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert, color: Colors.black),
+        icon: Icon(Icons.more_vert, color: _barColor),
         onSelected: _handlePopupAction,
         itemBuilder: (context) => [
           PopupMenuItem(
@@ -518,111 +524,121 @@ class _HomePageState extends ConsumerState<HomePage> {
         .read(spotifyRemoteRepositoryProvider)
         .hasSpotifyAccessToken;
     final version = packageInfo.data?.version;
+    // Dark stage look like Let's Play – but the welcome screen (no
+    // playlists yet) keeps its own light design.
+    final dark = allPlaylists.isNotEmpty;
+    final background = dark ? StageColors.background : Colors.white;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: isWide
-            ? Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'v${version ?? '...'}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                  ),
-                ),
-              )
-            : null,
-        title: isWide
-            ? const Text(
-                'djsports',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'djsports',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  if (version != null)
-                    Text(
-                      'v$version',
+    return Theme(
+      data: dark ? StageColors.theme(Theme.of(context)) : Theme.of(context),
+      child: Scaffold(
+        backgroundColor: background,
+        appBar: AppBar(
+          centerTitle: true,
+          backgroundColor: background,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          leading: isWide
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'v${version ?? '...'}',
                       style: Theme.of(
                         context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                      ).textTheme.bodySmall?.copyWith(color: _barMuted),
                     ),
-                ],
-              ),
-        actions: isWide
-            ? _buildWideActions(
-                context,
-                hasToken,
-                hasPlaylists: allPlaylists.isNotEmpty,
-              )
-            : _buildNarrowActions(
-                context,
-                hasToken,
-                hasPlaylists: allPlaylists.isNotEmpty,
+                  ),
+                )
+              : null,
+          title: isWide
+              ? Text(
+                  'djsports',
+                  style: TextStyle(
+                    color: _barColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'djsports',
+                      style: TextStyle(
+                        color: _barColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (version != null)
+                      Text(
+                        'v$version',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: _barMuted),
+                      ),
+                  ],
+                ),
+          actions: isWide
+              ? _buildWideActions(
+                  context,
+                  hasToken,
+                  hasPlaylists: allPlaylists.isNotEmpty,
+                )
+              : _buildNarrowActions(
+                  context,
+                  hasToken,
+                  hasPlaylists: allPlaylists.isNotEmpty,
+                ),
+        ),
+        body: allPlaylists.isEmpty
+            ? const FirstTimeUseScreen()
+            : ListView(
+                padding: const EdgeInsets.only(bottom: 88),
+                children: DJPlaylistType.values
+                    .where((t) => t != DJPlaylistType.all)
+                    .map((type) {
+                      final typePlaylists =
+                          allPlaylists
+                              .where((p) => p.type == type.name)
+                              .toList()
+                            ..sort((a, b) => a.position.compareTo(b.position));
+                      if (typePlaylists.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return _TypeSection(
+                        type: type,
+                        playlists: typePlaylists,
+                        onEdit: (playlist) => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                DJPlaylistEditScreen.fromDJPlaylist(
+                                  playlist,
+                                  refreshCallback: () => setState(() {}),
+                                ),
+                          ),
+                        ),
+                        onDelete: (playlist) => ref
+                            .read(hivePlaylistData.notifier)
+                            .removeDJPlaylist(
+                              ref.read(hiveTrackData.notifier),
+                              playlist.id,
+                            ),
+                        onReorder: (oldIndex, newIndex) => ref
+                            .read(hivePlaylistData.notifier)
+                            .reorderPlaylistsOfType(
+                              type.name,
+                              oldIndex,
+                              newIndex,
+                            ),
+                      );
+                    })
+                    .toList(),
               ),
       ),
-      body: allPlaylists.isEmpty
-          ? const FirstTimeUseScreen()
-          : ListView(
-              padding: const EdgeInsets.only(bottom: 88),
-              children: DJPlaylistType.values
-                  .where((t) => t != DJPlaylistType.all)
-                  .map((type) {
-                    final typePlaylists =
-                        allPlaylists.where((p) => p.type == type.name).toList()
-                          ..sort((a, b) => a.position.compareTo(b.position));
-                    if (typePlaylists.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return _TypeSection(
-                      type: type,
-                      playlists: typePlaylists,
-                      onEdit: (playlist) => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              DJPlaylistEditScreen.fromDJPlaylist(
-                                playlist,
-                                refreshCallback: () => setState(() {}),
-                              ),
-                        ),
-                      ),
-                      onDelete: (playlist) => ref
-                          .read(hivePlaylistData.notifier)
-                          .removeDJPlaylist(
-                            ref.read(hiveTrackData.notifier),
-                            playlist.id,
-                          ),
-                      onReorder: (oldIndex, newIndex) => ref
-                          .read(hivePlaylistData.notifier)
-                          .reorderPlaylistsOfType(
-                            type.name,
-                            oldIndex,
-                            newIndex,
-                          ),
-                    );
-                  })
-                  .toList(),
-            ),
     );
   }
 }
@@ -651,7 +667,8 @@ class _TypeSectionState extends State<_TypeSection> {
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.type.color;
+    final color = stageTypeColor(widget.type.color, context);
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return ExpansionTile(
       initiallyExpanded: true,
       onExpansionChanged: (v) => setState(() => _expanded = v),
@@ -692,10 +709,7 @@ class _TypeSectionState extends State<_TypeSection> {
               ),
             ),
           const SizedBox(width: 4),
-          Icon(
-            _expanded ? Icons.expand_less : Icons.expand_more,
-            color: Colors.black45,
-          ),
+          Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: muted),
         ],
       ),
       children: [
@@ -719,9 +733,12 @@ class _TypeSectionState extends State<_TypeSection> {
                 onDelete: () => widget.onDelete(widget.playlists[i]),
                 dragHandle: ReorderableDragStartListener(
                   index: i,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(Icons.drag_handle, color: Colors.black26),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      Icons.drag_handle,
+                      color: muted.withValues(alpha: 0.5),
+                    ),
                   ),
                 ),
               ),

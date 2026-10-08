@@ -1,3 +1,4 @@
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/data/provider/backup_profile_provider.dart';
 import 'package:djsports/data/provider/cloud_backup_provider.dart';
 import 'package:djsports/data/provider/device_name_provider.dart';
@@ -16,8 +17,22 @@ import 'package:intl/intl.dart';
 
 // ignore_for_file: avoid_print
 
-class CloudBackupScreen extends HookConsumerWidget {
+/// Cloud backup in the dark stage look, like the home page and Let's
+/// Play. The theme wraps the whole page, so its dialogs are dark too.
+class CloudBackupScreen extends StatelessWidget {
   const CloudBackupScreen({super.key, this.refreshCallback});
+
+  final VoidCallback? refreshCallback;
+
+  @override
+  Widget build(BuildContext context) => Theme(
+    data: StageColors.theme(Theme.of(context)),
+    child: _CloudBackupView(refreshCallback: refreshCallback),
+  );
+}
+
+class _CloudBackupView extends HookConsumerWidget {
+  const _CloudBackupView({this.refreshCallback});
 
   final VoidCallback? refreshCallback;
 
@@ -224,11 +239,12 @@ class CloudBackupScreen extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cloud Backup'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: StageColors.background,
+        foregroundColor: StageColors.text,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: StageColors.background,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -237,7 +253,7 @@ class CloudBackupScreen extends HookConsumerWidget {
             'Shared name + 4-digit PIN used to group backups across all '
             'your devices. Every device with the same Profile and PIN '
             'sees the same backups.',
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+            style: TextStyle(color: StageColors.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 8),
           Row(
@@ -316,7 +332,7 @@ class CloudBackupScreen extends HookConsumerWidget {
           _SectionHeader(label: 'Device name'),
           const Text(
             'Used to label backups from this device.',
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+            style: TextStyle(color: StageColors.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 8),
           Row(
@@ -349,7 +365,7 @@ class CloudBackupScreen extends HookConsumerWidget {
           const Text(
             'Creates a snapshot of all playlists, tracks and '
             'timings in Firestore. Keeps the last 5 per device.',
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+            style: TextStyle(color: StageColors.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
@@ -371,7 +387,7 @@ class CloudBackupScreen extends HookConsumerWidget {
                 style: TextStyle(
                   color: statusIsError.value
                       ? Colors.red
-                      : Colors.green.shade700,
+                      : Colors.green.shade400,
                   fontSize: 13,
                 ),
               ),
@@ -399,13 +415,13 @@ class CloudBackupScreen extends HookConsumerWidget {
           const Text(
             'Full restore — replaces all local data with the backup.\n'
             'Sync (↓) — adds only playlists not already present locally.',
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+            style: TextStyle(color: StageColors.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 8),
           if (profileName.isEmpty)
             const Text(
               'Set a Profile name above to see your backups.',
-              style: TextStyle(color: Colors.black54),
+              style: TextStyle(color: StageColors.textMuted),
             )
           else
             backupsAsync.when(
@@ -425,7 +441,7 @@ class CloudBackupScreen extends HookConsumerWidget {
                 if (backups.isEmpty) {
                   return const Text(
                     'No backups yet.',
-                    style: TextStyle(color: Colors.black54),
+                    style: TextStyle(color: StageColors.textMuted),
                   );
                 }
                 return Column(

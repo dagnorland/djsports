@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
 import 'package:djsports/data/services/spotify_platform_bridge.dart';
@@ -37,8 +38,7 @@ class DJPlaylistView extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final primary = Theme.of(context).primaryColor;
-    final typeColor = _typeColor;
+    final typeColor = stageTypeColor(_typeColor, context);
 
     final networkImageUri = ref.read(hiveTrackData) != null
         ? ref.read(hiveTrackData.notifier).getFirstNetworkImageUri(trackIds)
@@ -78,16 +78,18 @@ class DJPlaylistView extends HookConsumerWidget {
             ),
           );
 
+    // Inverted, so it stands out on light and on dark (stage) cards.
+    final scheme = Theme.of(context).colorScheme;
     final trackCountBadge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: primary.withOpacity(0.1),
+        color: scheme.primary,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         '#${trackIds.length}',
         style: TextStyle(
-          color: primary,
+          color: scheme.onPrimary,
           fontWeight: FontWeight.w700,
           fontSize: 12,
         ),

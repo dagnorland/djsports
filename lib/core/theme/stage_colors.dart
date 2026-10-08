@@ -49,6 +49,29 @@ abstract final class StageColors {
       color: text,
       linearTrackColor: Colors.white24,
     ),
+    // Light outlines and text for input fields (the light theme's black
+    // borders vanish on the dark stage).
+    inputDecorationTheme: InputDecorationTheme(
+      labelStyle: const TextStyle(color: textMuted),
+      hintStyle: const TextStyle(color: Colors.white38),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.white38),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.white38),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: text, width: 2),
+      ),
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: text,
+      selectionColor: Colors.white30,
+      selectionHandleColor: text,
+    ),
     chipTheme: base.chipTheme.copyWith(
       backgroundColor: surfaceHigh,
       labelStyle: const TextStyle(color: text),
@@ -56,3 +79,10 @@ abstract final class StageColors {
     ),
   );
 }
+
+/// A playlist type colour that shows on the current background: Pre-match
+/// is black, which disappears on the dark stage – use grey there.
+Color stageTypeColor(Color typeColor, BuildContext context) =>
+    typeColor == Colors.black && Theme.of(context).brightness == Brightness.dark
+    ? Colors.grey.shade400
+    : typeColor;

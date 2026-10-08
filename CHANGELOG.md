@@ -139,6 +139,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the label on wide screens, and opens Let's Play right after the
   flash. Phones get a visible way in instead of only the ⋮ menu. Shared
   widget `lib/core/widgets/flashing_logo.dart`
+- **Home page in the dark stage look** — with playlists, the home page
+  uses the same palette as Let's Play (dark background and cards, white
+  text, type colours as the only colours) instead of light cards tinted
+  by the display colour (a red/pink sheen with "Red"). Pre-match's black
+  type colour becomes grey there (`stageTypeColor()`). The welcome screen
+  (no playlists yet) keeps its light design; the playlist edit page is
+  unchanged
+- **Track editor: bigger previous/next buttons** — round 44 px buttons
+  (were 32 px with a 22 px icon) on either side of the "3 of 12" counter,
+  easier to hit on a tablet; hidden when creating a new track
+- **Settings: Playlists and Start times moved under ⋮** — the Settings
+  screen now has three tabs (Settings, Spotify, Apple Music); the two old
+  tabs open as their own pages from the ⋮ menu at the top right, marked
+  "Legacy – will be removed"
+- **Display colour choice removed** (Settings → "Display settings") — the
+  app always uses black as its base colour; the colour picker,
+  `themeColorProvider` and the `themeColor` setting are gone. The home
+  page's "#18" track count is now an inverted badge (white on the dark
+  cards, black on light pages)
+- **Let's Play tiles fill the width** — the column count followed only
+  the window width (~200 px per column), so a wide Mac window had 7
+  columns for at most 4 playlists per section and the right half stayed
+  empty. Now every section gets as many columns as the largest section
+  needs, with tiles never narrower than ~180 px – wider tiles, more of the
+  track names visible. The missing-cover icon in the controls is light
+  grey on the dark stage
+- **Cloud Backup in the dark stage look** — same palette as the home page
+  and Let's Play, including its dialogs; destructive actions (delete,
+  "Restore") and errors stay red. The stage palette got light outlines,
+  labels and cursor for input fields (`inputDecorationTheme`), which the
+  editors can use later
 
 ### Changed
 - Playback never silently falls back to the first device in the list
