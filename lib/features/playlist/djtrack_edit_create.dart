@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:djsports/data/repo/apple_music_repository.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/provider/djtrack_provider.dart';
@@ -81,10 +82,14 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   int get _totalStartMs => editStartTime + editStartTimeMS;
 
+  /// Apple Music only on iPhone/iPad/Mac; elsewhere Spotify if possible.
+  bool get _usesAppleMusic =>
+      playsWithAppleMusic(widget.appleMusicId, widget.spotifyUri);
+
   int get _effectiveMaxMs => widget.duration > 0 ? widget.duration : 300000;
 
   void _navigateTo(int targetIndex) {
-    if (widget.appleMusicId.isNotEmpty) {
+    if (_usesAppleMusic) {
       ref.read(appleMusicRepositoryProvider).pausePlayer();
     } else {
       ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
@@ -151,7 +156,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   void _onSliderChangeEnd(double value) {
     if (autoPreview) {
-      if (widget.appleMusicId.isNotEmpty) {
+      if (_usesAppleMusic) {
         ref
             .read(appleMusicRepositoryProvider)
             .playAppleMusicIdAndJumpStart(
@@ -187,7 +192,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   }
 
   void _playPreview() {
-    if (widget.appleMusicId.isNotEmpty) {
+    if (_usesAppleMusic) {
       ref
           .read(appleMusicRepositoryProvider)
           .playAppleMusicIdAndJumpStart(widget.appleMusicId, parseStartTime());
@@ -198,7 +203,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
   }
 
   void _pausePreview() {
-    if (widget.appleMusicId.isNotEmpty) {
+    if (_usesAppleMusic) {
       ref.read(appleMusicRepositoryProvider).pausePlayer();
     } else {
       ref.read(spotifyRemoteRepositoryProvider).pausePlayer();
@@ -283,7 +288,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
             ),
           );
     }
-    if (widget.appleMusicId.isNotEmpty) {
+    if (_usesAppleMusic) {
       ref.read(appleMusicRepositoryProvider).pausePlayer();
     } else {
       ref.read(spotifyRemoteRepositoryProvider).pausePlayer();

@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:djsports/data/repo/apple_music_repository.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
@@ -66,7 +67,7 @@ class DJPlaylistTrackView extends HookConsumerWidget {
 
     void playTrack() {
       final jumpStart = track.startTime + track.startTimeMS;
-      if (track.appleMusicId.isNotEmpty) {
+      if (playsWithAppleMusic(track.appleMusicId, track.spotifyUri)) {
         ref
             .read(appleMusicRepositoryProvider)
             .playTrackAndJumpStart(

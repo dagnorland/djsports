@@ -76,6 +76,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **macOS: Set device on the djSports player** survives a restart — the
   player gets a new device ID every launch, and a stale one gave 404
   "device no longer available"; the choice now moves to the new player
+- **Android: start positions** — the seek right after play failed on slow
+  devices ("Cannot seek in song: [UNKNOWN]", 8 attempts back to back) and
+  the track started from 0. Now the seek fires the moment Spotify pushes
+  the "new track playing" event (`subscribePlayerState`; 150 ms poll as a
+  fallback, max ~3 s), with 50 ms between seek attempts and no extra
+  request before play; a failed seek no longer fails the play
+- **Android: Apple Music tracks** (e.g. from a restored backup) crashed
+  with an unhandled `MissingPluginException` – Apple Music exists on
+  iOS/macOS only. Tracks with both IDs now play via Spotify on Android;
+  Apple-Music-only tracks show "Apple Music is only available on iPhone,
+  iPad and Mac". One shared rule `playsWithAppleMusic()` is used by Let's
+  Play, the track list, the track editor and pause/resume
+- **Home: Let's Play button hidden while there are no playlists** (the
+  welcome screen is shown then)
+- **Welcome screen "backup(s) found" dialog overflow** on tablets with the
+  keyboard up (128 px) — the content scrolls
 - **Black screen when leaving Let's Play** — the back button popped the
   screen's own nested MaterialApp instead of returning home (a builder's
   `context` shadowed the screen's); all back buttons now go through one
@@ -99,6 +115,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (or the set one is gone), playback asks instead of guessing, then
   retries once on the picked device (not remembered). Used by Let's Play, the playlist track list
   and the track editor preview
+- **"Show system volume popup" setting** (Android/iOS, Settings) — off by
+  default: djSports' own volume changes (+/−, fade, mute) no longer pop up
+  the system volume slider, which covered the Let's Play sidebar on the
+  right (Hive `settings`: `showSystemVolumeUI`). On Android the hardware
+  volume buttons still show it
+- **"Show info messages" setting** (Settings) — off by default: Let's Play
+  no longer pops up info toasts ("PAUSED", "FADED", "↩ Back to start",
+  the track that started, "Reconnecting…"). Warnings and errors (a failed
+  play, "Spotify Premium required", "Failed to reconnect", "Volume
+  auto-set to 85%") always show, now coloured by type. One shared
+  `showAppToast()` in `lib/core/app_toast.dart` (Hive `settings`:
+  `showInfoToasts`)
 
 ### Changed
 - Playback never silently falls back to the first device in the list
@@ -110,6 +138,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logging back into the same account
 - Added the `user-read-email` scope so the account email is shown (takes
   effect after the next Spotify login)
+- **Android build for Flutter 3.47** — Gradle 8.11.1 → 8.14.3, Android
+  Gradle Plugin 8.9.1 → 8.13.0, Kotlin 2.1.0 → 2.3.20 (Flutter 3.47's
+  minimums are 8.14 / 8.11.1 / 2.2.20); `kotlinOptions` replaced by
+  `kotlin { compilerOptions }`. Flutter's migrator added
+  `android.builtInKotlin=false` / `android.newDsl=false` (AGP 9 opt-outs).
+  AGP 9 / Gradle 9 left for a separate step
+- Android: added `com.fasterxml.jackson.core:jackson-annotations` – the
+  Spotify App Remote SDK's types use Jackson annotations without shipping
+  them, so Android logged "Unable to resolve … annotation class 27/30" for
+  every player-state event
+- Debug log: **Copy** button – copies the whole log as plain text (app
+  version, OS, native state, devices, then all entries oldest first) to
+  paste into a mail or a chat
+- Debug log: every Spotify play now reads `play track "<name>" <uri> ·
+  start 1:44 · startup 1338 ms` (start position and time until the track
+  played, also for plays from 0:00)
+- `flutter_volume_controller` 1.3.4 → 2.0.2 (compileSdk 36 – AGP 8.13
+  rejected the old plugin's compileSdk 31; API unchanged)
 
 ## [4.0.0] - Release 2026-10-06
 

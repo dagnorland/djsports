@@ -1429,7 +1429,7 @@ SPEC CHECKSUMS:
   FirebaseFirestore: 1e5fafdac2b2ef1ffc24034460b7b4821a15be96
   FirebaseFirestoreInternal: df9ab608a59a4e8eefd0796ed7652f3c1a88473a
   FirebaseSharedSwift: e17c654ef1f1a616b0b33054e663ad1035c8fd40
-  flutter_volume_controller: ae08bf0838e4901f299781c3ab5056dfab0c2f74
+  flutter_volume_controller: a2df0f7bd6032155fc517fd3989617f02c2c278b
   FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8

@@ -369,57 +369,60 @@ class _DeviceNameSection extends HookConsumerWidget {
             context: context,
             builder: (ctx) => AlertDialog(
               title: Text('${backups.length} backup(s) found'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Available backups for profile "$profileName":'),
-                  const SizedBox(height: 12),
-                  ...backups.map(
-                    (b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.cloud,
-                            size: 16,
-                            color: Colors.blue.shade600,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  b.deviceName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                Text(
-                                  '${fmt.format(b.createdAt.toLocal())} · '
-                                  '${b.playlistCount} playlists · '
-                                  '${b.trackCount} tracks',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
+              // Scrolls when the keyboard leaves little room (tablets).
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Available backups for profile "$profileName":'),
+                    const SizedBox(height: 12),
+                    ...backups.map(
+                      (b) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              size: 16,
+                              color: Colors.blue.shade600,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    b.deviceName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${fmt.format(b.createdAt.toLocal())} · '
+                                    '${b.playlistCount} playlists · '
+                                    '${b.trackCount} tracks',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Open Cloud Backup to choose one to restore?',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Open Cloud Backup to choose one to restore?',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(

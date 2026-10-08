@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -13,6 +16,8 @@ class AppSettings {
   static const _keyboardShortcutsEnabledKey = 'keyboardShortcutsEnabled';
   static const _themeColorKey = 'themeColor';
   static const _fadeVolumeMsKey = 'fadeVolumeMs';
+  static const _showSystemVolumeUIKey = 'showSystemVolumeUI';
+  static const _showInfoToastsKey = 'showInfoToasts';
   // Default: Spotify green
   static const _defaultThemeColor = 0xFF1DB954;
   // Default: fade disabled (0 ms = feature off, only the regular pause shown).
@@ -57,6 +62,31 @@ class AppSettings {
   static int get fadeVolumeMs =>
       (_box.get(_fadeVolumeMsKey, defaultValue: _defaultFadeVolumeMs) as int)
           .clamp(0, fadeVolumeMaxMs);
+
+  /// Android/iOS: show the system volume popup when djSports changes the
+  /// volume (+/−, fade, mute). Off by default – it covers the Let's Play
+  /// sidebar and djSports shows the level itself.
+  static bool get showSystemVolumeUI =>
+      _box.get(_showSystemVolumeUIKey, defaultValue: false) as bool;
+
+  static Future<void> setShowSystemVolumeUI(bool value) async {
+    await _box.put(_showSystemVolumeUIKey, value);
+    await applyShowSystemVolumeUI();
+  }
+
+  /// Hands the setting to the volume plugin (no-op off Android/iOS).
+  static Future<void> applyShowSystemVolumeUI() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    await FlutterVolumeController.updateShowSystemUI(showSystemVolumeUI);
+  }
+
+  /// Show info toasts ("PAUSED", "FADED", the played track …) in Let's
+  /// Play. Off by default; warnings and errors always show.
+  static bool get showInfoToasts =>
+      _box.get(_showInfoToastsKey, defaultValue: false) as bool;
+
+  static Future<void> setShowInfoToasts(bool value) =>
+      _box.put(_showInfoToastsKey, value);
 
   static Future<void> setFadeVolumeMs(int value) =>
       _box.put(_fadeVolumeMsKey, value.clamp(0, fadeVolumeMaxMs));

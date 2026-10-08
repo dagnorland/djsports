@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:async';
 
+import 'package:djsports/core/app_toast.dart';
+import 'package:djsports/data/repo/apple_music_repository.dart';
 import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
@@ -12,7 +14,6 @@ import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:toastification/toastification.dart';
 
 enum _NoDeviceAction { cancel, openSpotify }
 
@@ -164,14 +165,16 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     return false;
   }
 
-  void _showToast(String message, {Widget? description}) {
-    toastification.show(
-      context: context,
+  void _showToast(
+    String message, {
+    Widget? description,
+    ToastLevel level = ToastLevel.info,
+  }) {
+    showAppToast(
+      context,
       title: Text(message),
       description: description,
-      autoCloseDuration: const Duration(seconds: 3),
-      style: ToastificationStyle.flat,
-      alignment: Alignment.topCenter,
+      level: level,
     );
   }
 
@@ -233,6 +236,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
       _showToast(
         'Failed to reconnect',
         description: err.isNotEmpty ? Text(err) : null,
+        level: ToastLevel.error,
       );
     }
   }
@@ -285,7 +289,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
 
   Future<String> _callService(DJTrack track) {
     final jumpStart = track.startTime + track.startTimeMS;
-    if (track.appleMusicId.isNotEmpty) {
+    if (playsWithAppleMusic(track.appleMusicId, track.spotifyUri)) {
       return ref
           .read(appleMusicRepositoryProvider)
           .playTrackAndJumpStart(
@@ -325,7 +329,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     if (!mounted) return;
 
     // Spotify-only error recovery
-    if (track.appleMusicId.isEmpty) {
+    if (!playsWithAppleMusic(track.appleMusicId, track.spotifyUri)) {
       if (isNoDeviceResult(response)) {
         // Ask where to play (never silently pick another device), then
         // retry once on the chosen device.
@@ -349,6 +353,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
         _showToast(
           'Spotify Premium required',
           description: Text(playResultMessage(response)),
+          level: ToastLevel.error,
         );
         return;
       }
@@ -403,6 +408,7 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
     _showToast(
       response,
       description: startMs > 0 ? Text('Start @ ${_formatMs(startMs)}') : null,
+      level: response.contains('[Error]') ? ToastLevel.error : ToastLevel.info,
     );
   }
 
