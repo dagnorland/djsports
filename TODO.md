@@ -35,17 +35,33 @@ Kotlin – they only apply KGP because `android.builtInKotlin=false`, which
       pause/fade, reconnect after idle
 - [ ] Then `android.builtInKotlin=true` → the KGP warning should be gone
 
-### Let's Play: a more visible back / close button
-The only way out of Let's Play is the small ⌫ (backspace) icon in the
-control column / bottom bar – easy to miss.
+### Track editor: closing / next-previous animates in a weird way
+When you save a track's start time (or step to the next/previous track),
+the screen animation looks "shuffled": the editor closes and a new one
+slides in.
 
-- [ ] Clearer "close" affordance, e.g. a labelled button ("Exit" / ✕) or a
-      bigger icon at a fixed, obvious place (top of the sidebar, end of the
-      bottom bar)
-- [ ] Works in all layouts: sidebar left/right, bottom bar, compact bar
-      (phones / low windows)
-- [ ] Keep using `_close()` in `djletsplay.dart` (pops the outer
-      Navigator – a builder `context` here gives a black screen)
+Likely cause (`lib/features/playlist/`):
+- `DJTrackEditScreen` (`djtrack_edit_create.dart`) leaves with
+  `Navigator.pop(context, (targetIndex, autoPreview))` – `_navigateTo()`
+  and save-and-next (`widget.index + 1`)
+- `handleTrackEdit()` in `djplaylist_edit_create.dart` then immediately
+  `Navigator.push`es a new editor for that index → a pop animation followed
+  by a push animation each time
+- It also reads `playlistTrackList[gotoTrackIndex]` *before* reloading the
+  list from Hive, so the next editor may open with stale track data
+
+Ideas:
+- [ ] Switch tracks inside one editor (no pop/push), e.g. a `PageView` or
+      replacing the editor state, with a short horizontal slide
+- [ ] Or `pushReplacement` with a custom/no transition instead of pop+push
+- [ ] Reload `playlistTrackList` from Hive before opening the next track
+- [ ] Plain save + close: return to the list without the extra animation,
+      and keep the list's scroll position on the edited track
+
+### ~~Let's Play: a more visible back / close button~~ ✅
+Done on `feature/letsplay-exit-button`: "EXIT" button (✕ in a ring) in
+the always-visible part of the controls; help and debug log scroll with
+the rest. Still open:
 - [ ] Optional: confirm before leaving while music is playing
 
 ## Parked ideas

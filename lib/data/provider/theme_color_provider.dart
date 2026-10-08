@@ -13,13 +13,6 @@ const List<({Color color, String name})> kThemeColors = [
   (color: Colors.red, name: 'Red'),
 ];
 
-/// [color] for filled controls with white icons, or as an accent on a
-/// light background: light display colours (Sun Yellow, Amber) are
-/// darkened so they still stand out.
-Color strongDisplayColor(Color color) => color.computeLuminance() > 0.4
-    ? Color.lerp(color, Colors.black, 0.35)!
-    : color;
-
 class ThemeColorNotifier extends Notifier<Color> {
   @override
   Color build() => AppSettings.themeColor;

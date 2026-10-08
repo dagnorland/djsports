@@ -56,8 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   secondary text), easy on the eyes in a dim arena and high-contrast in
   bright light. The only colours are the playlist type colours (Hotspot
   red, Match green, Fun Stuff blue, Pre-match grey); the display colour
-  from Settings is no longer used there (the home page's Let's Play
-  button follows it)
+  from Settings is no longer used there
 - **Let's Play tiles, Spotify-style** — cover on the left with a round
   play button in the type colour, then the track name in bold (up to two
   lines on taller tiles), artist in grey and the start time; ‹ › moved up
@@ -88,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Apple-Music-only tracks show "Apple Music is only available on iPhone,
   iPad and Mac". One shared rule `playsWithAppleMusic()` is used by Let's
   Play, the track list, the track editor and pause/resume
-- **Home: Let's Play button hidden while there are no playlists** (the
-  welcome screen is shown then)
+- **Home: Let's Play hidden while there are no playlists** (the welcome
+  screen is shown then)
 - **Welcome screen "backup(s) found" dialog overflow** on tablets with the
   keyboard up (128 px) — the content scrolls
 - **Black screen when leaving Let's Play** — the back button popped the
@@ -127,6 +126,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auto-set to 85%") always show, now coloured by type. One shared
   `showAppToast()` in `lib/core/app_toast.dart` (Hive `settings`:
   `showInfoToasts`)
+- **Let's Play: clear EXIT button that never scrolls away** — a ✕ in a
+  ring labelled "EXIT" replaces the ⌫ icon, in the fixed part of the
+  controls (bottom of the sidebar, right end of the bottom bar, and in the
+  phone bar). Help and the debug log moved into the scrollable controls;
+  before, a short portrait sidebar could hide the way out
+- **Let's Play: tap the djSports logo** for a little stage-light flash –
+  two quick blinks and a pulse, and the version number glows amber. Just
+  for fun
+- **Home: the djSports logo opens Let's Play** — the floating "Let's
+  Play!" button is gone; the logo (with the same flash) sits in the AppBar,
+  with the label on wide screens, and opens Let's Play right after the
+  flash. Phones get a visible way in instead of only the ⋮ menu. Shared
+  widget `lib/core/widgets/flashing_logo.dart`
 
 ### Changed
 - Playback never silently falls back to the first device in the list

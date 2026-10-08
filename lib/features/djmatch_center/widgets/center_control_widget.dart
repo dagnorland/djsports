@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:djsports/core/widgets/flashing_logo.dart';
 import 'package:djsports/core/app_toast.dart';
 import 'package:djsports/data/repo/last_djtrack_played_repository.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
@@ -18,7 +19,8 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
     this.onHardPause,
     this.onFadePause,
     this.fadeMs = 0,
-    required this.onBack,
+    this.onBack,
+    this.trailing = const [],
     required this.refreshCallback,
     this.axis = Axis.vertical,
     this.showNowPlaying = true,
@@ -34,7 +36,13 @@ class CenterControlWidget extends StatefulHookConsumerWidget {
 
   /// Fade duration in milliseconds — used for the tooltip / label.
   final int fadeMs;
-  final VoidCallback onBack;
+
+  /// Shows a back (⌫) button at the end when set. Let's Play leaves it out
+  /// and shows its own always-visible EXIT button instead.
+  final VoidCallback? onBack;
+
+  /// Extra buttons at the end of the scrollable part (e.g. help, log).
+  final List<Widget> trailing;
   final VoidCallback? refreshCallback;
 
   /// [Axis.vertical] for a sidebar, [Axis.horizontal] for a bottom bar.
@@ -275,27 +283,17 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
               ),
             ],
             const Gap(8),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  'assets/images/djsports/djsports_v12_round.png',
-                  width: 70,
-                  height: 70,
-                ),
-                Text(
-                  'v${packageInfo.data?.version ?? '...'}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: muted),
-                ),
-              ],
+            FlashingLogo(
+              version: 'v${packageInfo.data?.version ?? '...'}',
+              versionColor: muted,
             ),
             const Gap(8),
-            IconButton(
-              icon: Icon(Icons.backspace, color: foreground),
-              onPressed: widget.onBack,
-            ),
+            if (widget.onBack != null)
+              IconButton(
+                icon: Icon(Icons.backspace, color: foreground),
+                onPressed: widget.onBack,
+              ),
+            ...widget.trailing,
             const Gap(8),
           ],
         ),

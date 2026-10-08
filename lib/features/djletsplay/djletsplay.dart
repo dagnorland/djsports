@@ -390,33 +390,41 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                   : null,
               onFadePause: fadeMs > 0 ? () async => fadeAndPause() : null,
               fadeMs: fadeMs,
-              onBack: _close,
               refreshCallback: widget.refreshCallback,
+              // Help and log scroll with the controls …
+              trailing: [
+                IconButton(
+                  icon: Icon(
+                    Icons.help_outline,
+                    color: accent.withValues(alpha: 0.6),
+                    size: 22,
+                  ),
+                  tooltip: 'Help',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LetsPlayHelpScreen(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.bug_report,
+                    color: accent.withValues(alpha: 0.6),
+                    size: 22,
+                  ),
+                  tooltip: 'Debug log',
+                  onPressed: () => DebugLogSheet.show(context),
+                ),
+              ],
             ),
           ),
         ),
-        IconButton(
-          icon: Icon(
-            Icons.help_outline,
-            color: accent.withValues(alpha: 0.6),
-            size: 22,
-          ),
-          tooltip: 'Help',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const LetsPlayHelpScreen()),
-          ),
+        // … while EXIT stays put, never scrolled out of sight.
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: _ExitButton(onPressed: _close),
         ),
-        IconButton(
-          icon: Icon(
-            Icons.bug_report,
-            color: accent.withValues(alpha: 0.6),
-            size: 22,
-          ),
-          tooltip: 'Debug log',
-          onPressed: () => DebugLogSheet.show(context),
-        ),
-        const SizedBox(width: 8, height: 8),
       ],
     );
   }
@@ -600,7 +608,8 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                           onPressed: () => DebugLogSheet.show(context),
                         ),
                         IconButton(
-                          icon: Icon(Icons.backspace, color: accent, size: 24),
+                          icon: const _ExitButton(compact: true),
+                          tooltip: 'Exit Let\'s Play',
                           onPressed: _close,
                         ),
                       ], // close Row.children
@@ -690,6 +699,61 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Leaves Let's Play: a ✕ in a ring with "EXIT" below – unmistakable, unlike
+/// the old ⌫ icon. [compact] for the phone bar (inside an IconButton, so
+/// [onPressed] is null there).
+class _ExitButton extends StatelessWidget {
+  const _ExitButton({this.onPressed, this.compact = false});
+
+  final VoidCallback? onPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final ring = compact ? 24.0 : 32.0;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: ring,
+          height: ring,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: StageColors.text, width: 2),
+          ),
+          child: Icon(
+            Icons.close_rounded,
+            color: StageColors.text,
+            size: ring * 0.65,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'EXIT',
+          style: TextStyle(
+            color: StageColors.text,
+            fontSize: compact ? 9 : 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
+      ],
+    );
+    if (onPressed == null) return content;
+    return Tooltip(
+      message: 'Exit Let\'s Play',
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: content,
         ),
       ),
     );
