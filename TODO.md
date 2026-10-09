@@ -46,6 +46,14 @@ screenshots (4.1.0, iPad) came out as a mixed light/dark set.
       first-time welcome screen (kept light on purpose)
 - [ ] Then retake the store screenshots (iPhone, iPad, Mac)
 
+### Home on iPhone: "djsports" title cut off as "djspor…"
+On a phone the home AppBar has too many icons for the title to fit (seen
+in the 4.1.1 iPhone store screenshot `02-home.png`).
+- [ ] Fix in `lib/features/djsports/djsports_home_page.dart`, e.g. let
+      the logo stand in for the title on narrow screens
+- [ ] Then retake iPhone shot `02-home.png` and rerun
+      `./scripts/store_screenshots.sh`
+
 ### Track editor: closing / next-previous animates in a weird way
 When you save a track's start time (or step to the next/previous track),
 the screen animation looks "shuffled": the editor closes and a new one
