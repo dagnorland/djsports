@@ -25,7 +25,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
           children: [
             globalInfoBox(
               context,
-              'LETS PLAY SETTINGS',
+              "LET'S PLAY SETTINGS",
               _matchCenterSettingsSection(context),
             ),
             const Gap(20),

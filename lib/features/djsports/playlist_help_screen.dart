@@ -1,3 +1,4 @@
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:flutter/material.dart';
 
 class PlaylistHelpScreen extends StatelessWidget {
@@ -5,190 +6,196 @@ class PlaylistHelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Playlist Help',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    return Theme(
+      data: StageColors.theme(Theme.of(context)),
+      child: Scaffold(
+        backgroundColor: StageColors.background,
+        appBar: AppBar(
+          backgroundColor: StageColors.background,
+          elevation: 0,
+          title: const Text(
+            'Playlist Help',
+            style: TextStyle(
+              color: StageColors.text,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          iconTheme: const IconThemeData(color: StageColors.text),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _HelpHeader(
-                icon: Icons.queue_music,
-                iconColor: Colors.green.shade700,
-                title: 'Managing Playlists',
-                subtitle:
-                    'Set up your playlists with Spotify tracks for the event.',
-              ),
-              const SizedBox(height: 24),
-              const _HelpSection(
-                stepNumber: '1',
-                icon: Icons.add,
-                iconColor: Colors.black,
-                title: 'Add a New Playlist',
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tap the + button in the top-right of the home screen to '
-                      'create a new playlist.',
-                    ),
-                    SizedBox(height: 8),
-                    _InlineChip(icon: Icons.add, label: '+ New Playlist'),
-                    SizedBox(height: 8),
-                    Text(
-                      'Give the playlist a name that makes it easy to '
-                      'identify during the event.',
-                    ),
-                  ],
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HelpHeader(
+                  icon: Icons.queue_music,
+                  iconColor: Colors.green.shade700,
+                  title: 'Managing Playlists',
+                  subtitle:
+                      'Set up your playlists with Spotify tracks for the event.',
                 ),
-              ),
-              const SizedBox(height: 16),
-              _HelpSection(
-                stepNumber: '2',
-                icon: Icons.label,
-                iconColor: Colors.purple,
-                title: 'Set the Playlist Type',
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Choose the type that fits when this playlist will be '
-                      'played:',
-                    ),
-                    const SizedBox(height: 10),
-                    _TypeRow(
-                      color: Colors.red,
-                      label: 'Hotspot',
-                      description: 'High-energy moments',
-                    ),
-                    _TypeRow(
-                      color: Colors.green.shade700,
-                      label: 'Match',
-                      description: 'During gameplay',
-                    ),
-                    _TypeRow(
-                      color: Colors.blue,
-                      label: 'Fun Stuff',
-                      description: 'Entertainment breaks',
-                    ),
-                    _TypeRow(
-                      color: Colors.black,
-                      label: 'Pre-Match',
-                      description: 'Pre-game atmosphere',
-                    ),
-                  ],
+                const SizedBox(height: 24),
+                const _HelpSection(
+                  stepNumber: '1',
+                  icon: Icons.add,
+                  iconColor: Color(0xFF616161),
+                  title: 'Add a New Playlist',
+                  body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tap the + button in the top-right of the home screen to '
+                        'create a new playlist.',
+                      ),
+                      SizedBox(height: 8),
+                      _InlineChip(icon: Icons.add, label: 'New Playlist'),
+                      SizedBox(height: 8),
+                      Text(
+                        'Give the playlist a name that makes it easy to '
+                        'identify during the event.',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const _HelpSection(
-                stepNumber: '3',
-                icon: Icons.link,
-                iconColor: Colors.teal,
-                title: 'Paste the Spotify URI',
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Open Spotify and find the playlist you want to use. '
-                      'Copy its URI:',
-                    ),
-                    SizedBox(height: 8),
-                    _StepItem(
-                      text:
-                          'In Spotify: tap ··· on a playlist → Share → Copy '
-                          'Spotify URI',
-                    ),
-                    _StepItem(
-                      text: 'The URI looks like: spotify:playlist:37i9dQZF…',
-                    ),
-                    _StepItem(
-                      text:
-                          'Paste it into the Spotify URI field in the '
-                          'playlist editor.',
-                    ),
-                    SizedBox(height: 8),
-                    _InlineChip(
-                      icon: Icons.content_paste,
-                      label: 'Spotify URI field',
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                _HelpSection(
+                  stepNumber: '2',
+                  icon: Icons.label,
+                  iconColor: Colors.purple,
+                  title: 'Set the Playlist Type',
+                  body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Choose the type that fits when this playlist will be '
+                        'played:',
+                      ),
+                      const SizedBox(height: 10),
+                      _TypeRow(
+                        color: Colors.red,
+                        label: 'Hotspot',
+                        description: 'High-energy moments',
+                      ),
+                      _TypeRow(
+                        color: Colors.green.shade700,
+                        label: 'Match',
+                        description: 'During gameplay',
+                      ),
+                      _TypeRow(
+                        color: Colors.blue,
+                        label: 'Fun Stuff',
+                        description: 'Entertainment breaks',
+                      ),
+                      _TypeRow(
+                        color: Color(0xFFBDBDBD),
+                        label: 'Pre-Match',
+                        description: 'Pre-game atmosphere',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const _HelpSection(
-                stepNumber: '4',
-                icon: Icons.sync,
-                iconColor: Colors.green,
-                title: 'Sync Tracks from Spotify',
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'After pasting the URI, tap the Sync button to import '
-                      'all tracks from that Spotify playlist.',
-                    ),
-                    SizedBox(height: 8),
-                    _InlineChip(icon: Icons.sync, label: 'Sync'),
-                    SizedBox(height: 8),
-                    Text(
-                      'The app will fetch the tracks and add them to your '
-                      'playlist. This requires a Spotify connection.',
-                    ),
-                    SizedBox(height: 8),
-                    _StepItem(
-                      text:
-                          'You can re-sync later to pick up new tracks '
-                          'added to the Spotify playlist.',
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                const _HelpSection(
+                  stepNumber: '3',
+                  icon: Icons.link,
+                  iconColor: Colors.teal,
+                  title: 'Paste the Spotify URI',
+                  body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Open Spotify and find the playlist you want to use. '
+                        'Copy its URI:',
+                      ),
+                      SizedBox(height: 8),
+                      _StepItem(
+                        text:
+                            'In Spotify: tap ··· on a playlist → Share → Copy '
+                            'Spotify URI',
+                      ),
+                      _StepItem(
+                        text: 'The URI looks like: spotify:playlist:37i9dQZF…',
+                      ),
+                      _StepItem(
+                        text:
+                            'Paste it into the Spotify URI field in the '
+                            'playlist editor.',
+                      ),
+                      SizedBox(height: 8),
+                      _InlineChip(
+                        icon: Icons.content_paste,
+                        label: 'Spotify URI field',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const _HelpSection(
-                stepNumber: '5',
-                icon: Icons.timer,
-                iconColor: Colors.orange,
-                title: 'Edit Track Start Times',
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Each track can have a custom start time so playback '
-                      'begins at the best moment of the song.',
-                    ),
-                    SizedBox(height: 8),
-                    _StepItem(
-                      text:
-                          'Tap a track in the playlist to open the track '
-                          'editor.',
-                    ),
-                    _StepItem(
-                      text:
-                          'Use the start time slider to set minutes and '
-                          'seconds.',
-                    ),
-                    _StepItem(
-                      text:
-                          'Save the track — the start time will be used '
-                          'every time that track plays.',
-                    ),
-                    SizedBox(height: 8),
-                    _InlineChip(icon: Icons.access_time, label: 'Start time'),
-                  ],
+                const SizedBox(height: 16),
+                const _HelpSection(
+                  stepNumber: '4',
+                  icon: Icons.sync,
+                  iconColor: Colors.green,
+                  title: 'Sync Tracks from Spotify',
+                  body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'After pasting the URI, tap the Sync button to import '
+                        'all tracks from that Spotify playlist.',
+                      ),
+                      SizedBox(height: 8),
+                      _InlineChip(icon: Icons.sync, label: 'Sync'),
+                      SizedBox(height: 8),
+                      Text(
+                        'The app will fetch the tracks and add them to your '
+                        'playlist. This requires a Spotify connection.',
+                      ),
+                      SizedBox(height: 8),
+                      _StepItem(
+                        text:
+                            'You can re-sync later to pick up new tracks '
+                            'added to the Spotify playlist.',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 16),
+                const _HelpSection(
+                  stepNumber: '5',
+                  icon: Icons.timer,
+                  iconColor: Colors.orange,
+                  title: 'Edit Track Start Times',
+                  body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Each track can have a custom start time so playback '
+                        'begins at the best moment of the song.',
+                      ),
+                      SizedBox(height: 8),
+                      _StepItem(
+                        text:
+                            'Tap a track in the playlist to open the track '
+                            'editor.',
+                      ),
+                      _StepItem(
+                        text:
+                            'Use the start time slider to set minutes and '
+                            'seconds.',
+                      ),
+                      _StepItem(
+                        text:
+                            'Save the track — the start time will be used '
+                            'every time that track plays.',
+                      ),
+                      SizedBox(height: 8),
+                      _InlineChip(icon: Icons.access_time, label: 'Start time'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
@@ -233,13 +240,13 @@ class _HelpHeader extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: StageColors.text,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 13, color: StageColors.textMuted),
               ),
             ],
           ),
@@ -269,9 +276,9 @@ class _HelpSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: StageColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: StageColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +321,7 @@ class _HelpSection extends StatelessWidget {
           DefaultTextStyle(
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade800,
+              color: StageColors.textMuted,
               height: 1.5,
             ),
             child: body,
@@ -355,7 +362,7 @@ class _TypeRow extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             '— $description',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 13, color: StageColors.textMuted),
           ),
         ],
       ),
@@ -381,7 +388,7 @@ class _StepItem extends StatelessWidget {
               width: 5,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey.shade500,
+                color: StageColors.textMuted,
                 shape: BoxShape.circle,
               ),
             ),
@@ -405,12 +412,12 @@ class _InlineChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StageColors.surfaceHigh,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: StageColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
+            color: StageColors.surfaceHigh,
             blurRadius: 2,
             offset: const Offset(0, 1),
           ),
@@ -419,13 +426,13 @@ class _InlineChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade700),
+          Icon(icon, size: 14, color: StageColors.textMuted),
           const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade700,
+              color: StageColors.textMuted,
               fontWeight: FontWeight.w500,
             ),
           ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:djsports/data/models/spotify_device.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
@@ -54,7 +55,20 @@ void showSpotifyOutputSheet(BuildContext context) {
   );
 }
 
-String get _localLabel => Platform.isMacOS ? 'This Mac' : 'This iPhone';
+String get _localLabel {
+  if (Platform.isMacOS) return 'This Mac';
+  if (Platform.isIOS) return _isTablet ? 'This iPad' : 'This iPhone';
+  return 'This device';
+}
+
+/// iOS has no "am I an iPad" API in Flutter without a plugin; a shortest
+/// logical side of 600+ is the standard tablet threshold.
+bool get _isTablet {
+  final view = PlatformDispatcher.instance.implicitView;
+  if (view == null) return false;
+  final logical = view.physicalSize / view.devicePixelRatio;
+  return logical.shortestSide >= 600;
+}
 
 // ── Status chip ───────────────────────────────────────────────────────────
 

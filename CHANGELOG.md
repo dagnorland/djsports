@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.1] - Unreleased
+
+### Changed
+- **Dark stage look everywhere** — playlist editor, track editor, settings
+  (incl. Spotify / Apple Music tabs and the legacy pages) and both help
+  screens now use the same dark palette as home and Let's Play
+  (`StageColors.theme`). The new `StageTheme` wraps pushed routes so their
+  dialogs are dark too
+- **Track editor on wide screens** (iPad, Mac) — shows the current track's
+  album art leftmost in the name/album/artist box, plus tappable
+  previous / next track cards (cover, name, artist, start time)
+
+### Fixed
+- Spotify output sheet / AppBar chip said "This iPhone" on iPad and
+  Android — now "This iPad" / "This device"
+- Let's Play: long track titles no longer break inside a word
+  ("Insomni / a"); the font shrinks a little or the title ends in "…"
+- Track editor subtitle showed the track name instead of the playlist name
+- Stepping to the next/previous track in the editor could open it with
+  stale data (the list is now reloaded first)
+- Playlist help: "+ + New Playlist" chip; Settings: "LET'S PLAY SETTINGS"
+
 ## [4.1.0] - Release 2026-10-08
 
 ### Added

@@ -48,6 +48,11 @@ One build covers both (`TARGETED_DEVICE_FAMILY = "1,2"`).
 - [ ] Wait for the build to finish processing, then select it
 - [ ] "What's New in This Version"
 - [ ] Screenshots if the UI changed: iPhone 6.9″ and iPad 13″
+      Take them on real devices (Spotify needs it), drop into
+      `screenshots/raw/{iphone,ipad,macos,android}/`, run
+      `./scripts/store_screenshots.sh` → `screenshots/out/` has every
+      store size (App Store + Google Play). Shot list: see
+      [Store screenshots](#store-screenshots)
 - [ ] Optional: TestFlight check on iPhone and iPad first
 - [ ] Add for Review → Submit
 
@@ -74,6 +79,28 @@ One build covers both (`TARGETED_DEVICE_FAMILY = "1,2"`).
 - [ ] GitHub release: `gh release create vX.Y.Z --notes-from-tag`
       (or paste the changelog section)
 - [ ] Watch Play Console and App Store Connect for review results
+
+## Store screenshots
+
+Same set on every device (iPhone, iPad, Mac, Android). The script orders
+them by filename, so name the raw files with the number first, e.g.
+`screenshots/raw/ipad/01-letsplay.png`.
+
+| # | File | Screen | What to show |
+|---|------|--------|--------------|
+| 1 | `01-letsplay.png` | Let's Play | All four playlist types filled, controls visible |
+| 2 | `02-home.png` | Home | Playlist cards with cover art, type filter chips |
+| 3 | `03-edit-playlist.png` | Edit playlist | A playlist with tracks, several with start times |
+| 4 | `04-edit-track.png` | Edit track | Start-time slider set, cover in the details box + previous/next cards (wide screens) |
+| 5 | `05-help.png` | Help | Playlist help, top of the page |
+| 6 | `06-spotify-output.png` | Spotify output (optional) | Account + device picker – demo account only |
+
+Before shooting:
+- Dark look on all screens (4.1.1+), status bar tidy (full battery or
+  not charging)
+- No real personal account data (email, user ID) on screen
+- Don't use the Settings screen – it shows "built-in developer credentials
+  (limited to 5 authorized users)", which invites review questions
 
 ## Troubleshooting
 

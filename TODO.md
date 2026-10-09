@@ -35,6 +35,17 @@ Kotlin – they only apply KGP because `android.builtInKotlin=false`, which
       pause/fade, reconnect after idle
 - [ ] Then `android.builtInKotlin=true` → the KGP warning should be gone
 
+### Dark stage look for the rest of the app
+Home and Let's Play are dark (`lib/core/theme/stage_colors.dart`); playlist
+edit, track editor, settings and help are still light/white. Store
+screenshots (4.1.0, iPad) came out as a mixed light/dark set.
+- [x] Playlist edit + track editor in the dark stage look (4.1.1)
+- [x] Settings (incl. the pink section headers) and help screens (4.1.1)
+- [ ] Check on device: dialogs, Spotify/Apple Music search screens
+      (`showSearch` uses its own delegate theme – probably still light),
+      first-time welcome screen (kept light on purpose)
+- [ ] Then retake the store screenshots (iPhone, iPad, Mac)
+
 ### Track editor: closing / next-previous animates in a weird way
 When you save a track's start time (or step to the next/previous track),
 the screen animation looks "shuffled": the editor closes and a new one
@@ -56,7 +67,7 @@ Ideas:
 - [ ] Switch tracks inside one editor (no pop/push), e.g. a `PageView` or
       replacing the editor state, with a short horizontal slide
 - [ ] Or `pushReplacement` with a custom/no transition instead of pop+push
-- [ ] Reload `playlistTrackList` from Hive before opening the next track
+- [x] Reload `playlistTrackList` from Hive before opening the next track
 - [ ] Plain save + close: return to the list without the extra animation,
       and keep the list's scroll position on the edited track
 
@@ -72,8 +83,6 @@ the rest. Still open:
       colour, info messages, system volume popup) so a restore on a new
       device sets everything up; old backups without them must still work
 - [ ] Fade on by default for new installs (e.g. 1500 ms; Android ≥ 750 ms)
-- [ ] Rest of the app (home, playlists, settings) in the dark stage look
-      (`lib/core/theme/stage_colors.dart`) like Let's Play
 - [ ] Editing screens (playlist edit, cloud backup, Track Time) through
       `showAppToast()` so "Show info messages" applies there too
 - [ ] Remove the legacy Settings pages "Playlists" and "Start times"

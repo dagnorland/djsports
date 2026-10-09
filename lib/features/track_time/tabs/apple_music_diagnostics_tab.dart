@@ -96,9 +96,9 @@ class _AppleMusicDiagnosticsTabState
             _isSubscribed ? 'true' : 'false',
             _isSubscribed ? Colors.green : Colors.orange,
           ),
-          _stateRow('authStatus', _authStatus, Colors.black54),
+          _stateRow('authStatus', _authStatus, Colors.white70),
           if (repo.lastError.isNotEmpty)
-            _stateRow('lastError', repo.lastError, Colors.red.shade700),
+            _stateRow('lastError', repo.lastError, Colors.redAccent),
         ],
       ),
     );
@@ -117,7 +117,7 @@ class _AppleMusicDiagnosticsTabState
               style: const TextStyle(
                 fontSize: 12,
                 fontFamily: 'monospace',
-                color: Colors.black54,
+                color: Colors.white70,
               ),
             ),
           ),

@@ -237,7 +237,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _navigateTo(Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => StageTheme(child: screen)),
+    );
   }
 
   void _handlePopupAction(String value) {
@@ -600,9 +603,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                 onEdit: (playlist) => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DJPlaylistEditScreen.fromDJPlaylist(
-                      playlist,
-                      refreshCallback: () => setState(() {}),
+                    builder: (context) => StageTheme(
+                      child: DJPlaylistEditScreen.fromDJPlaylist(
+                        playlist,
+                        refreshCallback: () => setState(() {}),
+                      ),
                     ),
                   ),
                 ),

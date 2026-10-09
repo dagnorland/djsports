@@ -5,6 +5,7 @@ import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/data/repo/spotify_remote_repository.dart';
 import 'package:djsports/features/spotify_connect/spotify_output_sheet.dart';
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -183,7 +184,7 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                 horizontal: 10,
                 vertical: 2,
               ),
-              tileColor: Colors.grey.shade50,
+              tileColor: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -201,8 +202,8 @@ class DJPlaylistTrackView extends HookConsumerWidget {
                 subtitleText,
                 style: TextStyle(
                   color: track.startTime + track.startTimeMS == 0
-                      ? playlistType.color
-                      : Colors.grey.shade600,
+                      ? stageTypeColor(playlistType.color, context)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
