@@ -1,8 +1,42 @@
 rules_version = '2';
+
+// Cloud backups for djsports (Flutter) and djsportsweb.
+// See djsportsweb/docs/FIRESTORE_SECURITY_PLAN.md.
+//
+// Backups live in profiles/{key}/backups/{id}, where
+//   key = SHA-256("djsports:v1:" + profileName.trim().toLowerCase() + "|" + pin)
+// Knowing Profile + PIN (= the key) is the access right. Profiles can't be
+// listed, so nobody can find other clubs' backups. The old top-level
+// `backups` collection is closed — run scripts/migrate-backups.mjs in
+// djsportsweb BEFORE deploying these rules.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function validKey(key) {
+      return key.matches('^[0-9a-f]{64}$');
+    }
+
+    match /profiles/{key}/backups/{backupId} {
+      allow get, list, delete: if validKey(key);
+      allow create: if validKey(key)
+        && request.resource.data.keys().hasAll(
+             ['deviceName', 'createdAt', 'version', 'playlistCount',
+              'trackCount', 'playlists', 'tracks', 'trackTimes'])
+        && !request.resource.data.keys().hasAny(['profileName', 'pin'])
+        && request.resource.data.deviceName is string
+        && request.resource.data.version is string
+        && request.resource.data.playlists is list
+        && request.resource.data.tracks is list
+        && request.resource.data.trackTimes is list
+        && request.resource.data.createdAt == request.time;
+      // Backups are snapshots — never changed after they are written.
+      allow update: if false;
+    }
+
+    // Everything else, including listing /profiles and the old `backups`
+    // collection, is closed.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

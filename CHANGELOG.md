@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - Release 2026-10-10
+
+### Security
+- **Cloud backups are now protected by Profile + PIN in the database**, not
+  only in the app. Backups move from the shared `backups` collection to
+  `profiles/{key}/backups`, where `key` is a SHA-256 of the profile name
+  (trimmed, lower-case) and the PIN — the same function as djsportsweb
+  (`profileStorageKey`). The PIN is no longer stored. New
+  `firestore.rules`: only that path is readable/deletable, backups can't be
+  changed after they are written, profiles can't be listed and everything
+  else (incl. the old collection) is closed
+- Until the migration has run, backups still in the old collection are
+  listed read-only (marked "old") so they can be restored
+- Rollout: release this app and djsportsweb, run
+  `npm run migrate-backups -- --copy --delete-old` in djsportsweb, then
+  `firebase deploy --only firestore:rules` here
+- The backup list stays empty until both Profile and a 4-digit PIN are
+  set (before, a profile without PIN read the "empty" profile)
+- Privacy policy: backups no longer contain the profile name
+
 ## [4.1.2] - Release 2026-10-09
 
 ### Added

@@ -43,7 +43,6 @@ class _CloudBackupView extends HookConsumerWidget {
     final spotifyUserId = useValueListenable(repo.spotifyUserIdNotifier);
     final displayName = repo.spotifyUserDisplayName;
 
-    final profileName = ref.watch(backupProfileProvider);
     final profileCtrl = useTextEditingController(
       text: ref.read(backupProfileProvider),
     );
@@ -131,6 +130,7 @@ class _CloudBackupView extends HookConsumerWidget {
       try {
         final service = ref.read(cloudBackupServiceProvider);
         final (playlists, tracks) = await service.restoreBackup(
+          profileName: profileKey,
           backupId: backup.id,
           playlistRepo: DJPlaylistRepo(),
           trackRepo: DJTrackRepo(),
@@ -182,6 +182,7 @@ class _CloudBackupView extends HookConsumerWidget {
       try {
         final service = ref.read(cloudBackupServiceProvider);
         await service.syncBackup(
+          profileName: profileKey,
           backupId: backup.id,
           playlistRepo: DJPlaylistRepo(),
           trackRepo: DJTrackRepo(),
@@ -226,7 +227,9 @@ class _CloudBackupView extends HookConsumerWidget {
 
       clearStatus();
       try {
-        await ref.read(cloudBackupServiceProvider).deleteBackup(backup.id);
+        await ref
+            .read(cloudBackupServiceProvider)
+            .deleteBackup(profileKey, backup.id);
         ref.invalidate(cloudBackupListProvider(profileKey));
         showStatus('Backup deleted.');
       } catch (e) {
@@ -418,9 +421,10 @@ class _CloudBackupView extends HookConsumerWidget {
             style: TextStyle(color: StageColors.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 8),
-          if (profileName.isEmpty)
+          if (profileKey.isEmpty)
             const Text(
-              'Set a Profile name above to see your backups.',
+              'Set a Profile name and 4-digit PIN above to see your '
+              'backups.',
               style: TextStyle(color: StageColors.textMuted),
             )
           else
@@ -506,7 +510,11 @@ class _BackupTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        title: Text(backup.deviceName),
+        title: Text(
+          CloudBackupService.isLegacy(backup.id)
+              ? '${backup.deviceName}  (old – moved by the migration)'
+              : backup.deviceName,
+        ),
         subtitle: Text(
           '$dateStr\n'
           '${backup.playlistCount} playlists · '
