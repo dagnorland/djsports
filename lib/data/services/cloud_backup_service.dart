@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:djsports/data/models/djplaylist_model.dart';
 import 'package:djsports/data/models/djtrack_model.dart';
 import 'package:djsports/data/models/track_time_model.dart';
@@ -34,12 +36,47 @@ class CloudBackupSummary {
   final String version;
 }
 
+/// Where a profile's backups live — the same function as djsportsweb
+/// (lib/backup/profile-key.ts):
+///
+///   SHA-256("djsports:v1:" + name.trim().toLowerCase() + "|" + pin)
+///
+/// Backups are stored in `profiles/{key}/backups/{id}`. Knowing Profile +
+/// PIN is the only way to find them; the PIN is never stored.
+/// [profileKey] is the combined "Name|1234" from [backupProfileKeyProvider].
+String profileStorageKey(String profileKey) {
+  final i = profileKey.lastIndexOf('|');
+  final name = i < 0 ? profileKey : profileKey.substring(0, i);
+  final pin = i < 0 ? '' : profileKey.substring(i + 1);
+  final input = 'djsports:v1:${name.trim().toLowerCase()}|$pin';
+  return sha256.convert(utf8.encode(input)).toString();
+}
+
 class CloudBackupService {
-  static const _collection = 'backups';
+  /// Old shared collection (before the security update). Read-only
+  /// fallback until the migration script has moved everything.
+  static const _legacyCollection = 'backups';
+  static const legacyPrefix = 'legacy:';
   static const _version = '1.0';
   static const _maxBackupsPerDevice = 5;
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  CollectionReference<Map<String, dynamic>> _backups(String profileName) => _db
+      .collection('profiles')
+      .doc(profileStorageKey(profileName))
+      .collection('backups');
+
+  static bool isLegacy(String backupId) => backupId.startsWith(legacyPrefix);
+
+  DocumentReference<Map<String, dynamic>> _backupRef(
+    String profileName,
+    String backupId,
+  ) => isLegacy(backupId)
+      ? _db
+            .collection(_legacyCollection)
+            .doc(backupId.substring(legacyPrefix.length))
+      : _backups(profileName).doc(backupId);
 
   Future<void> createBackup({
     required String profileName,
@@ -60,7 +97,7 @@ class CloudBackupService {
     // Enforce 5-backup limit per device (delete oldest when at limit).
     final existing = await listBackupsForProfile(profileName);
     final deviceBackups = existing
-        .where((b) => b.deviceName == deviceName)
+        .where((b) => b.deviceName == deviceName && !isLegacy(b.id))
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt)); // oldest first
     if (deviceBackups.length >= _maxBackupsPerDevice) {
@@ -68,12 +105,12 @@ class CloudBackupService {
         deviceBackups.length - (_maxBackupsPerDevice - 1),
       );
       for (final old in toDelete) {
-        await deleteBackup(old.id);
+        await deleteBackup(profileName, old.id);
       }
     }
 
-    await _db.collection(_collection).add({
-      'profileName': profileName,
+    // Profile name and PIN are not stored in the document.
+    await _backups(profileName).add({
       'spotifyUserId': spotifyUserId,
       'spotifyDisplayName': spotifyDisplayName,
       'deviceName': deviceName,
@@ -91,26 +128,19 @@ class CloudBackupService {
   Future<List<CloudBackupSummary>> listBackupsForProfile(
     String profileName,
   ) async {
-    // No orderBy in Firestore to avoid requiring a composite index.
-    // Sort by createdAt descending in Dart after fetching.
-    final snapshot = await _db
-        .collection(_collection)
-        .where('profileName', isEqualTo: profileName)
-        .get()
-        .timeout(
-          const Duration(seconds: 15),
-          onTimeout: () => throw TimeoutException(
-            'Firestore timed out — check that Firestore Database is enabled '
-            'in your Firebase project and security rules allow read/write.',
-          ),
-        );
+    TimeoutException timeout() => TimeoutException(
+      'Firestore timed out — check that Firestore Database is enabled '
+      'in your Firebase project and security rules allow read/write.',
+    );
+    final snapshot = await _backups(
+      profileName,
+    ).get().timeout(const Duration(seconds: 15), onTimeout: () => throw timeout());
 
-    final results = snapshot.docs.map((doc) {
-      final data = doc.data();
+    CloudBackupSummary summary(String id, Map<String, dynamic> data) {
       final ts = data['createdAt'] as Timestamp?;
       return CloudBackupSummary(
-        id: doc.id,
-        profileName: data['profileName'] as String? ?? '',
+        id: id,
+        profileName: profileName,
         spotifyUserId: data['spotifyUserId'] as String? ?? '',
         spotifyDisplayName: data['spotifyDisplayName'] as String? ?? '',
         deviceName: data['deviceName'] as String? ?? '',
@@ -120,7 +150,24 @@ class CloudBackupService {
         tracksWithStartTime: data['tracksWithStartTime'] as int? ?? 0,
         version: data['version'] as String? ?? '',
       );
-    }).toList();
+    }
+
+    final results = [
+      for (final doc in snapshot.docs) summary(doc.id, doc.data()),
+    ];
+    // Not-yet-migrated backups in the old collection (read-only). Fails
+    // once the new rules lock it — expected.
+    try {
+      final legacy = await _db
+          .collection(_legacyCollection)
+          .where('profileName', isEqualTo: profileName)
+          .get()
+          .timeout(const Duration(seconds: 15));
+      results.addAll([
+        for (final doc in legacy.docs)
+          summary('$legacyPrefix${doc.id}', doc.data()),
+      ]);
+    } catch (_) {}
 
     results.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return results;
@@ -128,6 +175,7 @@ class CloudBackupService {
 
   /// Returns `(playlistsRestored, tracksRestored)`.
   Future<(int, int)> restoreBackup({
+    required String profileName,
     required String backupId,
     required DJPlaylistRepo playlistRepo,
     required DJTrackRepo trackRepo,
@@ -135,7 +183,7 @@ class CloudBackupService {
     void Function(String message)? onProgress,
   }) async {
     onProgress?.call('Fetching backup from cloud…');
-    final doc = await _db.collection(_collection).doc(backupId).get();
+    final doc = await _backupRef(profileName, backupId).get();
     if (!doc.exists) throw Exception('Backup not found: $backupId');
 
     final data = doc.data()!;
@@ -220,6 +268,7 @@ class CloudBackupService {
   /// don't already exist locally (matched by non-empty spotifyUri or Apple
   /// Music playlist ID). Existing playlists are left untouched.
   Future<void> syncBackup({
+    required String profileName,
     required String backupId,
     required DJPlaylistRepo playlistRepo,
     required DJTrackRepo trackRepo,
@@ -227,7 +276,7 @@ class CloudBackupService {
     void Function(String message)? onProgress,
   }) async {
     onProgress?.call('Fetching backup from cloud…');
-    final doc = await _db.collection(_collection).doc(backupId).get();
+    final doc = await _backupRef(profileName, backupId).get();
     if (!doc.exists) throw Exception('Backup not found: $backupId');
 
     final data = doc.data()!;
@@ -318,6 +367,6 @@ class CloudBackupService {
     );
   }
 
-  Future<void> deleteBackup(String backupId) =>
-      _db.collection(_collection).doc(backupId).delete();
+  Future<void> deleteBackup(String profileName, String backupId) =>
+      _backupRef(profileName, backupId).delete();
 }

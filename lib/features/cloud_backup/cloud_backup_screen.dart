@@ -131,6 +131,7 @@ class _CloudBackupView extends HookConsumerWidget {
       try {
         final service = ref.read(cloudBackupServiceProvider);
         final (playlists, tracks) = await service.restoreBackup(
+          profileName: profileKey,
           backupId: backup.id,
           playlistRepo: DJPlaylistRepo(),
           trackRepo: DJTrackRepo(),
@@ -182,6 +183,7 @@ class _CloudBackupView extends HookConsumerWidget {
       try {
         final service = ref.read(cloudBackupServiceProvider);
         await service.syncBackup(
+          profileName: profileKey,
           backupId: backup.id,
           playlistRepo: DJPlaylistRepo(),
           trackRepo: DJTrackRepo(),
@@ -226,7 +228,9 @@ class _CloudBackupView extends HookConsumerWidget {
 
       clearStatus();
       try {
-        await ref.read(cloudBackupServiceProvider).deleteBackup(backup.id);
+        await ref
+            .read(cloudBackupServiceProvider)
+            .deleteBackup(profileKey, backup.id);
         ref.invalidate(cloudBackupListProvider(profileKey));
         showStatus('Backup deleted.');
       } catch (e) {
@@ -506,7 +510,11 @@ class _BackupTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        title: Text(backup.deviceName),
+        title: Text(
+          CloudBackupService.isLegacy(backup.id)
+              ? '${backup.deviceName}  (old – moved by the migration)'
+              : backup.deviceName,
+        ),
         subtitle: Text(
           '$dateStr\n'
           '${backup.playlistCount} playlists · '
