@@ -184,7 +184,7 @@ app's content.
 
 | Data type | Collected | Shared | Optional | Purpose |
 |-----------|-----------|--------|----------|---------|
-| Personal info → Name (profile name, Spotify display name) | Yes | No | Yes | App functionality |
+| Personal info → Name (Spotify display name) | Yes | No | Yes | App functionality |
 | Personal info → User IDs (Spotify user ID) | Yes | No | Yes | App functionality |
 | App activity → Other user-generated content (playlists, tracks, start times) | Yes | No | Yes | App functionality |
 
@@ -301,12 +301,9 @@ notes → countries → rollout.
 
 ## Before the public launch (recommended)
 
-- **Firestore rules are open** (`firestore.rules`: `allow read, write: if
-  true`). Anyone with the project ID can read or delete every backup,
-  including Spotify user IDs and display names. Fix before the public
-  launch: Firebase Anonymous Auth in the app + rules that only allow a
-  user their own backups. Not a blocker for the closed test, but the
-  Data safety form says the data is handled responsibly
+- **Firestore rules**: locked rules and the Profile + PIN key path are
+  in 4.2.0 (`firestore.rules`, see CHANGELOG). Deploy them after both apps
+  are released and the djsportsweb migration has run
 - **Spotify user limit**: Play users can't all use the built-in Client
   ID (5 users). The BYO Client ID flow covers it; consider making it the
   first thing a new Android user sees, and mention it in the store

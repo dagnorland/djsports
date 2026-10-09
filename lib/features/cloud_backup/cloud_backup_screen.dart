@@ -43,7 +43,6 @@ class _CloudBackupView extends HookConsumerWidget {
     final spotifyUserId = useValueListenable(repo.spotifyUserIdNotifier);
     final displayName = repo.spotifyUserDisplayName;
 
-    final profileName = ref.watch(backupProfileProvider);
     final profileCtrl = useTextEditingController(
       text: ref.read(backupProfileProvider),
     );
@@ -422,9 +421,10 @@ class _CloudBackupView extends HookConsumerWidget {
             style: TextStyle(color: StageColors.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 8),
-          if (profileName.isEmpty)
+          if (profileKey.isEmpty)
             const Text(
-              'Set a Profile name above to see your backups.',
+              'Set a Profile name and 4-digit PIN above to see your '
+              'backups.',
               style: TextStyle(color: StageColors.textMuted),
             )
           else
