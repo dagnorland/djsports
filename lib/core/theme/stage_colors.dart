@@ -25,8 +25,31 @@ abstract final class StageColors {
   /// Theme for screens and widgets on the stage palette.
   static ThemeData theme(ThemeData base) => base.copyWith(
     brightness: Brightness.dark,
+    // Many screens colour text, borders and buttons with primaryColor
+    // (black in the light theme) – white here.
+    primaryColor: text,
+    hintColor: textMuted,
     scaffoldBackgroundColor: background,
     canvasColor: background,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: background,
+      foregroundColor: text,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+    ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: text,
+      unselectedLabelColor: textMuted,
+      indicatorColor: text,
+      dividerColor: divider,
+    ),
+    listTileTheme: const ListTileThemeData(iconColor: text, textColor: text),
+    dialogTheme: const DialogThemeData(backgroundColor: surface),
+    popupMenuTheme: const PopupMenuThemeData(color: surfaceHigh),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+    ),
     colorScheme: const ColorScheme.dark(
       primary: text,
       secondary: text,
@@ -78,6 +101,18 @@ abstract final class StageColors {
       side: BorderSide.none,
     ),
   );
+}
+
+/// Puts [child] on the stage theme. Wrap a pushed route with it (not just
+/// the screen's body) so the screen's dialogs and sheets are dark too.
+class StageTheme extends StatelessWidget {
+  const StageTheme({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      Theme(data: StageColors.theme(Theme.of(context)), child: child);
 }
 
 /// A playlist type colour that shows on the current background: Pre-match

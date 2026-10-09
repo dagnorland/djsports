@@ -628,10 +628,9 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          track.name,
+                                        _TrackTitle(
+                                          text: track.name,
                                           maxLines: h >= 80 ? 2 : 1,
-                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontWeight: FontWeight.w700,
                                             fontSize: titleSize,
@@ -677,6 +676,64 @@ class _LetsPlayPlaylistCardState extends ConsumerState<LetsPlayPlaylistCard>
       ),
     );
   }
+}
+
+/// Track title that never breaks inside a word. On two lines, a word wider
+/// than the card ("Insomnia", "Greatest") would wrap mid-word; shrink the
+/// font a little so it fits, or fall back to one line with "…".
+class _TrackTitle extends StatelessWidget {
+  const _TrackTitle({
+    required this.text,
+    required this.maxLines,
+    required this.style,
+  });
+
+  final String text;
+  final int maxLines;
+  final TextStyle style;
+
+  static const _minScale = 0.8;
+
+  @override
+  Widget build(BuildContext context) {
+    if (maxLines == 1) return _text(style, 1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final longest = _widestWord(context);
+        if (longest <= constraints.maxWidth) return _text(style, maxLines);
+        final scale = constraints.maxWidth / longest;
+        if (scale < _minScale) return _text(style, 1);
+        final size = style.fontSize! * scale;
+        return _text(style.copyWith(fontSize: size.floorToDouble()), maxLines);
+      },
+    );
+  }
+
+  double _widestWord(BuildContext context) {
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    // Text merges with the inherited style (font family, letter spacing).
+    final effective = DefaultTextStyle.of(context).style.merge(style);
+    var widest = 0.0;
+    for (final word in text.split(RegExp(r'\s+'))) {
+      painter
+        ..text = TextSpan(text: word, style: effective)
+        ..layout();
+      widest = math.max(widest, painter.width);
+    }
+    painter.dispose();
+    return widest;
+  }
+
+  Widget _text(TextStyle style, int lines) => Text(
+        text,
+        maxLines: lines,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
 }
 
 class _NavButton extends StatelessWidget {

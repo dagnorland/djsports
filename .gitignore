@@ -95,3 +95,6 @@ scripts/*
 custom_lint.log
 android/.kotlin/sessions/*
 **/.DS_Store
+
+# Store screenshots (raw + generated)
+screenshots/

@@ -35,6 +35,8 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
     required this.trackCount,
     this.appleMusicId = '',
     this.initialAutoPreview = false,
+    this.previousTrack,
+    this.nextTrack,
   });
   final String playlistName;
   final String playlistId;
@@ -55,6 +57,10 @@ class DJTrackEditScreen extends StatefulHookConsumerWidget {
   final int trackCount;
   final String appleMusicId;
   final bool initialAutoPreview;
+
+  /// Neighbours in the playlist, shown as step cards on wide screens.
+  final DJTrack? previousTrack;
+  final DJTrack? nextTrack;
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _EditScreenState();
@@ -323,24 +329,38 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
 
   Widget _buildMetadataSection(bool isWide) {
     if (isWide) {
+      final fields = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _field(nameController, 'Name', 'Track name')),
+              const Gap(16),
+              Expanded(child: _field(albumController, 'Album', 'Album name')),
+              const Gap(16),
+              Expanded(
+                child: _field(artistController, 'Artist', 'Artist name'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _field(spotifyUriController, 'Spotify URI', 'spotify:track:...'),
+        ],
+      );
+      // Cover leftmost, as tall as the two rows of fields – only when the
+      // three fields still get a decent width next to it.
+      final showCover =
+          widget.id.isNotEmpty && MediaQuery.of(context).size.width >= 800;
       return _sectionContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _field(nameController, 'Name', 'Track name')),
-                const Gap(16),
-                Expanded(child: _field(albumController, 'Album', 'Album name')),
-                const Gap(16),
-                Expanded(
-                  child: _field(artistController, 'Artist', 'Artist name'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _field(spotifyUriController, 'Spotify URI', 'spotify:track:...'),
+            if (showCover) ...[
+              _CurrentCover(uri: widget.networkImageUri, size: 128),
+              const Gap(16),
+            ],
+            Expanded(child: fields),
           ],
         ),
       );
@@ -530,14 +550,12 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
     final titleText = widget.id.isEmpty ? 'Create Track' : widget.name;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
+          icon: const Icon(Icons.arrow_back, size: 26),
         ),
         actions: [
           // Big, easy-to-hit steps between tracks, the position in between.
@@ -604,7 +622,7 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
               Text(
                 playlistName,
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color: Theme.of(context).hintColor,
                   fontSize: 12,
                   fontWeight: FontWeight.normal,
                 ),
@@ -647,10 +665,194 @@ class _EditScreenState extends ConsumerState<DJTrackEditScreen> {
                   ],
                 ],
               ),
+
+              // ── Previous / next track ─────────────────────────────
+              if (isWide && widget.id.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: widget.previousTrack == null
+                          ? const SizedBox.shrink()
+                          : _NeighbourTrackCard(
+                              track: widget.previousTrack!,
+                              label: 'Previous',
+                              position: widget.index,
+                              isNext: false,
+                              color: primary,
+                              onTap: () => _navigateTo(widget.index - 1),
+                            ),
+                    ),
+                    const Gap(16),
+                    Expanded(
+                      child: widget.nextTrack == null
+                          ? const SizedBox.shrink()
+                          : _NeighbourTrackCard(
+                              track: widget.nextTrack!,
+                              label: 'Next',
+                              position: widget.index + 2,
+                              isNext: true,
+                              color: primary,
+                              onTap: () => _navigateTo(widget.index + 1),
+                            ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tappable preview of the previous or next track: cover, name, artist and
+/// start time. Fills the empty lower half of the editor on a tablet/Mac.
+class _NeighbourTrackCard extends StatelessWidget {
+  const _NeighbourTrackCard({
+    required this.track,
+    required this.label,
+    required this.position,
+    required this.isNext,
+    required this.color,
+    required this.onTap,
+  });
+
+  final DJTrack track;
+  final String label;
+  final int position;
+  final bool isNext;
+  final Color color;
+  final VoidCallback onTap;
+
+  String get _start {
+    final ms = track.startTime + track.startTimeMS;
+    if (ms <= 0) return 'No start time';
+    final d = Duration(milliseconds: ms);
+    final mm = d.inMinutes.toString().padLeft(2, '0');
+    final ss = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return 'Start $mm:$ss';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final arrow = Icon(
+      isNext ? Icons.chevron_right_rounded : Icons.chevron_left_rounded,
+      color: color,
+      size: 32,
+    );
+    final cover = ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox.square(
+        dimension: 72,
+        child: track.networkImageUri.isNotEmpty
+            ? Image.network(
+                track.networkImageUri,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _CoverPlaceholder(),
+              )
+            : const _CoverPlaceholder(),
+      ),
+    );
+    final details = Expanded(
+      child: Column(
+        crossAxisAlignment: isNext
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label · $position',
+            style: text.labelMedium?.copyWith(
+              color: color.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            track.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: isNext ? TextAlign.end : TextAlign.start,
+            style: text.titleMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            track.artist,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.bodyMedium?.copyWith(
+              color: color.withValues(alpha: 0.7),
+            ),
+          ),
+          Text(
+            _start,
+            style: text.bodySmall?.copyWith(
+              color: color.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Material(
+      color: color.withValues(alpha: 0.04),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: color.withValues(alpha: 0.15)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: isNext
+                ? [details, const Gap(12), cover, arrow]
+                : [arrow, cover, const Gap(12), details],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The current track's album art, leftmost in the name/album/artist box.
+class _CurrentCover extends StatelessWidget {
+  const _CurrentCover({required this.uri, required this.size});
+
+  final String uri;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+      clipBehavior: Clip.antiAlias,
+      child: uri.isNotEmpty
+          ? Image.network(
+              uri,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const _CoverPlaceholder(),
+            )
+          : const _CoverPlaceholder(),
+    );
+  }
+}
+
+class _CoverPlaceholder extends StatelessWidget {
+  const _CoverPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Icon(Icons.music_note, color: Theme.of(context).hintColor),
     );
   }
 }
@@ -681,8 +883,8 @@ class _TrackStepButton extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor: color.withValues(alpha: 0.12),
         foregroundColor: color,
-        disabledBackgroundColor: Colors.black.withValues(alpha: 0.04),
-        disabledForegroundColor: Colors.black26,
+        disabledBackgroundColor: color.withValues(alpha: 0.04),
+        disabledForegroundColor: color.withValues(alpha: 0.26),
       ),
       onPressed: onPressed,
     );

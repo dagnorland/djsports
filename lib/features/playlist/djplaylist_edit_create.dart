@@ -20,6 +20,7 @@ import 'package:djsports/data/provider/apple_music_provider.dart';
 import 'package:djsports/features/spotify_search/spotify_search_delegate.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -369,9 +370,11 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => DJPlaylistEditScreen.fromDJPlaylist(
-            playlist,
-            refreshCallback: () => setState(() {}),
+          builder: (context) => StageTheme(
+            child: DJPlaylistEditScreen.fromDJPlaylist(
+              playlist,
+              refreshCallback: () => setState(() {}),
+            ),
           ),
         ),
       );
@@ -730,7 +733,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
               child: Text(
                 t.name.toUpperCase(),
                 style: TextStyle(
-                  color: t.color,
+                  color: stageTypeColor(t.color, context),
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
@@ -968,21 +971,23 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => DJPlaylistEditScreen(
-            name: nameController.text,
-            type: selectedType.name,
-            spotifyUri: spotifyUriController.text,
-            appleMusicPlaylistId: _appleMusicIdFromInput(
-              appleMusicPlaylistIdController.text,
+          builder: (context) => StageTheme(
+            child: DJPlaylistEditScreen(
+              name: nameController.text,
+              type: selectedType.name,
+              spotifyUri: spotifyUriController.text,
+              appleMusicPlaylistId: _appleMusicIdFromInput(
+                appleMusicPlaylistIdController.text,
+              ),
+              trackIds: const [],
+              isNew: false,
+              id: newPlayListId,
+              status: 'Playlist created',
+              shuffleAtEnd: widget.shuffleAtEnd,
+              autoNext: widget.autoNext,
+              currentTrack: widget.currentTrack,
+              position: int.parse(positionController.text),
             ),
-            trackIds: const [],
-            isNew: false,
-            id: newPlayListId,
-            status: 'Playlist created',
-            shuffleAtEnd: widget.shuffleAtEnd,
-            autoNext: widget.autoNext,
-            currentTrack: widget.currentTrack,
-            position: int.parse(positionController.text),
           ),
         ),
       );
@@ -1005,7 +1010,7 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
             Navigator.of(context).pop();
             widget.refreshCallback ?? widget.refreshCallback;
           },
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
+          icon: const Icon(Icons.arrow_back, size: 26),
         ),
         title: Text(
           widget.id.isEmpty ? 'Create Playlist' : 'Edit Playlist',
@@ -1302,31 +1307,45 @@ class _EditScreenState extends ConsumerState<DJPlaylistEditScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => DJTrackEditScreen(
-          playlistId: widget.id,
-          playlistName: track.name,
-          isNew: false,
-          id: track.id,
-          name: track.name,
-          album: track.album,
-          artist: track.artist,
-          startTime: track.startTime,
-          startTimeMS: track.startTimeMS,
-          duration: track.duration,
-          playCount: track.playCount,
-          spotifyUri: track.spotifyUri,
-          mp3Uri: track.mp3Uri,
-          networkImageUri: track.networkImageUri,
-          shortcut: track.shortcut,
-          appleMusicId: track.appleMusicId,
-          index: index,
-          trackCount: playlistTrackList.length,
-          initialAutoPreview: autoPreview,
+        builder: (context) => StageTheme(
+          child: DJTrackEditScreen(
+            playlistId: widget.id,
+            playlistName: nameController.text,
+            isNew: false,
+            id: track.id,
+            name: track.name,
+            album: track.album,
+            artist: track.artist,
+            startTime: track.startTime,
+            startTimeMS: track.startTimeMS,
+            duration: track.duration,
+            playCount: track.playCount,
+            spotifyUri: track.spotifyUri,
+            mp3Uri: track.mp3Uri,
+            networkImageUri: track.networkImageUri,
+            shortcut: track.shortcut,
+            appleMusicId: track.appleMusicId,
+            index: index,
+            trackCount: playlistTrackList.length,
+            initialAutoPreview: autoPreview,
+            previousTrack: index > 0 ? playlistTrackList[index - 1] : null,
+            nextTrack: index < playlistTrackList.length - 1
+                ? playlistTrackList[index + 1]
+                : null,
+          ),
         ),
       ),
     ).then((value) {
       if (value != null && value is (int, bool)) {
         final (gotoTrackIndex, nextAutoPreview) = value;
+        // Reload first: the editor may just have saved a start time.
+        playlistTrackList = ref
+            .read(hiveTrackData.notifier)
+            .getDJTracks(trackIds);
+        if (gotoTrackIndex >= playlistTrackList.length) {
+          setState(() {});
+          return;
+        }
         final track = playlistTrackList[gotoTrackIndex];
         handleTrackEdit(
           id: widget.id,

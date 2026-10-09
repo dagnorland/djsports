@@ -68,15 +68,15 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
                 label: 'Display name',
                 value: displayName.isEmpty ? '— not connected' : displayName,
                 valueColor: displayName.isEmpty
-                    ? Colors.black38
-                    : Colors.black87,
+                    ? Colors.white38
+                    : Colors.white,
               ),
               const SizedBox(height: 8),
               _accountRow(
                 icon: Icons.badge_outlined,
                 label: 'User ID',
                 value: userId.isEmpty ? '— not connected' : userId,
-                valueColor: userId.isEmpty ? Colors.black38 : Colors.black54,
+                valueColor: userId.isEmpty ? Colors.white38 : Colors.white70,
               ),
               const SizedBox(height: 8),
               _accountRow(
@@ -86,8 +86,8 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
                     ? '—'
                     : repo.spotifyUserProduct,
                 valueColor: session.account?.premiumOrUnknown ?? true
-                    ? Colors.black54
-                    : Colors.red.shade700,
+                    ? Colors.white70
+                    : Colors.redAccent,
               ),
               const SizedBox(height: 8),
               _accountRow(
@@ -126,13 +126,13 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.black45),
+        Icon(icon, size: 18, color: Colors.white54),
         const SizedBox(width: 10),
         SizedBox(
           width: 100,
           child: Text(
             label,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
+            style: const TextStyle(fontSize: 13, color: Colors.white70),
           ),
         ),
         Expanded(
@@ -312,8 +312,8 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade400),
+        color: Colors.white10,
+        border: Border.all(color: Colors.white24),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -339,10 +339,10 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
           _diagStateRow(
             'isPlaying',
             repo.isPlaying ? 'true' : 'false',
-            Colors.black54,
+            Colors.white70,
           ),
-          _diagStateRow('token', tokenInfo, Colors.black54),
-          _diagStateRow('lastConnection', connTime, Colors.black54),
+          _diagStateRow('token', tokenInfo, Colors.white70),
+          _diagStateRow('lastConnection', connTime, Colors.white70),
           if (repo.spotifyUserDisplayName.isNotEmpty ||
               repo.spotifyUserEmail.isNotEmpty)
             _diagStateRow(
@@ -377,7 +377,7 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
             _diagStateRow(
               'lastError',
               repo.lastConnectError,
-              Colors.red.shade700,
+              Colors.redAccent,
             ),
         ],
       ),
@@ -397,7 +397,7 @@ class _SpotifyDiagnosticsTabState extends ConsumerState<SpotifyDiagnosticsTab> {
               style: const TextStyle(
                 fontSize: 12,
                 fontFamily: 'monospace',
-                color: Colors.black54,
+                color: Colors.white70,
               ),
             ),
           ),

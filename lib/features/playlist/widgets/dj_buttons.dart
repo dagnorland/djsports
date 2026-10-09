@@ -19,7 +19,12 @@ class DJPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = this.color ?? Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final color = this.color ?? theme.primaryColor;
+    // White fill on the dark stage needs dark text.
+    final textColor = this.color == null && theme.brightness == Brightness.dark
+        ? theme.scaffoldBackgroundColor
+        : Colors.white;
     return CupertinoButton(
       color: color,
       borderRadius: BorderRadius.circular(20),
@@ -27,8 +32,8 @@ class DJPrimaryButton extends StatelessWidget {
       onPressed: onPressed,
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: textColor,
           fontWeight: FontWeight.bold,
           fontSize: 15,
         ),

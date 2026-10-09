@@ -1,3 +1,4 @@
+import 'package:djsports/core/theme/stage_colors.dart';
 import 'package:djsports/features/track_time/tabs/apple_music_diagnostics_tab.dart';
 import 'package:djsports/features/track_time/tabs/playlists_tab.dart';
 import 'package:djsports/features/track_time/tabs/settings_tab.dart';
@@ -13,29 +14,35 @@ class TrackTimeCenterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dark stage look like home and Let's Play.
+    return Theme(
+      data: StageColors.theme(Theme.of(context)),
+      child: _settingsTabs(context),
+    );
+  }
+
+  Widget _settingsTabs(BuildContext context) {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         appBar: AppBar(
           centerTitle: false,
-          elevation: 0,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           leading: IconButton(
             onPressed: () {
               Navigator.of(context).pop();
               refreshCallback?.call();
             },
-            icon: const Icon(Icons.arrow_back, color: Colors.black, size: 30),
+            icon: const Icon(Icons.arrow_back, size: 30),
           ),
           title: const Text(
             'Settings',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           // Playlists and Start times are old and on their way out: tucked
           // away under ⋮ instead of taking a tab each.
           actions: [
             PopupMenuButton<_LegacyPage>(
-              icon: const Icon(Icons.more_vert, color: Colors.black),
+              icon: const Icon(Icons.more_vert),
               tooltip: 'More',
               onSelected: (page) => Navigator.push(
                 context,
@@ -93,16 +100,15 @@ class _LegacyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: Text('${page.title} (legacy)'),
+    return Theme(
+      data: StageColors.theme(Theme.of(context)),
+      child: Scaffold(
+        appBar: AppBar(title: Text('${page.title} (legacy)')),
+        body: switch (page) {
+          _LegacyPage.playlists => const PlaylistsTab(),
+          _LegacyPage.startTimes => const StartTimeTab(),
+        },
       ),
-      body: switch (page) {
-        _LegacyPage.playlists => const PlaylistsTab(),
-        _LegacyPage.startTimes => const StartTimeTab(),
-      },
     );
   }
 }

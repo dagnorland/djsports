@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 Widget globalInfoBox(BuildContext context, String label, Widget child) {
   return Container(
     decoration: BoxDecoration(
-      border: Border.all(color: Theme.of(context).primaryColor, width: 1),
+      border: Border.all(color: Theme.of(context).dividerColor, width: 1),
       borderRadius: BorderRadius.circular(8),
     ),
     child: Column(
@@ -13,7 +13,7 @@ Widget globalInfoBox(BuildContext context, String label, Widget child) {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Theme.of(context).canvasColor,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(8),
               topRight: Radius.circular(8),
@@ -42,7 +42,12 @@ Widget sectionButton(
   required VoidCallback onPressed,
   bool destructive = false,
 }) {
-  final color = destructive ? Colors.red : Theme.of(context).primaryColor;
+  final theme = Theme.of(context);
+  final color = destructive ? Colors.red : theme.primaryColor;
+  // White fill on the dark stage needs dark text and icon.
+  final onColor = !destructive && theme.brightness == Brightness.dark
+      ? theme.scaffoldBackgroundColor
+      : Colors.white;
   return SizedBox(
     width: double.infinity,
     child: ElevatedButton.icon(
@@ -53,11 +58,11 @@ Widget sectionButton(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       onPressed: disabled ? null : onPressed,
-      icon: Icon(icon, color: Colors.white, size: 20),
+      icon: Icon(icon, color: onColor, size: 20),
       label: Text(
         label,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Colors.white,
+          color: onColor,
           fontWeight: FontWeight.w600,
         ),
       ),
