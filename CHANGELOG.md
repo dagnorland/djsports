@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.2] - Release 2026-10-09
+
 ### Added
 - **Google Play prep** — `GOOGLE_PLAY.md` (first-launch plan, store
   listing, Play Console answers), privacy policy at `docs/privacy.html`

@@ -96,7 +96,7 @@ Play Console asks for a short video showing it.
 
 ### 3. Before creating the release
 
-- [ ] Merge `feature/google-play` to `main`; bump `pubspec.yaml` to
+- [x] Merge `feature/google-play` to `main`; bump `pubspec.yaml` to
       `4.1.2+31` (versionCode must be new for every upload)
 - [ ] Turn on GitHub Pages: repo → Settings → Pages → *Deploy from a
       branch* → `main` / `/docs`. Check that
