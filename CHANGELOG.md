@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.2] - Release 2026-10-09
+
+### Added
+- **Google Play prep** — `GOOGLE_PLAY.md` (first-launch plan, store
+  listing, Play Console answers), privacy policy at `docs/privacy.html`
+  (GitHub Pages), 512×512 Play icon
+- **Android: Spotify setup help** — Settings → Spotify shows the package
+  name and the SHA-1 of the installed app's signing certificate (read at
+  runtime via `MainActivity`), needed in the Spotify Developer Dashboard
+
+### Changed
+- Android launcher activity is now `MainActivity` (still an
+  `AudioServiceActivity`); app label `djSports`
+- Removed the unused `USE_BIOMETRIC` permission
+
 ## [4.1.1] - Release 2026-10-09
 
 ### Changed

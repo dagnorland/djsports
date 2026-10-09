@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:djsports/data/provider/spotify_credentials_provider.dart';
 import 'package:djsports/data/repo/app_settings_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -247,7 +251,38 @@ class _SetupInstructions extends StatelessWidget {
             style: style,
           ),
         ),
+        if (Platform.isAndroid) const _AndroidAppDetails(),
       ],
+    );
+  }
+}
+
+/// Android only: Spotify's Android SDK also checks the package name and
+/// the SHA-1 of the signing certificate, so show both for copy/paste.
+class _AndroidAppDetails extends HookWidget {
+  const _AndroidAppDetails();
+
+  static const _channel = MethodChannel('com.djsports/app_signature');
+  static const _packageName = 'com.dagnorland.djsports';
+
+  @override
+  Widget build(BuildContext context) {
+    final sha1Future = useMemoized(
+      () => _channel.invokeMethod<String>('getSigningSha1'),
+    );
+    final sha1 = useFuture(sha1Future);
+    final style = Theme.of(context).textTheme.bodySmall;
+    final sha1Text = sha1.hasError
+        ? 'not available (${sha1.error})'
+        : sha1.data ?? '…';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SelectableText(
+        'Android: in the app settings, also add this Android package\n'
+        'Package name: $_packageName\n'
+        'SHA-1 fingerprint: $sha1Text',
+        style: style,
+      ),
     );
   }
 }

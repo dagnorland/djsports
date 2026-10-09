@@ -25,6 +25,9 @@ Build everything from `main` at the tag.
 
 ## 2. Android — Google Play
 
+First launch (app setup, closed test, Play Console forms): see
+[GOOGLE_PLAY.md](GOOGLE_PLAY.md).
+
 - [ ] `fvm flutter build appbundle --release`
       → `build/app/outputs/bundle/release/app-release.aab`
       (signed with `android/key.properties`)
