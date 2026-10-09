@@ -93,12 +93,24 @@ them by filename, so name the raw files with the number first, e.g.
 | 3 | `03-edit-playlist.png` | Edit playlist | A playlist with tracks, several with start times |
 | 4 | `04-edit-track.png` | Edit track | Start-time slider set, cover in the details box + previous/next cards (wide screens) |
 | 5 | `05-help.png` | Help | Playlist help, top of the page |
-| 6 | `06-spotify-output.png` | Spotify output (optional) | Account + device picker – demo account only |
+
+Mac window at exactly 2880×1800 (Retina = 1440×900 pt), with the app
+running (needs Accessibility permission for the terminal once):
+
+```bash
+osascript -e 'tell application "System Events" to tell process "djsports" to set size of window 1 to {1440, 900}'
+osascript -e 'tell application "System Events" to tell process "djsports" to get size of window 1'
+```
+
+Then Cmd+Shift+4 → Space → Option-click the window (no shadow).
+Shoot on a Retina screen (the MacBook's own display): on a non-Retina
+monitor the capture is only 1440×900 and gets upscaled 2× (soft text).
 
 Before shooting:
 - Dark look on all screens (4.1.1+), status bar tidy (full battery or
   not charging)
-- No real personal account data (email, user ID) on screen
+- No account data on screen (email, user ID, device names) – that's why
+  the Spotify output sheet isn't in the set
 - Don't use the Settings screen – it shows "built-in developer credentials
   (limited to 5 authorized users)", which invites review questions
 
