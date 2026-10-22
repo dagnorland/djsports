@@ -57,6 +57,7 @@ void showSpotifyOutputSheet(BuildContext context) {
 
 String get _localLabel {
   if (Platform.isMacOS) return 'This Mac';
+  if (Platform.isWindows) return 'This PC';
   if (Platform.isIOS) return _isTablet ? 'This iPad' : 'This iPhone';
   return 'This device';
 }
@@ -243,7 +244,8 @@ class _SpotifyOutputSheetState extends ConsumerState<SpotifyOutputSheet> {
                   onSetDevice: (device) =>
                       _run(() => repo.setPreferredDevice(device)),
                 ),
-                if (Platform.isMacOS) const _MacPlaybackChoice(),
+                if (SpotifyRemoteRepository.hasWebPlayer)
+                  const _MacPlaybackChoice(),
                 if (_error.isNotEmpty) _ErrorText(_error),
                 const SizedBox(height: 12),
                 _SheetActions(
@@ -458,7 +460,10 @@ class _DeviceRows extends ConsumerWidget {
             icon: _iconFor(device),
             title: device.name,
             subtitle: [
-              if (device.id == webPlayerId) 'WebKit playback (recommended)',
+              if (device.id == webPlayerId)
+                Platform.isWindows
+                    ? 'djSports player (recommended)'
+                    : 'WebKit playback (recommended)',
               if (session.isLocal(device)) _localLabel,
               device.type,
               if (device.isActive) 'active',
@@ -514,7 +519,7 @@ IconData _iconFor(SpotifyDevice device) {
 class _MacPlaybackChoice extends ConsumerWidget {
   const _MacPlaybackChoice();
 
-  static const _options = [
+  static const _macOptions = [
     (
       MacPlayback.webPlayer,
       'djSports player (recommended)',
@@ -534,6 +539,25 @@ class _MacPlaybackChoice extends ConsumerWidget {
     ),
   ];
 
+  static const _windowsOptions = [
+    (
+      MacPlayback.webPlayer,
+      'djSports player (recommended)',
+      'Plays in a small djSports window (Chrome or Edge) – keep it open. '
+          'No Spotify app needed, exact start positions, and fades only '
+          'lower the music.',
+    ),
+    (
+      MacPlayback.webApi,
+      'Spotify app (Web API)',
+      'Sends commands through Spotify. Spotify for Windows may accept '
+          'them without playing.',
+    ),
+  ];
+
+  static List<(MacPlayback, String, String)> get _options =>
+      Platform.isWindows ? _windowsOptions : _macOptions;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(spotifyRemoteRepositoryProvider);
@@ -548,7 +572,7 @@ class _MacPlaybackChoice extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'This Mac plays through',
+              '$_localLabel plays through',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             for (final (value, title, subtitle) in _options)

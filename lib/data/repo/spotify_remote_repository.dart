@@ -34,8 +34,15 @@ enum MacPlayback {
   /// Value stored in the Hive `settings` box.
   final String key;
 
-  static MacPlayback fromKey(String key) =>
-      values.firstWhere((m) => m.key == key, orElse: () => webPlayer);
+  /// Windows has no AppleScript: a stored `appleScript` falls back to the
+  /// djSports player there.
+  static MacPlayback fromKey(String key) {
+    final mode = values.firstWhere(
+      (m) => m.key == key,
+      orElse: () => webPlayer,
+    );
+    return Platform.isWindows && mode == appleScript ? webPlayer : mode;
+  }
 }
 
 class SpotifyRemoteRepository {
@@ -462,9 +469,10 @@ class SpotifyRemoteRepository {
               '"$requestedName" can be controlled from the Spotify app on '
               'your phone.';
         } else if (!itemMatches) {
-          issue = Platform.isMacOS && _isThisMac(deviceId)
-              ? 'Spotify for Mac accepted the command but did not start '
-                    'the track. Choose "djSports player" under "This Mac '
+          issue = hasWebPlayer && _isThisMac(deviceId)
+              ? 'The Spotify app here accepted the command but did not '
+                    'start the track. Choose "djSports player" under '
+                    '"${Platform.isWindows ? 'This PC' : 'This Mac'} '
                     'plays through" in Spotify output.'
               : 'Spotify on "$deviceName" accepted the command but did '
                     'not start the track. Try restarting the Spotify app '
@@ -634,9 +642,13 @@ class SpotifyRemoteRepository {
   StreamSubscription<Map<String, dynamic>>? _webPlayerEvents;
   bool _webPlayerStarted = false;
 
-  /// macOS: starts the in-app web player once per app run, after login.
+  /// Whether this platform has djSports' own player (macOS: in-app
+  /// WebKit, Windows: a Chrome/Edge app window).
+  static bool get hasWebPlayer => Platform.isMacOS || Platform.isWindows;
+
+  /// Starts djSports' own player once per app run, after login.
   Future<void> _startWebPlayer() async {
-    if (!Platform.isMacOS || _webPlayerStarted) return;
+    if (!hasWebPlayer || _webPlayerStarted) return;
     _webPlayerStarted = true;
     _webPlayerEvents ??= _bridge.webPlayerEvents().listen(_onWebPlayerEvent);
     try {
@@ -733,8 +745,9 @@ class SpotifyRemoteRepository {
   );
 
   /// Now-playing panel height in logical pixels (Hive `settings`).
-  late final ValueNotifier<double> webPlayerPanelHeightNotifier =
-      ValueNotifier(double.tryParse(_settingsGet(_panelHeightKey)) ?? 96);
+  late final ValueNotifier<double> webPlayerPanelHeightNotifier = ValueNotifier(
+    double.tryParse(_settingsGet(_panelHeightKey)) ?? 96,
+  );
 
   Future<void> setWebPlayerPanelVisible(bool visible) async {
     webPlayerPanelVisibleNotifier.value = visible;
@@ -768,7 +781,7 @@ class SpotifyRemoteRepository {
   /// djSports' own player.
   bool _useWebPlayer(String? deviceId) {
     final id = webPlayerDeviceIdNotifier.value;
-    if (!Platform.isMacOS || id == null) return false;
+    if (!hasWebPlayer || id == null) return false;
     if (deviceId != null) return deviceId == id;
     if (macPlaybackNotifier.value != MacPlayback.webPlayer) return false;
     final current = session.activeDevice ?? session.lastPlayedDevice;
@@ -1182,7 +1195,7 @@ class SpotifyRemoteRepository {
     //     gives a ~10–15 step ramp for a 1.5 s fade, which the Mac mixer
     //     interpolates audibly).
     final int stepMs;
-    if (Platform.isMacOS) {
+    if (Platform.isMacOS || Platform.isWindows) {
       stepMs = (totalMs ~/ 10).clamp(100, 200);
     } else {
       stepMs = (totalMs ~/ 20).clamp(20, 60);

@@ -151,10 +151,10 @@ class _SpotifyCredentialsSettingsState
           const Gap(12),
           TextField(
             controller: _redirectUrlController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Redirect URI',
               hintText: AppSettings.defaultSpotifyRedirectUrl,
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
             ),
           ),
           const Gap(12),
