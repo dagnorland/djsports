@@ -144,6 +144,11 @@ String _fadeHelperText(int ms) {
         '$ms ms. Adjusts both Mac volume and the active Spotify Connect '
         'device.';
   }
+  if (Platform.isWindows) {
+    return 'Tap the fade pause button in Let\'s Play to fade out over '
+        '$ms ms. Adjusts both Windows volume and the active Spotify Connect '
+        'device.';
+  }
   return 'Tap the fade pause button in Let\'s Play to fade out over '
       '$ms ms. Adjusts system volume — Spotify Connect remote devices '
       'are not affected.';

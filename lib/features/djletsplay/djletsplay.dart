@@ -574,7 +574,9 @@ class _DJLetsPlayViewPageState extends ConsumerState<DJLetsPlayViewPage> {
                               ),
                             ),
                           ),
-                        if (Platform.isIOS || Platform.isMacOS)
+                        if (Platform.isIOS ||
+                            Platform.isMacOS ||
+                            Platform.isWindows)
                           IconButton(
                             icon: const Icon(
                               Icons.open_in_new,

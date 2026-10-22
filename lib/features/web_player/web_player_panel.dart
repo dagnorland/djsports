@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:djsports/data/models/web_player_state.dart';
@@ -22,7 +21,7 @@ class WebPlayerPanelHost extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!Platform.isMacOS) return child;
+    if (!SpotifyRemoteRepository.hasWebPlayer) return child;
     final repo = ref.read(spotifyRemoteRepositoryProvider);
     return ValueListenableBuilder<WebPlayerState?>(
       valueListenable: repo.webPlayerStateNotifier,

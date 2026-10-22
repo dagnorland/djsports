@@ -84,7 +84,10 @@ class _CenterControlWidgetState extends ConsumerState<CenterControlWidget> {
               icon: Icon(Icons.play_arrow, color: foreground, size: 35),
               onPressed: widget.onResume,
             ),
-            if (Platform.isIOS || Platform.isMacOS || Platform.isAndroid) ...[
+            if (Platform.isIOS ||
+                Platform.isMacOS ||
+                Platform.isAndroid ||
+                Platform.isWindows) ...[
               const Gap(4),
               IconButton(
                 icon: const Icon(

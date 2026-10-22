@@ -144,7 +144,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     Stream<bool>? stream;
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isIOS || Platform.isMacOS || Platform.isWindows) {
       stream = SpotifyPlatformBridge().subscribeConnectionStatus();
     } else if (Platform.isAndroid) {
       stream = SpotifySdk.subscribeConnectionStatus().map((s) => s.connected);

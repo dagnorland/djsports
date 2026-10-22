@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:djsports/data/models/spotify_device.dart';
+import 'package:djsports/data/services/spotify_windows_bridge.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
@@ -13,6 +14,7 @@ abstract class SpotifyPlatformBridge {
   factory SpotifyPlatformBridge() {
     if (Platform.isIOS) return _IosBridge();
     if (Platform.isMacOS) return _MacOSBridge();
+    if (Platform.isWindows) return WindowsSpotifyBridge();
     return _AndroidBridge();
   }
 

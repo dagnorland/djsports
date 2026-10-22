@@ -93,8 +93,13 @@ class AppSettings {
   static const _spotifyClientSecretKey = 'spotifyClientSecret';
   static const _spotifyRedirectUrlKey = 'spotifyRedirectUrl';
 
+  /// Windows redirect URI: a loopback address djSports listens on during
+  /// login (a `djsports://` scheme can't reach the running app there).
+  static const windowsSpotifyRedirectUrl = 'http://127.0.0.1:43821/callback';
+
   /// Default redirect URI registered in the user's Spotify app.
-  static const defaultSpotifyRedirectUrl = 'djsports://callback';
+  static String get defaultSpotifyRedirectUrl =>
+      Platform.isWindows ? windowsSpotifyRedirectUrl : 'djsports://callback';
 
   /// User-supplied Spotify Client ID. Empty string = not set.
   static String get spotifyClientId =>
