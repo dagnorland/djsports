@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Readable text on the dark stage theme** — the Spotify output sheet's
+  "Spotify on this Mac uses another account?" warning and the "Premium"
+  badge had white text on a light background; they now use dark text.
+  The "Used for this play only…" hint in "Where should djSports play?"
+  and the "Choose example playlist…" hint in the playlist edit screen
+  were hardcoded dark and vanished on dark; they now follow the theme
+
 ## [4.2.0] - Release 2026-10-10
 
 ### Security

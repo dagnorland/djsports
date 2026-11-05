@@ -319,6 +319,7 @@ class _ProductBadge extends StatelessWidget {
     final premium = product == 'premium';
     return Chip(
       label: Text(premium ? 'Premium' : 'Premium required'),
+      labelStyle: const TextStyle(color: Colors.black87),
       backgroundColor: premium ? Colors.green.shade100 : Colors.red.shade100,
     );
   }
@@ -335,6 +336,9 @@ class _MismatchBanner extends StatelessWidget {
     return Card(
       color: Colors.orange.shade50,
       child: ListTile(
+        // Fixed light background, so fix the text dark too — otherwise the
+        // dark theme's white text is unreadable on it.
+        textColor: Colors.black87,
         leading: Icon(Icons.warning_amber, color: Colors.orange.shade800),
         title: const Text('Spotify on this Mac uses another account?'),
         subtitle: Text(
@@ -725,10 +729,10 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
                 children: [
                   if (widget.message != null) Text(widget.message!),
                   Text('Spotify account: $who'),
-                  const Text(
+                  Text(
                     'Used for this play only. To always use one device, '
                     'press "Set device" in Spotify output.',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (session.suspectsOtherAccount)
                     _MismatchBanner(session: session),
