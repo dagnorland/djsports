@@ -83,10 +83,11 @@ class PlaylistSpotifyUriExampleDropdown extends StatelessWidget {
 
     return DropdownButton<String>(
       value: null,
-      hint: const Text(
+      hint: Text(
         'Choose example playlist - if any spotify uri is empty',
         style: TextStyle(
-          color: Colors.black,
+          // Black vanished on the dark stage theme of the edit screen.
+          color: Theme.of(context).colorScheme.onSurface,
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
